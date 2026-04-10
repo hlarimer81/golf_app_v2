@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Replace the text inside the single quotes with your actual keys
-const supabaseUrl = 'https://lvwdffsibhqzgbqixfdi.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2d2RmZnNpYmhxemdicWl4ZmRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMTUwMjMsImV4cCI6MjA5MDg5MTAyM30.ETPaFp-DLuNMnx4DvXVBr8H6XkRgH3OAFtiGzwEwQmc'
+// These values come from environment variables
+// In Vercel: Settings > Environment Variables
+// Locally: create a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)

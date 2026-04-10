@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import StablefordGrid from './StablefordGrid';
 import FourBallGrid from './FourBallGrid';
+import SkinsGrid from './SkinsGrid';
 import { GOLF_COURSES, PENINSULA_NINES, combinePeninsulaNines } from './courses';
 
 // Generate a random 6-character code
@@ -20,6 +21,7 @@ function App() {
   const [matchName, setMatchName] = useState('');
   const [useHandicaps, setUseHandicaps] = useState(false);
   const [useQuota, setUseQuota] = useState(false);
+  const [useCarryover, setUseCarryover] = useState(true);
   const [gameType, setGameType] = useState('stableford');
   const [loading, setLoading] = useState(false);
   const [showScorer, setShowScorer] = useState(false);
@@ -205,7 +207,18 @@ function App() {
 
   // --- Show the correct scorer based on game type ---
   if (showScorer) {
-    const ScorerComponent = gameType === 'fourball' ? FourBallGrid : StablefordGrid;
+    let ScorerComponent;
+    let bannerColor = '#4CAF50';
+    
+    if (gameType === 'fourball') {
+      ScorerComponent = FourBallGrid;
+    } else if (gameType === 'skins') {
+      ScorerComponent = SkinsGrid;
+      bannerColor = '#FFD700';
+    } else {
+      ScorerComponent = StablefordGrid;
+    }
+    
     return (
       <div>
         {/* Match code banner */}
@@ -215,12 +228,12 @@ function App() {
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          borderBottom: '2px solid #4CAF50'
+          borderBottom: `2px solid ${bannerColor}`
         }}>
           <span style={{ color: '#888', fontSize: '12px' }}>{matchName}</span>
           <span style={{ 
-            background: '#4CAF50', 
-            color: '#fff', 
+            background: bannerColor, 
+            color: gameType === 'skins' ? '#000' : '#fff', 
             padding: '4px 12px', 
             borderRadius: '4px', 
             fontWeight: 'bold',
@@ -237,6 +250,7 @@ function App() {
           players={finalPlayers}
           useHandicaps={useHandicaps}
           useQuota={useQuota}
+          useCarryover={useCarryover}
           courseData={courseData}
         />
       </div>
@@ -246,6 +260,7 @@ function App() {
   const gameDescriptions = {
     stableford: 'Points-based scoring. Each player earns points per hole. Teams accumulate total points.',
     fourball: 'Match play. Each player plays their own ball; the best score on each team counts. Team A vs Team B.',
+    skins: 'Individual competition. Lowest score wins the hole. Ties can carry over to the next hole.',
   };
 
   const peninsulaNineNames = Object.keys(PENINSULA_NINES);
@@ -499,6 +514,7 @@ function App() {
                 {[
                   { value: 'stableford', label: '🏆 Stableford' },
                   { value: 'fourball', label: '⚔️ 4-Ball' },
+                  { value: 'skins', label: '🎰 Skins' },
                 ].map(({ value, label }) => (
                   <button
                     key={value}
@@ -596,10 +612,18 @@ function App() {
             </label>
 
             {/* --- Quota Toggle --- */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '5px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '10px' }}>
               <input type="checkbox" checked={useQuota} onChange={e => setUseQuota(e.target.checked)} />
               Enable Quota Game (Goal = 36 − Handicap)
             </label>
+
+            {/* --- Carryover Skins Toggle (only for skins game) --- */}
+            {gameType === 'skins' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '5px' }}>
+                <input type="checkbox" checked={useCarryover} onChange={e => setUseCarryover(e.target.checked)} />
+                Carryover Skins (ties carry to next hole)
+              </label>
+            )}
 
             <button type="submit" disabled={loading} style={{ width: '100%', padding: '15px', marginTop: '20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>
               {loading ? 'Creating...' : 'Create Match'}

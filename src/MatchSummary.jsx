@@ -9,7 +9,8 @@ export default function MatchSummary({
   useHandicaps, 
   useQuota, 
   courseData,
-  onBack 
+  onBack,
+  onNewMatch 
 }) {
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -112,57 +113,59 @@ export default function MatchSummary({
         </div>
       </div>
 
-      {/* Team Standings */}
-      <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
-        <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
-          Team Standings
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {sortedTeams.map((team, idx) => (
-            <div key={team.name} style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '15px',
-              background: idx === 0 ? (teamColors[team.name] || '#4CAF50') + '22' : '#252525',
-              padding: '15px',
-              borderRadius: '8px',
-              border: `2px solid ${idx === 0 ? (teamColors[team.name] || '#4CAF50') : '#333'}`
-            }}>
-              <div style={{ 
-                fontSize: '24px', 
-                fontWeight: '900', 
-                color: idx === 0 ? '#FFD700' : '#666',
-                width: '30px'
+      {/* Team Standings - only show for non-skins games */}
+      {gameType !== 'skins' && (
+        <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
+          <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            Team Standings
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {sortedTeams.map((team, idx) => (
+              <div key={team.name} style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '15px',
+                background: idx === 0 ? (teamColors[team.name] || '#4CAF50') + '22' : '#252525',
+                padding: '15px',
+                borderRadius: '8px',
+                border: `2px solid ${idx === 0 ? (teamColors[team.name] || '#4CAF50') : '#333'}`
               }}>
-                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 'bold', color: teamColors[team.name] || '#fff' }}>
-                  {team.name}
+                <div style={{ 
+                  fontSize: '24px', 
+                  fontWeight: '900', 
+                  color: idx === 0 ? '#FFD700' : '#666',
+                  width: '30px'
+                }}>
+                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
                 </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '24px', fontWeight: '900', color: teamColors[team.name] || '#4CAF50' }}>
-                  {team.points}
-                </div>
-                <div style={{ fontSize: '10px', color: '#666' }}>points</div>
-              </div>
-              {useQuota && (
-                <div style={{ textAlign: 'right', marginLeft: '10px' }}>
-                  <div style={{ 
-                    fontSize: '18px', 
-                    fontWeight: '700', 
-                    color: team.quotaResult >= 0 ? '#4CAF50' : '#ff9800' 
-                  }}>
-                    {team.quotaResult >= 0 ? '+' : ''}{team.quotaResult}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 'bold', color: teamColors[team.name] || '#fff' }}>
+                    {team.name}
                   </div>
-                  <div style={{ fontSize: '10px', color: '#666' }}>quota</div>
                 </div>
-              )}
-            </div>
-          ))}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '24px', fontWeight: '900', color: teamColors[team.name] || '#4CAF50' }}>
+                    {team.points}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#666' }}>points</div>
+                </div>
+                {useQuota && (
+                  <div style={{ textAlign: 'right', marginLeft: '10px' }}>
+                    <div style={{ 
+                      fontSize: '18px', 
+                      fontWeight: '700', 
+                      color: team.quotaResult >= 0 ? '#4CAF50' : '#ff9800' 
+                    }}>
+                      {team.quotaResult >= 0 ? '+' : ''}{team.quotaResult}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#666' }}>quota</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Individual Leaderboard */}
       <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
@@ -188,7 +191,9 @@ export default function MatchSummary({
                 </td>
                 <td style={{ padding: '12px 10px' }}>
                   <div style={{ fontWeight: 'bold' }}>{player.name}</div>
-                  <div style={{ fontSize: '11px', color: teamColors[player.team] || '#666' }}>{player.team}</div>
+                  {gameType !== 'skins' && (
+                    <div style={{ fontSize: '11px', color: teamColors[player.team] || '#666' }}>{player.team}</div>
+                  )}
                 </td>
                 <td style={{ padding: '12px 10px', textAlign: 'center', color: '#888' }}>{player.handicap}</td>
                 <td style={{ padding: '12px 10px', textAlign: 'center' }}>{player.strokes || '-'}</td>
@@ -214,22 +219,42 @@ export default function MatchSummary({
         </table>
       </div>
 
-      {/* Back button */}
-      <button 
-        onClick={onBack}
-        style={{ 
-          width: '100%', 
-          padding: '15px', 
-          backgroundColor: '#333', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '8px', 
-          fontSize: '16px',
-          cursor: 'pointer'
-        }}
-      >
-        ← Back to Scorecard
-      </button>
+      {/* Buttons */}
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button 
+          onClick={onBack}
+          style={{ 
+            flex: 1,
+            padding: '15px', 
+            backgroundColor: '#333', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '8px', 
+            fontSize: '16px',
+            cursor: 'pointer'
+          }}
+        >
+          ← Back to Scorecard
+        </button>
+        {onNewMatch && (
+          <button 
+            onClick={onNewMatch}
+            style={{ 
+              flex: 1,
+              padding: '15px', 
+              backgroundColor: '#4CAF50', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '8px', 
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            🆕 New Match
+          </button>
+        )}
+      </div>
     </div>
   );
 }

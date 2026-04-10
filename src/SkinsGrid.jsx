@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
 
-export default function SkinsGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, useCarryover, courseData }) {
+export default function SkinsGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, useCarryover, courseData, onNewMatch }) {
   const [scores, setScores] = useState({});
   const [showSummary, setShowSummary] = useState(false);
 
@@ -190,6 +190,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
         useQuota={useQuota}
         courseData={courseData}
         onBack={() => setShowSummary(false)}
+        onNewMatch={onNewMatch}
       />
     );
   }

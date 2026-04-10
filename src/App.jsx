@@ -252,6 +252,17 @@ function App() {
           useQuota={useQuota}
           useCarryover={useCarryover}
           courseData={courseData}
+          onNewMatch={() => {
+            setMatchId(null);
+            setMatchCode(null);
+            setMatchName('');
+            setShowScorer(false);
+            setFinalPlayers([]);
+            setSelectedCourse('');
+            setUseHandicaps(false);
+            setUseQuota(false);
+            setGameType('stableford');
+          }}
         />
       </div>
     );

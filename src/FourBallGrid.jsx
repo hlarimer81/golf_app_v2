@@ -187,10 +187,10 @@ export default function FourBallGrid({ matchId, players, useHandicaps, useQuota,
   const sortedTeams = [...activeTeams].sort((a, b) => standings[b].points - standings[a].points);
 
   return (
-    <div style={{ background: '#121212', color: '#e0e0e0', minHeight: '100vh', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
+    <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
 
-      {/* --- OVERALL STANDINGS --- */}
-      <div style={{ background: '#1e1e1e', padding: '15px', borderRadius: '12px', marginBottom: '15px', borderBottom: '2px solid #4CAF50' }}>
+      {/* --- OVERALL STANDINGS (STICKY) --- */}
+      <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', marginBottom: '15px', borderBottom: '2px solid #4CAF50', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>
         <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', marginBottom: '10px' }}>
           4-Ball Round Robin Standings
         </div>
@@ -219,7 +219,7 @@ export default function FourBallGrid({ matchId, players, useHandicaps, useQuota,
 
 
       {/* --- SCORING GRID (all players) --- */}
-      <div style={{ overflow: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '8px', border: '1px solid #333', background: '#1a1a1a' }}>
+      <div style={{ flexGrow: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '8px', border: '1px solid #333', background: '#1a1a1a' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 100 }}>
             <tr style={{ backgroundColor: '#252525' }}>

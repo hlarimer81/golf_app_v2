@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import StablefordGrid from './StablefordGrid';
 import FourBallGrid from './FourBallGrid';
@@ -33,6 +33,10 @@ function App() {
   // Peninsula nine selection
   const [peninsulaFront, setPeninsulaFront] = useState("Marsh");
   const [peninsulaBack, setPeninsulaBack] = useState("Lakes");
+
+  // Recent matches state
+  const [recentMatches, setRecentMatches] = useState([]);
+  const [showRecentMatches, setShowRecentMatches] = useState(false);
 
   const [players, setPlayers] = useState([
     { name: 'Ryan', team: 'Team A', group: 'Group 1', hcp: 10 },
@@ -246,6 +250,65 @@ function App() {
 
   const peninsulaNineNames = Object.keys(PENINSULA_NINES);
 
+  // Fetch recent matches
+  const fetchRecentMatches = async () => {
+    setLoading(true);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (!error && data) {
+      setRecentMatches(data);
+    }
+    setLoading(false);
+    setShowRecentMatches(true);
+  };
+
+  // Load a previous match
+  const loadMatch = async (match) => {
+    setLoading(true);
+    
+    const { data: playersData, error: playersError } = await supabase
+      .from('players')
+      .select(`
+        *,
+        teams (
+          team_name
+        )
+      `)
+      .eq('match_id', match.id);
+
+    if (playersError) {
+      alert('Error loading players: ' + playersError.message);
+      setLoading(false);
+      return;
+    }
+
+    setMatchId(match.id);
+    setMatchCode(match.match_code);
+    setMatchName(match.match_name);
+    setUseHandicaps(match.use_handicaps);
+    setUseQuota(match.use_quota || false);
+    setGameType(match.game_type || 'stableford');
+    setSelectedCourse(match.course_name || '');
+    setFinalPlayers(playersData);
+    setShowScorer(true);
+    setShowRecentMatches(false);
+    setLoading(false);
+  };
+
+  // Format date for display
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   // --- Join Match Form ---
   if (showJoinForm) {
     return (
@@ -334,9 +397,89 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-              🔗 Join Existing Match
+              🔗 Join Match
+            </button>
+            <button
+              onClick={fetchRecentMatches}
+              style={{
+                flex: 1,
+                padding: '15px',
+                backgroundColor: '#17a2b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                fontSize: '16px',
+                cursor: 'pointer'
+              }}
+            >
+              📋 Previous Matches
             </button>
           </div>
+
+          {/* Recent Matches List */}
+          {showRecentMatches && (
+            <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h4 style={{ margin: 0, color: '#333' }}>📋 Recent Matches (Last 30 Days)</h4>
+                <button 
+                  onClick={() => setShowRecentMatches(false)}
+                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#666' }}
+                >
+                  ✕
+                </button>
+              </div>
+              {recentMatches.length === 0 ? (
+                <p style={{ color: '#666', textAlign: 'center', margin: '20px 0' }}>No matches found in the last 30 days</p>
+              ) : (
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {recentMatches.map(match => (
+                    <div 
+                      key={match.id}
+                      onClick={() => loadMatch(match)}
+                      style={{ 
+                        background: '#fff', 
+                        padding: '12px', 
+                        borderRadius: '8px', 
+                        marginBottom: '8px',
+                        cursor: 'pointer',
+                        border: '1px solid #ddd',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseOver={e => e.currentTarget.style.background = '#e8f4f8'}
+                      onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 'bold', color: '#333' }}>{match.match_name}</div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          {match.course_name || 'No course'} • {match.game_type === 'fourball' ? '4-Ball' : 'Stableford'}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ 
+                          background: '#17a2b8', 
+                          color: '#fff', 
+                          padding: '2px 8px', 
+                          borderRadius: '4px', 
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          letterSpacing: '1px'
+                        }}>
+                          {match.match_code}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+                          {formatDate(match.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <form onSubmit={createMatch} style={{ background: '#f4f4f4', padding: '20px', borderRadius: '10px' }}>
             <h3>1. Create New Match</h3>

@@ -24,7 +24,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [showScorer, setShowScorer] = useState(false);
   const [finalPlayers, setFinalPlayers] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState("Ames Golf & CC");
+  const [selectedCourse, setSelectedCourse] = useState("");
 
   // Join match state
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -228,6 +228,8 @@ function App() {
         </div>
         <ScorerComponent
           matchId={matchId}
+          matchName={matchName}
+          matchCode={matchCode}
           players={finalPlayers}
           useHandicaps={useHandicaps}
           useQuota={useQuota}
@@ -383,12 +385,13 @@ function App() {
 
             {/* --- Course Selector --- */}
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '5px' }}>Select Course</label>
               <select
                 value={selectedCourse}
                 onChange={(e) => setSelectedCourse(e.target.value)}
                 style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }}
+                required
               >
+                <option value="" disabled>Select Course</option>
                 {courseOptions.map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}

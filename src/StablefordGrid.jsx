@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+import MatchSummary from './MatchSummary';
 
-export default function StablefordGrid({ matchId, players, useHandicaps, useQuota, courseData }) {
+export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData }) {
     const [scores, setScores] = useState({});
+    const [showSummary, setShowSummary] = useState(false);
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -81,6 +83,23 @@ export default function StablefordGrid({ matchId, players, useHandicaps, useQuot
     }
     return total;
   };
+
+  // Show summary screen
+  if (showSummary) {
+    return (
+      <MatchSummary
+        matchName={matchName}
+        matchCode={matchCode}
+        gameType="stableford"
+        players={players}
+        scores={scores}
+        useHandicaps={useHandicaps}
+        useQuota={useQuota}
+        courseData={courseData}
+        onBack={() => setShowSummary(false)}
+      />
+    );
+  }
 
   return (
     <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -235,6 +254,26 @@ export default function StablefordGrid({ matchId, players, useHandicaps, useQuot
           </tbody>
         </table>
       </div>
+
+      {/* --- FINISH MATCH BUTTON --- */}
+      <button
+        onClick={() => setShowSummary(true)}
+        style={{
+          flexShrink: 0,
+          marginTop: '10px',
+          padding: '15px',
+          backgroundColor: '#4CAF50',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          width: '100%'
+        }}
+      >
+        🏁 Finish Match
+      </button>
     </div>
   );
 }

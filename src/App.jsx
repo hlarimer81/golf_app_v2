@@ -512,7 +512,7 @@ function App() {
           )}
 
           <form onSubmit={createMatch} style={{ background: '#f4f4f4', padding: '20px', borderRadius: '10px' }}>
-            <h3>1. Create New Round</h3>
+            <h3>Create New Round</h3>
 
             {/* --- Game Type Selector --- */}
             <div style={{ marginBottom: '15px' }}>
@@ -618,7 +618,7 @@ function App() {
             )}
 
             <button type="submit" disabled={loading} style={{ width: '100%', padding: '15px', marginTop: '20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>
-              {loading ? 'Creating...' : 'Create Round'}
+              {loading ? 'Starting...' : 'Start Round'}
             </button>
           </form>
         </>

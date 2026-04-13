@@ -15,6 +15,35 @@ export default function MatchSummary({
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
 
+  const teamColors = {
+    'Team A': '#4CAF50',
+    'Team B': '#2196F3',
+    'Team C': '#9C27B0',
+    'Team D': '#FF5722'
+  };
+
+  // Get team name for a player
+  const getPlayerTeam = (player) => {
+    return player.teams?.team_name || player.team || 'Unknown';
+  };
+
+  // Get players by team name
+  const getTeamPlayers = (teamName) =>
+    players.filter(p => getPlayerTeam(p) === teamName);
+
+  // Get net score for a player on a hole
+  const getNetScore = (strokes, holeIndex, playerHandicap) => {
+    if (!strokes || strokes === 0) return null;
+    let net = parseInt(strokes);
+    if (useHandicaps) {
+      const diff = hcds[holeIndex];
+      const hcp = parseInt(playerHandicap) || 0;
+      if (hcp >= diff) net -= 1;
+      if (hcp >= diff + 18) net -= 1;
+    }
+    return net;
+  };
+
   // Calculate Stableford points
   const calculatePoints = (strokes, holeIndex, playerHandicap) => {
     if (!strokes || strokes === 0) return 0;
@@ -33,6 +62,30 @@ export default function MatchSummary({
     if (diff === -1) return 3;
     if (diff === 0) return 2;
     if (diff === 1) return 1;
+    return 0;
+  };
+
+  // Best net score for a team on a hole (for 4-ball)
+  const getBestNet = (teamPlayers, holeIndex) => {
+    const holeNum = holeIndex + 1;
+    const nets = teamPlayers
+      .map(p => {
+        const strokes = (scores[p.id] || {})[holeNum];
+        const hcp = p.handicap ?? p.hcp ?? 0;
+        return getNetScore(strokes, holeIndex, hcp);
+      })
+      .filter(n => n !== null);
+    if (nets.length === 0) return null;
+    return Math.min(...nets);
+  };
+
+  // Hole result for a match pair: 1 = team1 wins, 2 = team2 wins, 0 = halved
+  const getHoleResult = (team1Players, team2Players, holeIndex) => {
+    const best1 = getBestNet(team1Players, holeIndex);
+    const best2 = getBestNet(team2Players, holeIndex);
+    if (best1 === null || best2 === null) return null;
+    if (best1 < best2) return 1;
+    if (best2 < best1) return 2;
     return 0;
   };
 
@@ -57,8 +110,9 @@ export default function MatchSummary({
     const quotaResult = totalPoints - quotaGoal;
 
     return {
+      id: player.id,
       name: player.player_name || player.name,
-      team: player.teams?.team_name || player.team || 'Unknown',
+      team: getPlayerTeam(player),
       handicap: playerHcp,
       strokes: totalStrokes,
       points: totalPoints,
@@ -68,30 +122,72 @@ export default function MatchSummary({
     };
   };
 
-  // Get all player stats and sort by points (descending)
-  const playerStats = players.map(getPlayerStats).sort((a, b) => b.points - a.points);
-
-  // Team totals
-  const teamTotals = {};
-  playerStats.forEach(p => {
-    if (!teamTotals[p.team]) {
-      teamTotals[p.team] = { points: 0, strokes: 0, quotaResult: 0 };
+  // Get all player stats
+  const playerStats = players.map(getPlayerStats);
+  
+  // Sort by strokes for 4-ball, by points for others
+  const sortedPlayerStats = [...playerStats].sort((a, b) => {
+    if (gameType === 'fourball') {
+      return a.strokes - b.strokes; // Lower strokes is better
     }
-    teamTotals[p.team].points += p.points;
-    teamTotals[p.team].strokes += p.strokes;
-    teamTotals[p.team].quotaResult += p.quotaResult;
+    return b.points - a.points; // Higher points is better
   });
 
-  const sortedTeams = Object.entries(teamTotals)
-    .sort((a, b) => b[1].points - a[1].points)
-    .map(([name, stats], idx) => ({ name, ...stats, rank: idx + 1 }));
+  // Calculate 4-Ball team standings (match play points)
+  const teamNames = ['Team A', 'Team B', 'Team C', 'Team D'];
+  const activeTeams = teamNames.filter(t => getTeamPlayers(t).length > 0);
 
-  const teamColors = {
-    'Team A': '#4CAF50',
-    'Team B': '#2196F3',
-    'Team C': '#9C27B0',
-    'Team D': '#FF5722'
-  };
+  // Generate all matchups between active teams
+  const matchups = [];
+  for (let i = 0; i < activeTeams.length; i++) {
+    for (let j = i + 1; j < activeTeams.length; j++) {
+      matchups.push({ team1: activeTeams[i], team2: activeTeams[j] });
+    }
+  }
+
+  // Calculate 4-ball standings
+  const fourBallStandings = {};
+  activeTeams.forEach(t => { fourBallStandings[t] = { wins: 0, losses: 0, halves: 0, points: 0 }; });
+
+  matchups.forEach(({ team1, team2 }) => {
+    const t1Players = getTeamPlayers(team1);
+    const t2Players = getTeamPlayers(team2);
+    for (let h = 0; h < 18; h++) {
+      const result = getHoleResult(t1Players, t2Players, h);
+      if (result === 1) {
+        fourBallStandings[team1].wins++;
+        fourBallStandings[team1].points += 1;
+        fourBallStandings[team2].losses++;
+      } else if (result === 2) {
+        fourBallStandings[team2].wins++;
+        fourBallStandings[team2].points += 1;
+        fourBallStandings[team1].losses++;
+      } else if (result === 0) {
+        fourBallStandings[team1].halves++;
+        fourBallStandings[team1].points += 0.5;
+        fourBallStandings[team2].halves++;
+        fourBallStandings[team2].points += 0.5;
+      }
+    }
+  });
+
+  // Stableford team totals
+  const stablefordTeamTotals = {};
+  playerStats.forEach(p => {
+    if (!stablefordTeamTotals[p.team]) {
+      stablefordTeamTotals[p.team] = { points: 0, strokes: 0, quotaResult: 0 };
+    }
+    stablefordTeamTotals[p.team].points += p.points;
+    stablefordTeamTotals[p.team].strokes += p.strokes;
+    stablefordTeamTotals[p.team].quotaResult += p.quotaResult;
+  });
+
+  // Sort teams based on game type
+  const sortedTeams = gameType === 'fourball'
+    ? [...activeTeams].sort((a, b) => fourBallStandings[b].points - fourBallStandings[a].points)
+    : Object.entries(stablefordTeamTotals)
+        .sort((a, b) => b[1].points - a[1].points)
+        .map(([name]) => name);
 
   return (
     <div style={{ background: '#121212', color: '#e0e0e0', minHeight: '100vh', padding: '20px', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
@@ -117,78 +213,95 @@ export default function MatchSummary({
       {gameType !== 'skins' && (
         <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
           <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            Team Standings
+            {gameType === 'fourball' ? '4-Ball Match Play Standings' : 'Team Standings'}
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {sortedTeams.map((team, idx) => (
-              <div key={team.name} style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '15px',
-                background: idx === 0 ? (teamColors[team.name] || '#4CAF50') + '22' : '#252525',
-                padding: '15px',
-                borderRadius: '8px',
-                border: `2px solid ${idx === 0 ? (teamColors[team.name] || '#4CAF50') : '#333'}`
-              }}>
-                <div style={{ 
-                  fontSize: '24px', 
-                  fontWeight: '900', 
-                  color: idx === 0 ? '#FFD700' : '#666',
-                  width: '30px'
+            {sortedTeams.map((teamName, idx) => {
+              const stats = gameType === 'fourball' 
+                ? fourBallStandings[teamName] 
+                : stablefordTeamTotals[teamName];
+              
+              return (
+                <div key={teamName} style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '15px',
+                  background: idx === 0 ? (teamColors[teamName] || '#4CAF50') + '22' : '#252525',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  border: `2px solid ${idx === 0 ? (teamColors[teamName] || '#4CAF50') : '#333'}`
                 }}>
-                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 'bold', color: teamColors[team.name] || '#fff' }}>
-                    {team.name}
+                  <div style={{ 
+                    fontSize: '24px', 
+                    fontWeight: '900', 
+                    color: idx === 0 ? '#FFD700' : '#666',
+                    width: '30px'
+                  }}>
+                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
                   </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '24px', fontWeight: '900', color: teamColors[team.name] || '#4CAF50' }}>
-                    {team.points}
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#666' }}>points</div>
-                </div>
-                {useQuota && (
-                  <div style={{ textAlign: 'right', marginLeft: '10px' }}>
-                    <div style={{ 
-                      fontSize: '18px', 
-                      fontWeight: '700', 
-                      color: team.quotaResult >= 0 ? '#4CAF50' : '#ff9800' 
-                    }}>
-                      {team.quotaResult >= 0 ? '+' : ''}{team.quotaResult}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 'bold', color: teamColors[teamName] || '#fff' }}>
+                      {teamName}
                     </div>
-                    <div style={{ fontSize: '10px', color: '#666' }}>quota</div>
+                    {gameType === 'fourball' && (
+                      <div style={{ fontSize: '11px', color: '#888' }}>
+                        {stats.wins}W - {stats.losses}L - {stats.halves}H
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '900', color: teamColors[teamName] || '#4CAF50' }}>
+                      {stats.points}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#666' }}>
+                      {gameType === 'fourball' ? 'match pts' : 'points'}
+                    </div>
+                  </div>
+                  {useQuota && gameType !== 'fourball' && (
+                    <div style={{ textAlign: 'right', marginLeft: '10px' }}>
+                      <div style={{ 
+                        fontSize: '18px', 
+                        fontWeight: '700', 
+                        color: stats.quotaResult >= 0 ? '#4CAF50' : '#ff9800' 
+                      }}>
+                        {stats.quotaResult >= 0 ? '+' : ''}{stats.quotaResult}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#666' }}>quota</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Individual Leaderboard */}
+      {/* Individual Results */}
       <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
         <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
-          Individual Leaderboard
+          {gameType === 'fourball' ? 'Individual Scores' : 'Individual Leaderboard'}
         </h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #333' }}>
-              <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>#</th>
+              {gameType !== 'fourball' && <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>#</th>}
               <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>Player</th>
               <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>HCP</th>
               <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Strokes</th>
-              <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Points</th>
+              {gameType !== 'fourball' && (
+                <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Points</th>
+              )}
               {useQuota && <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Quota</th>}
             </tr>
           </thead>
           <tbody>
-            {playerStats.map((player, idx) => (
-              <tr key={idx} style={{ borderBottom: '1px solid #2a2a2a' }}>
-                <td style={{ padding: '12px 10px', fontWeight: 'bold', color: idx < 3 ? '#FFD700' : '#666' }}>
-                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
-                </td>
+            {sortedPlayerStats.map((player, idx) => (
+              <tr key={player.id || idx} style={{ borderBottom: '1px solid #2a2a2a' }}>
+                {gameType !== 'fourball' && (
+                  <td style={{ padding: '12px 10px', fontWeight: 'bold', color: idx < 3 ? '#FFD700' : '#666' }}>
+                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                  </td>
+                )}
                 <td style={{ padding: '12px 10px' }}>
                   <div style={{ fontWeight: 'bold' }}>{player.name}</div>
                   {gameType !== 'skins' && (
@@ -196,10 +309,14 @@ export default function MatchSummary({
                   )}
                 </td>
                 <td style={{ padding: '12px 10px', textAlign: 'center', color: '#888' }}>{player.handicap}</td>
-                <td style={{ padding: '12px 10px', textAlign: 'center' }}>{player.strokes || '-'}</td>
-                <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#4CAF50' }}>
-                  {player.points}
+                <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: gameType === 'fourball' ? 'bold' : 'normal', fontSize: gameType === 'fourball' ? '18px' : '14px' }}>
+                  {player.strokes || '-'}
                 </td>
+                {gameType !== 'fourball' && (
+                  <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#4CAF50' }}>
+                    {player.points}
+                  </td>
+                )}
                 {useQuota && (
                   <td style={{ 
                     padding: '12px 10px', 
@@ -208,9 +325,11 @@ export default function MatchSummary({
                     color: player.quotaResult >= 0 ? '#4CAF50' : '#ff9800'
                   }}>
                     {player.quotaResult >= 0 ? '+' : ''}{player.quotaResult}
-                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
-                      ({player.points}/{player.quotaGoal})
-                    </div>
+                    {gameType !== 'fourball' && (
+                      <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
+                        ({player.points}/{player.quotaGoal})
+                      </div>
+                    )}
                   </td>
                 )}
               </tr>

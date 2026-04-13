@@ -39,7 +39,15 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
       ...prev,
       [playerId]: { ...(prev[playerId] || {}), [holeNum]: val }
     }));
-    if (val === null) return;
+    if (val === null) {
+      // Delete the score from database
+      await supabase.from('scores')
+        .delete()
+        .eq('match_id', matchId)
+        .eq('player_id', playerId)
+        .eq('hole_number', holeNum);
+      return;
+    }
     await supabase.from('scores').upsert(
       {
         match_id: matchId,

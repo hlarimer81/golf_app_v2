@@ -486,7 +486,7 @@ function App() {
                       <div>
                         <div style={{ fontWeight: 'bold', color: '#333' }}>{match.match_name}</div>
                         <div style={{ fontSize: '12px', color: '#666' }}>
-                          {match.course_name || 'No course'} • {match.game_type === 'fourball' ? '4-Ball' : 'Stableford'}
+                          {match.course_name || 'No course'} • {match.game_type === 'fourball' ? '4-Ball' : match.game_type === 'skins' ? 'Skins' : match.game_type === 'chairman' ? 'Chairman' : 'Stableford'}
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
@@ -526,34 +526,16 @@ function App() {
               <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
                 Select Game Type
               </label>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                {[
-                  { value: 'stableford', label: '🏆 Stableford' },
-                  { value: 'fourball', label: '⚔️ 4-Ball' },
-                  { value: 'skins', label: '🎰 Skins' },
-                  { value: 'chairman', label: '👑 Chairman' },
-                ].map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setGameType(value)}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: gameType === value ? '2px solid #007bff' : '2px solid #ccc',
-                      backgroundColor: gameType === value ? '#e8f0fe' : '#fff',
-                      color: gameType === value ? '#007bff' : '#555',
-                      fontWeight: gameType === value ? 'bold' : 'normal',
-                      cursor: 'pointer',
-                      fontSize: '15px',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <select
+                value={gameType}
+                onChange={(e) => setGameType(e.target.value)}
+                style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+              >
+                <option value="stableford">🏆 Stableford</option>
+                <option value="fourball">⚔️ 4-Ball</option>
+                <option value="skins">🎰 Skins</option>
+                <option value="chairman">👑 Chairman</option>
+              </select>
               <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', marginBottom: 0 }}>
                 {gameDescriptions[gameType]}
               </p>

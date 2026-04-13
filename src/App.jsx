@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 import StablefordGrid from './StablefordGrid';
 import FourBallGrid from './FourBallGrid';
 import SkinsGrid from './SkinsGrid';
+import ChairmanGrid from './ChairmanGrid';
 import { GOLF_COURSES, PENINSULA_NINES, combinePeninsulaNines } from './courses';
 
 // Generate a random 6-character code
@@ -215,6 +216,9 @@ function App() {
     } else if (gameType === 'skins') {
       ScorerComponent = SkinsGrid;
       bannerColor = '#FFD700';
+    } else if (gameType === 'chairman') {
+      ScorerComponent = ChairmanGrid;
+      bannerColor = '#8B4513';
     } else {
       ScorerComponent = StablefordGrid;
     }
@@ -272,6 +276,7 @@ function App() {
     stableford: 'Points-based scoring. Each player earns points per hole. Teams accumulate total points.',
     fourball: 'Match play. Each player plays their own ball; the best score on each team counts. Team A vs Team B.',
     skins: 'Individual competition. Lowest score wins the hole. Ties can carry over to the next hole.',
+    chairman: 'King of the hill. Win a hole outright to become Chairman. Chairman earns 1 point for each hole won.',
   };
 
   const peninsulaNineNames = Object.keys(PENINSULA_NINES);
@@ -521,11 +526,12 @@ function App() {
               <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
                 Select Game Type
               </label>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {[
                   { value: 'stableford', label: '🏆 Stableford' },
                   { value: 'fourball', label: '⚔️ 4-Ball' },
                   { value: 'skins', label: '🎰 Skins' },
+                  { value: 'chairman', label: '👑 Chairman' },
                 ].map(({ value, label }) => (
                   <button
                     key={value}

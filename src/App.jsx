@@ -606,7 +606,7 @@ function App() {
             {/* --- Quota Toggle --- */}
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '10px' }}>
               <input type="checkbox" checked={useQuota} onChange={e => setUseQuota(e.target.checked)} />
-              Enable Quota Game (Goal = 36 − Handicap)
+              Enable Quota Game
             </label>
 
             {/* --- Carryover Skins Toggle (only for skins game) --- */}
@@ -695,7 +695,7 @@ function App() {
             </div>
           ))}
           <button onClick={savePlayers} disabled={loading} style={{ width: '100%', padding: '15px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', fontSize: '18px', fontWeight: 'bold' }}>
-            {loading ? 'Saving...' : 'Start Scorer'}
+            {loading ? 'Starting...' : 'Start Round'}
           </button>
         </div>
       )}

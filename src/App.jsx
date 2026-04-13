@@ -81,7 +81,6 @@ function App() {
     const { data, error } = await supabase
       .from('matches')
       .insert([{ 
-        match_name: matchName, 
         use_handicaps: useHandicaps,
         match_code: code,
         game_type: gameType,
@@ -234,7 +233,7 @@ function App() {
           alignItems: 'center',
           borderBottom: `2px solid ${bannerColor}`
         }}>
-          <span style={{ color: '#888', fontSize: '12px' }}>{matchName}</span>
+          <span style={{ color: '#888', fontSize: '12px' }}>{selectedCourse}</span>
           <span style={{ 
             background: bannerColor, 
             color: gameType === 'skins' ? '#000' : '#fff', 
@@ -484,9 +483,9 @@ function App() {
                       onMouseOut={e => e.currentTarget.style.background = '#fff'}
                     >
                       <div>
-                        <div style={{ fontWeight: 'bold', color: '#333' }}>{match.match_name}</div>
+                        <div style={{ fontWeight: 'bold', color: '#333' }}>{match.course_name || 'No course'}</div>
                         <div style={{ fontSize: '12px', color: '#666' }}>
-                          {match.course_name || 'No course'} • {match.game_type === 'fourball' ? '4-Ball' : match.game_type === 'skins' ? 'Skins' : match.game_type === 'chairman' ? 'Chairman' : 'Stableford'}
+                          {match.game_type === 'fourball' ? '4-Ball' : match.game_type === 'skins' ? 'Skins' : match.game_type === 'chairman' ? 'Chairman' : 'Stableford'}
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
@@ -514,12 +513,6 @@ function App() {
 
           <form onSubmit={createMatch} style={{ background: '#f4f4f4', padding: '20px', borderRadius: '10px' }}>
             <h3>1. Create New Round</h3>
-
-            <input
-              type="text" placeholder="Round Name (e.g. Pinehurst Trip)"
-              value={matchName} onChange={e => setMatchName(e.target.value)}
-              style={{ width: '100%', padding: '12px', marginBottom: '15px', boxSizing: 'border-box' }} required
-            />
 
             {/* --- Game Type Selector --- */}
             <div style={{ marginBottom: '15px' }}>

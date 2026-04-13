@@ -241,7 +241,7 @@ export default function MatchSummary({
       
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <h1 style={{ margin: '0 0 5px 0', fontSize: '24px' }}>🏆 Match Complete</h1>
+        <h1 style={{ margin: '0 0 5px 0', fontSize: '24px' }}>🏆 Round Complete</h1>
         <div style={{ color: '#888', fontSize: '14px' }}>{matchName}</div>
         <div style={{ 
           display: 'inline-block',
@@ -431,7 +431,7 @@ export default function MatchSummary({
               cursor: 'pointer'
             }}
           >
-            🆕 New Match
+            🆕 New Round
           </button>
         )}
       </div>

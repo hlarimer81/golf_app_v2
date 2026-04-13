@@ -442,7 +442,7 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
           width: '100%'
         }}
       >
-        🏁 Finish Match
+        🏁 Finish Round
       </button>
     </div>
   );

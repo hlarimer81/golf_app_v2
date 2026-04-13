@@ -281,7 +281,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
           width: '100%'
         }}
       >
-        🏁 Finish Match
+        🏁 Finish Round
       </button>
     </div>
   );

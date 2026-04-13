@@ -389,7 +389,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
           width: '100%'
         }}
       >
-        🏁 Finish Match
+        🏁 Finish Round
       </button>
     </div>
   );

@@ -344,9 +344,9 @@ function App() {
   if (showJoinForm) {
     return (
       <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '400px', margin: 'auto', textAlign: 'center' }}>
-        <h1>⛳️ Join Match</h1>
+        <h1>⛳️ Join Round</h1>
         <form onSubmit={joinMatch} style={{ background: '#f4f4f4', padding: '30px', borderRadius: '10px' }}>
-          <p style={{ color: '#666', marginBottom: '20px' }}>Enter the 6-character match code</p>
+          <p style={{ color: '#666', marginBottom: '20px' }}>Enter the 6-character round code</p>
           <input
             type="text"
             placeholder="ABC123"
@@ -383,7 +383,7 @@ function App() {
               cursor: joinCode.length === 6 ? 'pointer' : 'not-allowed'
             }}
           >
-            {loading ? 'Joining...' : 'Join Match'}
+            {loading ? 'Joining...' : 'Join Round'}
           </button>
           <button 
             type="button"
@@ -408,7 +408,7 @@ function App() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '700px', margin: 'auto' }}>
-      <h1>⛳️ Golf Tracker</h1>
+      <h1>⛳️ Fore Play</h1>
 
       {!matchId ? (
         <>
@@ -428,7 +428,7 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-              🔗 Join Match
+              🔗 Join Round
             </button>
             <button
               onClick={fetchRecentMatches}
@@ -444,7 +444,7 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-              📋 Previous Matches
+              📋 Previous Rounds
             </button>
           </div>
 
@@ -452,7 +452,7 @@ function App() {
           {showRecentMatches && (
             <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <h4 style={{ margin: 0, color: '#333' }}>📋 Recent Matches (Last 30 Days)</h4>
+                <h4 style={{ margin: 0, color: '#333' }}>📋 Recent Rounds (Last 30 Days)</h4>
                 <button 
                   onClick={() => setShowRecentMatches(false)}
                   style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#666' }}
@@ -461,7 +461,7 @@ function App() {
                 </button>
               </div>
               {recentMatches.length === 0 ? (
-                <p style={{ color: '#666', textAlign: 'center', margin: '20px 0' }}>No matches found in the last 30 days</p>
+                <p style={{ color: '#666', textAlign: 'center', margin: '20px 0' }}>No rounds found in the last 30 days</p>
               ) : (
                 <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
                   {recentMatches.map(match => (
@@ -513,10 +513,10 @@ function App() {
           )}
 
           <form onSubmit={createMatch} style={{ background: '#f4f4f4', padding: '20px', borderRadius: '10px' }}>
-            <h3>1. Create New Match</h3>
+            <h3>1. Create New Round</h3>
 
             <input
-              type="text" placeholder="Match Name (e.g. Pinehurst Trip)"
+              type="text" placeholder="Round Name (e.g. Pinehurst Trip)"
               value={matchName} onChange={e => setMatchName(e.target.value)}
               style={{ width: '100%', padding: '12px', marginBottom: '15px', boxSizing: 'border-box' }} required
             />
@@ -625,7 +625,7 @@ function App() {
             )}
 
             <button type="submit" disabled={loading} style={{ width: '100%', padding: '15px', marginTop: '20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>
-              {loading ? 'Creating...' : 'Create Match'}
+              {loading ? 'Creating...' : 'Create Round'}
             </button>
           </form>
         </>

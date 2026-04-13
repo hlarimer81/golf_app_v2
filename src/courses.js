@@ -3,11 +3,6 @@ export const GOLF_COURSES = {
     pars: [5, 4, 4, 3, 4, 4, 4, 4, 3, 4, 4, 3, 5, 3, 5, 4, 4, 4],
     handicaps: [3, 7, 13, 15, 11, 1, 9, 5, 17, 6, 12, 16, 2, 18, 8, 14, 10, 4]
   },
-  "AGCC Par 3": {
-    pars: [3, 3, 3, 3, 3, 3, 3, 3, 3],
-    handicaps: [1, 2, 3, 4, 5, 6, 7, 8, 9],
-    holes: 9
-  },
 
   // --- Gulf Shores, Alabama Courses ---
 

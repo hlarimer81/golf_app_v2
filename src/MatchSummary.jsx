@@ -89,6 +89,48 @@ export default function MatchSummary({
     return 0;
   };
 
+  // Calculate Chairman points for a player
+  const calculateChairmanPoints = (playerId) => {
+    let chairmanPoints = 0;
+    let currentChairman = null;
+    
+    for (let holeIndex = 0; holeIndex < 18; holeIndex++) {
+      const holeNum = holeIndex + 1;
+      const holeScores = [];
+      
+      players.forEach(player => {
+        const strokes = (scores[player.id] || {})[holeNum];
+        const hcp = player.handicap ?? player.hcp ?? 0;
+        const net = getNetScore(strokes, holeIndex, hcp);
+        if (net !== null) {
+          holeScores.push({ playerId: player.id, net });
+        }
+      });
+      
+      if (holeScores.length !== players.length) continue;
+      
+      const minScore = Math.min(...holeScores.map(s => s.net));
+      const winners = holeScores.filter(s => s.net === minScore);
+      
+      if (currentChairman === null) {
+        if (winners.length === 1) {
+          currentChairman = winners[0].playerId;
+        }
+      } else {
+        const chairmanWon = winners.length === 1 && winners[0].playerId === currentChairman;
+        const chairmanTied = winners.some(w => w.playerId === currentChairman);
+        
+        if (chairmanWon) {
+          if (currentChairman === playerId) chairmanPoints += 1;
+        } else if (!chairmanTied && winners.length === 1) {
+          currentChairman = winners[0].playerId;
+        }
+      }
+    }
+    
+    return chairmanPoints;
+  };
+
   // Get player stats
   const getPlayerStats = (player) => {
     const playerScores = scores[player.id] || {};
@@ -108,6 +150,7 @@ export default function MatchSummary({
     }
 
     const quotaResult = totalPoints - quotaGoal;
+    const chairmanPoints = gameType === 'chairman' ? calculateChairmanPoints(player.id) : 0;
 
     return {
       id: player.id,
@@ -118,17 +161,21 @@ export default function MatchSummary({
       points: totalPoints,
       holesPlayed,
       quotaGoal,
-      quotaResult
+      quotaResult,
+      chairmanPoints
     };
   };
 
   // Get all player stats
   const playerStats = players.map(getPlayerStats);
   
-  // Sort by strokes for 4-ball, by points for others
+  // Sort by strokes for 4-ball, by chairman points for chairman, by stableford points for others
   const sortedPlayerStats = [...playerStats].sort((a, b) => {
     if (gameType === 'fourball') {
       return a.strokes - b.strokes; // Lower strokes is better
+    }
+    if (gameType === 'chairman') {
+      return b.chairmanPoints - a.chairmanPoints; // Higher chairman points is better
     }
     return b.points - a.points; // Higher points is better
   });
@@ -209,8 +256,8 @@ export default function MatchSummary({
         </div>
       </div>
 
-      {/* Team Standings - only show for non-skins games */}
-      {gameType !== 'skins' && (
+      {/* Team Standings - only show for stableford and fourball games */}
+      {gameType !== 'skins' && gameType !== 'chairman' && (
         <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
           <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
             {gameType === 'fourball' ? '4-Ball Match Play Standings' : 'Team Standings'}
@@ -279,16 +326,20 @@ export default function MatchSummary({
       {/* Individual Results */}
       <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
         <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
-          {gameType === 'fourball' ? 'Individual Scores' : 'Individual Leaderboard'}
+          {gameType === 'fourball' ? 'Individual Scores' : gameType === 'chairman' ? '👑 Chairman Results' : 'Individual Leaderboard'}
         </h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #333' }}>
-              {gameType !== 'fourball' && <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>#</th>}
+              {gameType !== 'fourball' && gameType !== 'chairman' && <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>#</th>}
+              {gameType === 'chairman' && <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>#</th>}
               <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>Player</th>
               <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>HCP</th>
               <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Strokes</th>
-              {gameType !== 'fourball' && (
+              {gameType === 'chairman' && (
+                <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>👑 Pts</th>
+              )}
+              {gameType !== 'fourball' && gameType !== 'chairman' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Points</th>
               )}
               {useQuota && <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Quota</th>}
@@ -297,22 +348,32 @@ export default function MatchSummary({
           <tbody>
             {sortedPlayerStats.map((player, idx) => (
               <tr key={player.id || idx} style={{ borderBottom: '1px solid #2a2a2a' }}>
-                {gameType !== 'fourball' && (
+                {gameType !== 'fourball' && gameType !== 'chairman' && (
+                  <td style={{ padding: '12px 10px', fontWeight: 'bold', color: idx < 3 ? '#FFD700' : '#666' }}>
+                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                  </td>
+                )}
+                {gameType === 'chairman' && (
                   <td style={{ padding: '12px 10px', fontWeight: 'bold', color: idx < 3 ? '#FFD700' : '#666' }}>
                     {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
                   </td>
                 )}
                 <td style={{ padding: '12px 10px' }}>
                   <div style={{ fontWeight: 'bold' }}>{player.name}</div>
-                  {gameType !== 'skins' && (
+                  {gameType !== 'skins' && gameType !== 'chairman' && (
                     <div style={{ fontSize: '11px', color: teamColors[player.team] || '#666' }}>{player.team}</div>
                   )}
                 </td>
                 <td style={{ padding: '12px 10px', textAlign: 'center', color: '#888' }}>{player.handicap}</td>
-                <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: gameType === 'fourball' ? 'bold' : 'normal', fontSize: gameType === 'fourball' ? '18px' : '14px' }}>
+                <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: gameType === 'fourball' || gameType === 'chairman' ? 'bold' : 'normal', fontSize: gameType === 'fourball' || gameType === 'chairman' ? '18px' : '14px' }}>
                   {player.strokes || '-'}
                 </td>
-                {gameType !== 'fourball' && (
+                {gameType === 'chairman' && (
+                  <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '20px', color: player.chairmanPoints > 0 ? '#FFD700' : '#666' }}>
+                    {player.chairmanPoints}
+                  </td>
+                )}
+                {gameType !== 'fourball' && gameType !== 'chairman' && (
                   <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#4CAF50' }}>
                     {player.points}
                   </td>
@@ -325,7 +386,7 @@ export default function MatchSummary({
                     color: player.quotaResult >= 0 ? '#4CAF50' : '#ff9800'
                   }}>
                     {player.quotaResult >= 0 ? '+' : ''}{player.quotaResult}
-                    {gameType !== 'fourball' && (
+                    {gameType !== 'fourball' && gameType !== 'chairman' && (
                       <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
                         ({player.points}/{player.quotaGoal})
                       </div>

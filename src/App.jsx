@@ -45,7 +45,9 @@ function App() {
   const [newGlobalPlayerName, setNewGlobalPlayerName] = useState('');
   const [newGlobalPlayerHcp, setNewGlobalPlayerHcp] = useState(0);
 
-  const [players, setPlayers] = useState([]);
+  const [players, setPlayers] = useState([
+    { name: '', team: '', hcp: 0, isGuest: false }
+  ]);
 
   useEffect(() => {
     fetchGlobalPlayers();
@@ -80,10 +82,20 @@ function App() {
     }
   };
 
-  const handlePlayerChange = (index, field, value) => {
-    const updatedPlayers = [...players];
-    updatedPlayers[index][field] = field === 'hcp' ? (parseInt(value, 10) || 0) : value;
+  const updatePlayer = (index, updates) => {
+    let updatedPlayers = [...players];
+    updatedPlayers[index] = { ...updatedPlayers[index], ...updates };
+    
+    // Auto-add next row if a name was just selected/typed in the last row
+    if (updates.name !== undefined && updates.name.trim() !== '' && index === updatedPlayers.length - 1) {
+      updatedPlayers.push({ name: '', team: '', hcp: 0, isGuest: false });
+    }
+    
     setPlayers(updatedPlayers);
+  };
+
+  const handlePlayerChange = (index, field, value) => {
+    updatePlayer(index, { [field]: field === 'hcp' ? (parseInt(value, 10) || 0) : value });
   };
 
   // Build the course data (handles Peninsula combination)
@@ -698,23 +710,48 @@ function App() {
           </div>
           {players.map((p, i) => (
             <div key={i} style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-              <select
-                value={p.name}
-                onChange={e => {
-                  const selectedName = e.target.value;
-                  const globalP = globalPlayers.find(gp => gp.player_name === selectedName);
-                  handlePlayerChange(i, 'name', selectedName);
-                  if (globalP) {
-                    handlePlayerChange(i, 'hcp', globalP.handicap);
-                  }
-                }}
-                style={{ flex: 2, padding: '8px' }}
-              >
-                <option value="">-- Select Player --</option>
-                {globalPlayers.map(gp => (
-                  <option key={gp.id} value={gp.player_name}>{gp.player_name}</option>
-                ))}
-              </select>
+              {p.isGuest ? (
+                <div style={{ flex: 2, display: 'flex', gap: '5px' }}>
+                  <input 
+                    autoFocus
+                    placeholder="Guest Name"
+                    value={p.name}
+                    onChange={e => updatePlayer(i, { name: e.target.value })}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => updatePlayer(i, { isGuest: false, name: '' })}
+                    style={{ padding: '8px', background: '#e9ecef', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+                    title="Cancel guest"
+                  >
+                    ↺
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={p.name}
+                  onChange={e => {
+                    const selectedName = e.target.value;
+                    if (selectedName === '__GUEST__') {
+                      updatePlayer(i, { isGuest: true, name: '', hcp: 0 });
+                    } else {
+                      const globalP = globalPlayers.find(gp => gp.player_name === selectedName);
+                      updatePlayer(i, { 
+                        name: selectedName, 
+                        hcp: globalP ? globalP.handicap : p.hcp 
+                      });
+                    }
+                  }}
+                  style={{ flex: 2, padding: '8px' }}
+                >
+                  <option value="">-- Select Player --</option>
+                  {globalPlayers.map(gp => (
+                    <option key={gp.id} value={gp.player_name}>{gp.player_name}</option>
+                  ))}
+                  <option value="__GUEST__">+ Add Guest Player</option>
+                </select>
+              )}
               <select value={p.team} onChange={e => handlePlayerChange(i, 'team', e.target.value)} style={{ flex: 1 }}>
                 <option value="">-- Team --</option>
                 {['Team A', 'Team B', 'Team C', 'Team D'].map(t => (
@@ -747,14 +784,16 @@ function App() {
               </button>
             </div>
           ))}
-          
-          <button 
-            type="button" 
-            onClick={() => setPlayers([...players, { name: '', team: '', hcp: 0 }])}
-            style={{ width: '100%', padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px', marginBottom: '20px', cursor: 'pointer' }}
-          >
-            + Add Player Slot
-          </button>
+
+          {players.length === 0 && (
+            <button 
+              type="button" 
+              onClick={() => setPlayers([{ name: '', team: '', hcp: 0, isGuest: false }])}
+              style={{ width: '100%', padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px', marginBottom: '20px', cursor: 'pointer' }}
+            >
+              + Add Player Slot
+            </button>
+          )}
 
           {/* New Global Player Form */}
           <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #ddd' }}>

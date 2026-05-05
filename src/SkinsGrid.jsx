@@ -263,7 +263,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
             </tr>
           </thead>
           <tbody>
-            {players.map(player => {
+            {players.map((player, globalIdx) => {
               const playerScores = scores[player.id] || {};
               const playerHcp = player.handicap ?? player.hcp ?? 0;
               const quotaGoal = 36 - playerHcp;
@@ -273,6 +273,14 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
               for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
               for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
               const totalStrokes = outStrokes + inStrokes;
+
+              const handleScoreChange = (holeNum, val) => {
+                saveScore(player.id, holeNum, val);
+                if (val.length === 1) {
+                  const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
+                  if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                }
+              };
 
               return (
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
@@ -311,7 +319,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
                           {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#FFD700', borderRadius: '50%' }} />}
                           {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#FFD700', borderRadius: '50%' }} />}
                         </div>
-                        <input type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isWinner ? '#FFD70044' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: isWinner ? '2px solid #FFD700' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
                         {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
                         {isWinner && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>🏆</div>}
@@ -339,7 +347,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
                           {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#FFD700', borderRadius: '50%' }} />}
                           {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#FFD700', borderRadius: '50%' }} />}
                         </div>
-                        <input type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isWinner ? '#FFD70044' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: isWinner ? '2px solid #FFD700' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
                         {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
                         {isWinner && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>🏆</div>}

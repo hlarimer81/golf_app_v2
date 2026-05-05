@@ -271,31 +271,42 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
             </tr>
           </thead>
           <tbody>
-            {activeTeams.map(teamName => {
-              const teamPlayers = getTeamPlayers(teamName);
-              const color = teamColors[teamName];
+            {(() => {
+              const renderedPlayersList = activeTeams.flatMap(t => getTeamPlayers(t));
+              return activeTeams.map(teamName => {
+                const teamPlayers = getTeamPlayers(teamName);
+                const color = teamColors[teamName];
 
-              return (
-                <React.Fragment key={teamName}>
-                  <tr>
-                    <td colSpan={23} style={{ backgroundColor: color + '22', padding: '4px 10px', fontSize: '10px', fontWeight: 'bold', color, textTransform: 'uppercase', letterSpacing: '1px', borderTop: `2px solid ${color}55` }}>
-                      {teamName}
-                    </td>
-                  </tr>
-                  {teamPlayers.map(player => {
-                    const playerScores = scores[player.id] || {};
-                    const playerHcp = player.handicap ?? player.hcp ?? 0;
-                    const quotaGoal = 36 - playerHcp;
+                return (
+                  <React.Fragment key={teamName}>
+                    <tr>
+                      <td colSpan={23} style={{ backgroundColor: color + '22', padding: '4px 10px', fontSize: '10px', fontWeight: 'bold', color, textTransform: 'uppercase', letterSpacing: '1px', borderTop: `2px solid ${color}55` }}>
+                        {teamName}
+                      </td>
+                    </tr>
+                    {teamPlayers.map(player => {
+                      const globalIdx = renderedPlayersList.findIndex(p => p.id === player.id);
+                      const playerScores = scores[player.id] || {};
+                      const playerHcp = player.handicap ?? player.hcp ?? 0;
+                      const quotaGoal = 36 - playerHcp;
 
-                    // Calculate total strokes
-                    let outStrokes = 0;
-                    let inStrokes = 0;
-                    for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
-                    for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
-                    const totalStrokes = outStrokes + inStrokes;
+                      // Calculate total strokes
+                      let outStrokes = 0;
+                      let inStrokes = 0;
+                      for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
+                      for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
+                      const totalStrokes = outStrokes + inStrokes;
 
-                    return (
-                      <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
+                      const handleScoreChange = (holeNum, val) => {
+                        saveScore(player.id, holeNum, val);
+                        if (val.length === 1) {
+                          const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
+                          if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                        }
+                      };
+
+                      return (
+                        <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
                         <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '8px 10px', fontWeight: 'bold', borderRight: '2px solid #333', whiteSpace: 'nowrap' }}>
                           {player.player_name || player.name}
                           <div style={{ fontSize: '8px', color: '#666', fontWeight: 'normal' }}>
@@ -329,7 +340,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                                 {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: color, borderRadius: '50%' }} />}
                                 {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: color, borderRadius: '50%' }} />}
                               </div>
-                              <input type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                              <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                                 style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBest ? color + '33' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: isBest ? `2px solid ${color}` : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
                               {net !== null && useHandicaps && (
                                 <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
@@ -366,7 +377,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                                 {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: color, borderRadius: '50%' }} />}
                                 {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: color, borderRadius: '50%' }} />}
                               </div>
-                              <input type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                              <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                                 style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBest ? color + '33' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: isBest ? `2px solid ${color}` : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
                               {net !== null && useHandicaps && (
                                 <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
@@ -392,7 +403,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                   })}
                 </React.Fragment>
               );
-            })}
+            })})()}
           </tbody>
         </table>
       </div>

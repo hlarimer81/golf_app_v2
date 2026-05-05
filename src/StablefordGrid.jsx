@@ -176,7 +176,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
             </tr>
           </thead>
           <tbody>
-            {players.map(player => {
+            {players.map((player, globalIdx) => {
               const playerScores = scores[player.id] || {};
               const playerHcp = player.handicap ?? player.hcp ?? 0;
               
@@ -188,6 +188,14 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
               for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
               for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
               const totalStrokes = outStrokes + inStrokes;
+
+              const handleScoreChange = (holeNum, val) => {
+                saveScore(player.id, holeNum, val);
+                if (val.length === 1) {
+                  const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
+                  if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                }
+              };
 
               return (
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
@@ -222,7 +230,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                           {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#4CAF50', borderRadius: '50%' }} />}
                           {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#4CAF50', borderRadius: '50%' }} />}
                         </div>
-                        <input type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
                         {playerScores[holeNum] > 0 && (
                           <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: pts >= 3 ? '#4CAF50' : pts === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
@@ -252,7 +260,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                           {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#4CAF50', borderRadius: '50%' }} />}
                           {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#4CAF50', borderRadius: '50%' }} />}
                         </div>
-                        <input type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
                         {playerScores[holeNum] > 0 && (
                           <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: pts >= 3 ? '#4CAF50' : pts === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>

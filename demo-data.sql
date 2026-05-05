@@ -38,31 +38,31 @@ BEGIN
 
   -- Create players (Team A)
   INSERT INTO players (match_id, player_name, team_id, physical_group, handicap)
-  VALUES (match_id, 'Ryan', team_a_id, 'Group 1', 10) RETURNING id INTO ryan_id;
+  VALUES (match_id, 'Ryan B', team_a_id, 'Group 1', 10) RETURNING id INTO ryan_id;
   
   INSERT INTO players (match_id, player_name, team_id, physical_group, handicap)
-  VALUES (match_id, 'Harold', team_a_id, 'Group 1', 20) RETURNING id INTO harold_id;
+  VALUES (match_id, 'H Larimer', team_a_id, 'Group 1', 20) RETURNING id INTO harold_id;
 
   -- Create players (Team B)
   INSERT INTO players (match_id, player_name, team_id, physical_group, handicap)
-  VALUES (match_id, 'Matt', team_b_id, 'Group 1', 10) RETURNING id INTO matt_id;
+  VALUES (match_id, 'Matt H', team_b_id, 'Group 1', 10) RETURNING id INTO matt_id;
   
   INSERT INTO players (match_id, player_name, team_id, physical_group, handicap)
-  VALUES (match_id, 'Boeve', team_b_id, 'Group 1', 22) RETURNING id INTO boeve_id;
+  VALUES (match_id, 'M Boeve', team_b_id, 'Group 1', 22) RETURNING id INTO boeve_id;
 
   -- Create players (Team C)
   INSERT INTO players (match_id, player_name, team_id, physical_group, handicap)
-  VALUES (match_id, 'Cafferty', team_c_id, 'Group 2', 10) RETURNING id INTO cafferty_id;
+  VALUES (match_id, 'W Cafferty', team_c_id, 'Group 2', 10) RETURNING id INTO cafferty_id;
   
   INSERT INTO players (match_id, player_name, team_id, physical_group, handicap)
-  VALUES (match_id, 'Barry', team_c_id, 'Group 2', 19) RETURNING id INTO barry_id;
+  VALUES (match_id, 'Barry C', team_c_id, 'Group 2', 19) RETURNING id INTO barry_id;
 
   -- Create players (Team D)
   INSERT INTO players (match_id, player_name, team_id, physical_group, handicap)
-  VALUES (match_id, 'Roger', team_d_id, 'Group 2', 15) RETURNING id INTO roger_id;
+  VALUES (match_id, 'Roger E', team_d_id, 'Group 2', 15) RETURNING id INTO roger_id;
   
   INSERT INTO players (match_id, player_name, team_id, physical_group, handicap)
-  VALUES (match_id, 'Karl', team_d_id, 'Group 2', 18) RETURNING id INTO karl_id;
+  VALUES (match_id, 'Karl M', team_d_id, 'Group 2', 18) RETURNING id INTO karl_id;
 
   -- Insert scores for all 8 players across 18 holes
   -- Ames Golf & CC pars: [5, 4, 4, 3, 4, 4, 4, 4, 3, 4, 4, 3, 5, 3, 5, 4, 4, 4]

@@ -241,27 +241,25 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
           <thead style={{ position: 'sticky', top: 0, zIndex: 100 }}>
             <tr style={{ backgroundColor: '#252525' }}>
               <th style={{ position: 'sticky', left: 0, top: 0, zIndex: 110, backgroundColor: '#252525', padding: '10px', minWidth: '100px', textAlign: 'left', borderRight: '2px solid #FFD700' }}>PLAYER</th>
-              {[...Array(18)].map((_, i) => {
+              {[...Array(9)].map((_, i) => {
                 const result = getHoleSkinResult(i);
                 return (
-                  <th key={i} style={{ 
-                    padding: '6px', 
-                    minWidth: '42px', 
-                    borderLeft: i === 9 ? '2px solid #FFD700' : '1px solid #333', 
-                    backgroundColor: result.status === 'won' ? '#FFD70022' : result.status === 'push' ? '#ff980022' : (i + 1) % 2 === 0 ? '#252525' : '#2a2a2a', 
-                    position: 'sticky', 
-                    top: 0, 
-                    zIndex: 90 
-                  }}>
-                    {i + 1}
-                    <br />
-                    <span style={{ fontSize: '8px', color: result.status === 'won' ? '#FFD700' : result.status === 'push' ? '#ff9800' : '#666' }}>
-                      {result.status === 'won' ? '🏆' : result.status === 'push' ? '↔️' : `P${pars[i]}`}
-                    </span>
+                  <th key={`f-${i}`} style={{ padding: '6px', minWidth: '42px', borderLeft: '1px solid #333', backgroundColor: result.status === 'won' ? '#FFD70022' : result.status === 'push' ? '#ff980022' : (i + 1) % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
+                    {i + 1}<br /><span style={{ fontSize: '8px', color: result.status === 'won' ? '#FFD700' : result.status === 'push' ? '#ff9800' : '#666' }}>{result.status === 'won' ? '🏆' : result.status === 'push' ? '↔️' : `P${pars[i]}`}</span>
                   </th>
                 );
               })}
-              <th style={{ padding: '6px', minWidth: '50px', borderLeft: '2px solid #FFD700', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90 }}>TOT</th>
+              <th style={{ padding: '6px', minWidth: '42px', borderLeft: '2px solid #FFD700', borderRight: '2px solid #FFD700', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>OUT</th>
+              {[...Array(9)].map((_, i) => {
+                const result = getHoleSkinResult(i + 9);
+                return (
+                  <th key={`b-${i}`} style={{ padding: '6px', minWidth: '42px', borderLeft: '1px solid #333', backgroundColor: result.status === 'won' ? '#FFD70022' : result.status === 'push' ? '#ff980022' : (i + 10) % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
+                    {i + 10}<br /><span style={{ fontSize: '8px', color: result.status === 'won' ? '#FFD700' : result.status === 'push' ? '#ff9800' : '#666' }}>{result.status === 'won' ? '🏆' : result.status === 'push' ? '↔️' : `P${pars[i+9]}`}</span>
+                  </th>
+                );
+              })}
+              <th style={{ padding: '6px', minWidth: '42px', borderLeft: '2px solid #FFD700', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>IN</th>
+              <th style={{ padding: '6px', minWidth: '50px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90 }}>TOT</th>
             </tr>
           </thead>
           <tbody>
@@ -270,10 +268,11 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
               const playerHcp = player.handicap ?? player.hcp ?? 0;
               const quotaGoal = 36 - playerHcp;
 
-              let totalStrokes = 0;
-              for (let h = 1; h <= 18; h++) {
-                if (playerScores[h]) totalStrokes += playerScores[h];
-              }
+              let outStrokes = 0;
+              let inStrokes = 0;
+              for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
+              for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
+              const totalStrokes = outStrokes + inStrokes;
 
               return (
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
@@ -295,74 +294,62 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
                       </span>
                     </div>
                   </td>
-                  {[...Array(18)].map((_, i) => {
+                  {[...Array(9)].map((_, i) => {
                     const holeNum = i + 1;
                     const strokes = playerScores[holeNum];
                     const net = getNetScore(strokes, i, playerHcp);
                     const par = pars[i];
                     const result = getHoleSkinResult(i);
                     const isWinner = result.status === 'won' && result.playerId === player.id;
-
                     const holeDiff = hcds[i];
                     const hasOneStroke = useHandicaps && playerHcp >= holeDiff;
                     const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
 
                     return (
-                      <td key={i} style={{
-                        padding: '3px',
-                        textAlign: 'center',
-                        borderLeft: i === 9 ? '2px solid #FFD700' : '1px solid #2a2a2a',
-                        backgroundColor: isWinner ? '#FFD70033' : (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e',
-                        position: 'relative',
-                        minWidth: '50px'
-                      }}>
+                      <td key={`f-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: isWinner ? '#FFD70033' : (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
                         <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
                           {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#FFD700', borderRadius: '50%' }} />}
                           {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#FFD700', borderRadius: '50%' }} />}
                         </div>
-
-                        <input
-                          type="tel" inputMode="numeric"
-                          value={strokes || ''}
-                          onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
-                          style={{
-                            width: '34px', height: '34px', textAlign: 'center',
-                            backgroundColor: isWinner ? '#FFD70044' : '#2a2a2a',
-                            color: net !== null ? scoreColor(net, par) : '#fff',
-                            border: isWinner ? '2px solid #FFD700' : '1px solid #444',
-                            borderRadius: '4px', fontSize: '16px',
-                            outline: 'none'
-                          }}
-                        />
-
-                        {/* Net score (top right) */}
-                        {net !== null && useHandicaps && (
-                          <div style={{
-                            position: 'absolute', top: '1px', right: '3px',
-                            fontSize: '8px', fontWeight: '900',
-                            color: scoreColor(net, par),
-                            background: 'rgba(0,0,0,0.4)',
-                            padding: '0 2px', borderRadius: '2px'
-                          }}>
-                            {net}
-                          </div>
-                        )}
-
-                        {/* Skin winner indicator */}
-                        {isWinner && (
-                          <div style={{ 
-                            position: 'absolute', 
-                            bottom: '1px', 
-                            right: '3px', 
-                            fontSize: '10px'
-                          }}>
-                            🏆
-                          </div>
-                        )}
+                        <input type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isWinner ? '#FFD70044' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: isWinner ? '2px solid #FFD700' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
+                        {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                        {isWinner && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>🏆</div>}
                       </td>
                     );
                   })}
-                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #FFD700', fontWeight: 'bold', fontSize: '14px', color: '#fff' }}>
+                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #FFD700', borderRight: '2px solid #FFD700', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
+                    {outStrokes > 0 ? outStrokes : '-'}
+                  </td>
+                  {[...Array(9)].map((_, i) => {
+                    const holeNum = i + 10;
+                    const realIndex = i + 9;
+                    const strokes = playerScores[holeNum];
+                    const net = getNetScore(strokes, realIndex, playerHcp);
+                    const par = pars[realIndex];
+                    const result = getHoleSkinResult(realIndex);
+                    const isWinner = result.status === 'won' && result.playerId === player.id;
+                    const holeDiff = hcds[realIndex];
+                    const hasOneStroke = useHandicaps && playerHcp >= holeDiff;
+                    const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
+
+                    return (
+                      <td key={`b-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: isWinner ? '#FFD70033' : (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
+                        <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
+                          {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#FFD700', borderRadius: '50%' }} />}
+                          {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#FFD700', borderRadius: '50%' }} />}
+                        </div>
+                        <input type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isWinner ? '#FFD70044' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: isWinner ? '2px solid #FFD700' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
+                        {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                        {isWinner && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>🏆</div>}
+                      </td>
+                    );
+                  })}
+                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #FFD700', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
+                    {inStrokes > 0 ? inStrokes : '-'}
+                  </td>
+                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1e1e1e', fontWeight: 'bold', color: '#fff', fontSize: '14px' }}>
                     {totalStrokes > 0 ? totalStrokes : '-'}
                   </td>
                 </tr>

@@ -1,0 +1,9 @@
+UPDATE players SET player_name = 'Ryan B' WHERE player_name = 'Ryan' AND match_id IS NULL;
+UPDATE players SET player_name = 'H Larimer' WHERE player_name = 'Harold' AND match_id IS NULL;
+UPDATE players SET player_name = 'Barry C' WHERE player_name = 'Barry' AND match_id IS NULL;
+UPDATE players SET player_name = 'M Boeve' WHERE player_name = 'Boeve' AND match_id IS NULL;
+UPDATE players SET player_name = 'Matt H' WHERE player_name = 'Matt' AND match_id IS NULL;
+UPDATE players SET player_name = 'Roger E' WHERE player_name = 'Roger' AND match_id IS NULL;
+UPDATE players SET player_name = 'Karl M' WHERE player_name = 'Karl' AND match_id IS NULL;
+UPDATE players SET player_name = 'W Cafferty' WHERE player_name = 'Cafferty' AND match_id IS NULL;
+UPDATE players SET player_name = 'Nick G' WHERE player_name = 'Nick' AND match_id IS NULL;

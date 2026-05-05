@@ -266,43 +266,37 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
           <thead style={{ position: 'sticky', top: 0, zIndex: 100 }}>
             <tr style={{ backgroundColor: '#252525' }}>
               <th style={{ position: 'sticky', left: 0, top: 0, zIndex: 110, backgroundColor: '#252525', padding: '10px', minWidth: '100px', textAlign: 'left', borderRight: '2px solid #8B4513' }}>PLAYER</th>
-              {[...Array(18)].map((_, i) => {
+              {[...Array(9)].map((_, i) => {
                 const result = holeResults[i] || { status: 'incomplete' };
                 let headerIcon = `P${pars[i]}`;
                 let headerColor = '#666';
-                
-                if (result.status === 'chairman_wins') {
-                  headerIcon = '👑+1';
-                  headerColor = '#FFD700';
-                } else if (result.status === 'new_chairman') {
-                  headerIcon = '👑↑';
-                  headerColor = '#8B4513';
-                } else if (result.status === 'chairman_ties' || result.status === 'challengers_tie') {
-                  headerIcon = '↔️';
-                  headerColor = '#ff9800';
-                } else if (result.status === 'tie_no_chairman') {
-                  headerIcon = '—';
-                  headerColor = '#666';
-                }
-                
+                if (result.status === 'chairman_wins') { headerIcon = '👑+1'; headerColor = '#FFD700'; } 
+                else if (result.status === 'new_chairman') { headerIcon = '👑↑'; headerColor = '#8B4513'; } 
+                else if (result.status === 'chairman_ties' || result.status === 'challengers_tie') { headerIcon = '↔️'; headerColor = '#ff9800'; } 
+                else if (result.status === 'tie_no_chairman') { headerIcon = '—'; headerColor = '#666'; }
                 return (
-                  <th key={i} style={{ 
-                    padding: '6px', 
-                    minWidth: '42px', 
-                    borderLeft: i === 9 ? '2px solid #8B4513' : '1px solid #333', 
-                    backgroundColor: result.status === 'chairman_wins' ? '#FFD70022' : (i + 1) % 2 === 0 ? '#252525' : '#2a2a2a', 
-                    position: 'sticky', 
-                    top: 0, 
-                    zIndex: 90 
-                  }}>
-                    {i + 1}
-                    <br />
-                    <span style={{ fontSize: '8px', color: headerColor }}>
-                      {headerIcon}
-                    </span>
+                  <th key={`f-${i}`} style={{ padding: '6px', minWidth: '42px', borderLeft: '1px solid #333', backgroundColor: result.status === 'chairman_wins' ? '#FFD70022' : (i + 1) % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
+                    {i + 1}<br /><span style={{ fontSize: '8px', color: headerColor }}>{headerIcon}</span>
                   </th>
                 );
               })}
+              <th style={{ padding: '6px', minWidth: '42px', borderLeft: '2px solid #8B4513', borderRight: '2px solid #8B4513', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>OUT</th>
+              {[...Array(9)].map((_, i) => {
+                const result = holeResults[i + 9] || { status: 'incomplete' };
+                let headerIcon = `P${pars[i+9]}`;
+                let headerColor = '#666';
+                if (result.status === 'chairman_wins') { headerIcon = '👑+1'; headerColor = '#FFD700'; } 
+                else if (result.status === 'new_chairman') { headerIcon = '👑↑'; headerColor = '#8B4513'; } 
+                else if (result.status === 'chairman_ties' || result.status === 'challengers_tie') { headerIcon = '↔️'; headerColor = '#ff9800'; } 
+                else if (result.status === 'tie_no_chairman') { headerIcon = '—'; headerColor = '#666'; }
+                return (
+                  <th key={`b-${i}`} style={{ padding: '6px', minWidth: '42px', borderLeft: '1px solid #333', backgroundColor: result.status === 'chairman_wins' ? '#FFD70022' : (i + 10) % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
+                    {i + 10}<br /><span style={{ fontSize: '8px', color: headerColor }}>{headerIcon}</span>
+                  </th>
+                );
+              })}
+              <th style={{ padding: '6px', minWidth: '42px', borderLeft: '2px solid #8B4513', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>IN</th>
+              <th style={{ padding: '6px', minWidth: '42px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>TOT</th>
               <th style={{ padding: '6px', minWidth: '50px', borderLeft: '2px solid #8B4513', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90 }}>PTS</th>
             </tr>
           </thead>
@@ -313,10 +307,11 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
               const quotaGoal = 36 - playerHcp;
               const isCurrentChairman = currentChairman === player.id;
 
-              let totalStrokes = 0;
-              for (let h = 1; h <= 18; h++) {
-                if (playerScores[h]) totalStrokes += playerScores[h];
-              }
+              let outStrokes = 0;
+              let inStrokes = 0;
+              for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
+              for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
+              const totalStrokes = outStrokes + inStrokes;
 
               return (
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a', backgroundColor: isCurrentChairman ? '#8B451311' : 'transparent' }}>
@@ -335,7 +330,7 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
                       })()}
                     </div>
                   </td>
-                  {[...Array(18)].map((_, i) => {
+                  {[...Array(9)].map((_, i) => {
                     const holeNum = i + 1;
                     const strokes = playerScores[holeNum];
                     const net = getNetScore(strokes, i, playerHcp);
@@ -343,78 +338,60 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
                     const result = holeResults[i] || { status: 'incomplete' };
                     const wonPoint = result.status === 'chairman_wins' && result.chairman === player.id;
                     const becameChairman = result.status === 'new_chairman' && result.chairman === player.id;
-
                     const holeDiff = hcds[i];
                     const hasOneStroke = useHandicaps && playerHcp >= holeDiff;
                     const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
 
                     return (
-                      <td key={i} style={{
-                        padding: '3px',
-                        textAlign: 'center',
-                        borderLeft: i === 9 ? '2px solid #8B4513' : '1px solid #2a2a2a',
-                        backgroundColor: wonPoint ? '#FFD70033' : becameChairman ? '#8B451322' : (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e',
-                        position: 'relative',
-                        minWidth: '50px'
-                      }}>
+                      <td key={`f-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: wonPoint ? '#FFD70033' : becameChairman ? '#8B451322' : (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
                         <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
                           {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
                           {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
                         </div>
-
-                        <input
-                          type="tel" inputMode="numeric"
-                          value={strokes || ''}
-                          onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
-                          style={{
-                            width: '34px', height: '34px', textAlign: 'center',
-                            backgroundColor: wonPoint ? '#FFD70044' : becameChairman ? '#8B451333' : '#2a2a2a',
-                            color: net !== null ? scoreColor(net, par) : '#fff',
-                            border: wonPoint ? '2px solid #FFD700' : becameChairman ? '2px solid #8B4513' : '1px solid #444',
-                            borderRadius: '4px', fontSize: '16px',
-                            outline: 'none'
-                          }}
-                        />
-
-                        {/* Net score (top right) */}
-                        {net !== null && useHandicaps && (
-                          <div style={{
-                            position: 'absolute', top: '1px', right: '3px',
-                            fontSize: '8px', fontWeight: '900',
-                            color: scoreColor(net, par),
-                            background: 'rgba(0,0,0,0.4)',
-                            padding: '0 2px', borderRadius: '2px'
-                          }}>
-                            {net}
-                          </div>
-                        )}
-
-                        {/* Point indicator */}
-                        {wonPoint && (
-                          <div style={{ 
-                            position: 'absolute', 
-                            bottom: '1px', 
-                            right: '3px', 
-                            fontSize: '10px'
-                          }}>
-                            +1
-                          </div>
-                        )}
-                        
-                        {/* New chairman indicator */}
-                        {becameChairman && (
-                          <div style={{ 
-                            position: 'absolute', 
-                            bottom: '1px', 
-                            right: '3px', 
-                            fontSize: '10px'
-                          }}>
-                            👑
-                          </div>
-                        )}
+                        <input type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: wonPoint ? '#FFD70044' : becameChairman ? '#8B451333' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: wonPoint ? '2px solid #FFD700' : becameChairman ? '2px solid #8B4513' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
+                        {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                        {wonPoint && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>+1</div>}
+                        {becameChairman && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>👑</div>}
                       </td>
                     );
                   })}
+                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #8B4513', borderRight: '2px solid #8B4513', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
+                    {outStrokes > 0 ? outStrokes : '-'}
+                  </td>
+                  {[...Array(9)].map((_, i) => {
+                    const holeNum = i + 10;
+                    const realIndex = i + 9;
+                    const strokes = playerScores[holeNum];
+                    const net = getNetScore(strokes, realIndex, playerHcp);
+                    const par = pars[realIndex];
+                    const result = holeResults[realIndex] || { status: 'incomplete' };
+                    const wonPoint = result.status === 'chairman_wins' && result.chairman === player.id;
+                    const becameChairman = result.status === 'new_chairman' && result.chairman === player.id;
+                    const holeDiff = hcds[realIndex];
+                    const hasOneStroke = useHandicaps && playerHcp >= holeDiff;
+                    const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
+
+                    return (
+                      <td key={`b-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: wonPoint ? '#FFD70033' : becameChairman ? '#8B451322' : (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
+                        <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
+                          {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
+                          {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
+                        </div>
+                        <input type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => saveScore(player.id, holeNum, e.target.value)}
+                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: wonPoint ? '#FFD70044' : becameChairman ? '#8B451333' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: wonPoint ? '2px solid #FFD700' : becameChairman ? '2px solid #8B4513' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
+                        {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                        {wonPoint && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>+1</div>}
+                        {becameChairman && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>👑</div>}
+                      </td>
+                    );
+                  })}
+                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #8B4513', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
+                    {inStrokes > 0 ? inStrokes : '-'}
+                  </td>
+                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1e1e1e', fontWeight: 'bold', color: '#fff', fontSize: '14px' }}>
+                    {totalStrokes > 0 ? totalStrokes : '-'}
+                  </td>
                   <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #8B4513', fontWeight: 'bold', fontSize: '18px', color: chairmanPoints[player.id] > 0 ? '#FFD700' : '#666' }}>
                     {chairmanPoints[player.id] || 0}
                   </td>

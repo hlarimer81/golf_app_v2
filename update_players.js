@@ -22,12 +22,13 @@ async function updatePlayers() {
       .from('players')
       .update({ player_name: p.new })
       .eq('player_name', p.old)
-      .is('match_id', null);
+      .is('match_id', null)
+      .select();
       
     if (error) {
       console.error(`Error updating ${p.old}:`, error.message);
     } else {
-      console.log(`Updated ${p.old} to ${p.new}`);
+      console.log(`Updated ${p.old} to ${p.new}. Affected rows:`, data?.length);
     }
   }
 }

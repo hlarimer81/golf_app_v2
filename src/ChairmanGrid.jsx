@@ -104,30 +104,58 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
     return total;
   };
 
-  // Calculate Chairman game results
+  // --- Get players by team name ---
+  const getTeamPlayers = (teamName) =>
+    players.filter(p => {
+      if (p.team === teamName || p.team_name === teamName) return true;
+      if (p.teams && p.teams.team_name === teamName) return true;
+      return false;
+    });
+
+  // --- Active teams and colors ---
+  const activeTeams = [...new Set(players.map(p => p.teams?.team_name || p.team || p.team_name).filter(Boolean))];
+  const colorPalette = ['#8B4513', '#2196F3', '#9C27B0', '#FF5722', '#FFC107', '#00BCD4'];
+  const teamColors = {};
+  activeTeams.forEach((t, i) => {
+    teamColors[t] = colorPalette[i % colorPalette.length];
+  });
+
+  // --- Best net score for a team on a hole ---
+  const getTeamBestNet = (teamName, holeIndex) => {
+    const holeNum = holeIndex + 1;
+    const teamPlayers = getTeamPlayers(teamName);
+    const nets = teamPlayers
+      .map(p => {
+        const strokes = (scores[p.id] || {})[holeNum];
+        const hcp = p.handicap ?? p.hcp ?? 0;
+        return getNetScore(strokes, holeIndex, hcp);
+      })
+      .filter(n => n !== null);
+    if (nets.length === 0) return null;
+    return Math.min(...nets);
+  };
+
+  // Calculate Team Chairman game results
   const calculateChairman = () => {
-    const chairmanPoints = {}; // { playerId: points }
-    players.forEach(p => { chairmanPoints[p.id] = 0; });
+    const chairmanPoints = {}; // { teamName: points }
+    activeTeams.forEach(t => { chairmanPoints[t] = 0; });
     
-    let currentChairman = null;
+    let currentChairman = null; // Will hold teamName
     const holeResults = []; // Track results for each hole
     
     for (let holeIndex = 0; holeIndex < 18; holeIndex++) {
-      const holeNum = holeIndex + 1;
       const holeScores = [];
       
-      // Get all net scores for this hole
-      players.forEach(player => {
-        const strokes = (scores[player.id] || {})[holeNum];
-        const hcp = player.handicap ?? player.hcp ?? 0;
-        const net = getNetScore(strokes, holeIndex, hcp);
-        if (net !== null) {
-          holeScores.push({ playerId: player.id, playerName: player.player_name || player.name, net });
+      // Get best net score for each team
+      activeTeams.forEach(team => {
+        const bestNet = getTeamBestNet(team, holeIndex);
+        if (bestNet !== null) {
+          holeScores.push({ team, net: bestNet });
         }
       });
       
-      // Need all players to have a score
-      if (holeScores.length !== players.length) {
+      // Need all teams to have a score
+      if (holeScores.length !== activeTeams.length) {
         holeResults.push({ status: 'incomplete', chairman: currentChairman });
         continue;
       }
@@ -139,11 +167,11 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
       if (currentChairman === null) {
         // First hole - need outright winner to become chairman
         if (winners.length === 1) {
-          currentChairman = winners[0].playerId;
+          currentChairman = winners[0].team;
           holeResults.push({ 
             status: 'new_chairman', 
             chairman: currentChairman, 
-            winnerName: winners[0].playerName,
+            winnerName: winners[0].team,
             points: 0 // No points for becoming chairman
           });
         } else {
@@ -151,9 +179,8 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
         }
       } else {
         // Chairman exists
-        const chairmanScore = holeScores.find(s => s.playerId === currentChairman);
-        const chairmanWon = winners.length === 1 && winners[0].playerId === currentChairman;
-        const chairmanTied = winners.some(w => w.playerId === currentChairman);
+        const chairmanWon = winners.length === 1 && winners[0].team === currentChairman;
+        const chairmanTied = winners.some(w => w.team === currentChairman);
         
         if (chairmanWon) {
           // Chairman wins outright - earns 1 point
@@ -172,18 +199,16 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
           });
         } else if (winners.length === 1) {
           // Someone else wins outright - they become new chairman
-          currentChairman = winners[0].playerId;
+          currentChairman = winners[0].team;
           holeResults.push({ 
             status: 'new_chairman', 
             chairman: currentChairman,
-            winnerName: winners[0].playerName,
+            winnerName: winners[0].team,
             points: 0
           });
         } else {
-          // Multiple non-chairman players tie for low
-          // Chairman loses but no clear winner - chairman stays? Or first in tie becomes chairman?
-          // Based on rules: "another player beats the Chairman" - implies outright win needed
-          // So if tie among challengers, chairman stays
+          // Multiple non-chairman teams tie for low
+          // Chairman loses but no clear winner - chairman stays
           holeResults.push({ 
             status: 'challengers_tie', 
             chairman: currentChairman,
@@ -197,7 +222,7 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
   };
 
   const { chairmanPoints, holeResults, currentChairman } = calculateChairman();
-  const sortedPlayers = [...players].sort((a, b) => (chairmanPoints[b.id] || 0) - (chairmanPoints[a.id] || 0));
+  const sortedTeams = [...activeTeams].sort((a, b) => chairmanPoints[b] - chairmanPoints[a]);
 
   const scoreColor = (net, par) => {
     if (net === null) return '#fff';

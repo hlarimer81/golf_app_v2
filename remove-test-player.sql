@@ -1,0 +1,1 @@
+DELETE FROM players WHERE player_name = 'Test_Player' AND match_id IS NULL;

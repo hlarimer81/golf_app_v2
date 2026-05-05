@@ -139,17 +139,19 @@ export default function MatchSummary({
 
     let totalStrokes = 0;
     let totalPoints = 0;
+    let totalQuotaPoints = 0;
     let holesPlayed = 0;
 
     for (let h = 1; h <= 18; h++) {
       if (playerScores[h]) {
         totalStrokes += playerScores[h];
         totalPoints += calculatePoints(playerScores[h], h - 1, playerHcp);
+        totalQuotaPoints += calculatePoints(playerScores[h], h - 1, 0); // Gross points for quota
         holesPlayed++;
       }
     }
 
-    const quotaResult = totalPoints - quotaGoal;
+    const quotaResult = totalQuotaPoints - quotaGoal;
     const chairmanPoints = gameType === 'chairman' ? calculateChairmanPoints(player.id) : 0;
 
     return {
@@ -159,6 +161,7 @@ export default function MatchSummary({
       handicap: playerHcp,
       strokes: totalStrokes,
       points: totalPoints,
+      quotaPoints: totalQuotaPoints,
       holesPlayed,
       quotaGoal,
       quotaResult,
@@ -388,7 +391,7 @@ export default function MatchSummary({
                     {player.quotaResult >= 0 ? '+' : ''}{player.quotaResult}
                     {gameType !== 'fourball' && gameType !== 'chairman' && (
                       <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
-                        ({player.points}/{player.quotaGoal})
+                        ({player.quotaPoints}/{player.quotaGoal})
                       </div>
                     )}
                   </td>

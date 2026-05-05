@@ -86,7 +86,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
     let total = 0;
     for (let h = 1; h <= upToHole; h++) {
       if (playerScores[h]) {
-        total += calculatePoints(playerScores[h], h - 1, playerHcp);
+        total += calculatePoints(playerScores[h], h - 1, 0); // Quota always uses gross
       }
     }
     return total;

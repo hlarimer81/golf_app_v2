@@ -41,16 +41,44 @@ function App() {
   const [recentMatches, setRecentMatches] = useState([]);
   const [showRecentMatches, setShowRecentMatches] = useState(false);
 
-  const [players, setPlayers] = useState([
-    { name: 'Ryan', team: 'Team A', group: 'Group 1', hcp: 10 },
-    { name: 'Harold', team: 'Team A', group: 'Group 1', hcp: 20 },
-    { name: 'Matt', team: 'Team B', group: 'Group 1', hcp: 10 },
-    { name: 'Boeve', team: 'Team B', group: 'Group 1', hcp: 22 },
-    { name: 'Cafferty', team: 'Team C', group: 'Group 2', hcp: 10 },
-    { name: 'Barry', team: 'Team C', group: 'Group 2', hcp: 19 },
-    { name: 'Roger', team: 'Team D', group: 'Group 2', hcp: 15 },
-    { name: 'Karl', team: 'Team D', group: 'Group 2', hcp: 18 },
-  ]);
+  const [globalPlayers, setGlobalPlayers] = useState([]);
+  const [newGlobalPlayerName, setNewGlobalPlayerName] = useState('');
+  const [newGlobalPlayerHcp, setNewGlobalPlayerHcp] = useState(0);
+
+  const [players, setPlayers] = useState([]);
+
+  useEffect(() => {
+    fetchGlobalPlayers();
+  }, []);
+
+  const fetchGlobalPlayers = async () => {
+    const { data, error } = await supabase
+      .from('players')
+      .select('*')
+      .is('match_id', null)
+      .order('player_name');
+    if (data && !error) {
+      setGlobalPlayers(data);
+    }
+  };
+
+  const handleCreateGlobalPlayer = async (e) => {
+    e.preventDefault();
+    if (!newGlobalPlayerName.trim()) return;
+    const { error } = await supabase.from('players').insert([{
+      player_name: newGlobalPlayerName.trim(),
+      handicap: newGlobalPlayerHcp,
+      match_id: null,
+      team_id: null
+    }]);
+    if (error) {
+      alert('Error creating player: ' + error.message);
+    } else {
+      setNewGlobalPlayerName('');
+      setNewGlobalPlayerHcp(0);
+      fetchGlobalPlayers(); // Refresh the dropdown list
+    }
+  };
 
   const handlePlayerChange = (index, field, value) => {
     const updatedPlayers = [...players];
@@ -152,7 +180,14 @@ function App() {
     try {
       const activePlayers = players.filter(p => p.name.trim() !== '');
       if (activePlayers.length === 0) {
-        alert("Please enter at least one player name.");
+        alert("Please select at least one player.");
+        setLoading(false);
+        return;
+      }
+
+      const missingTeams = activePlayers.some(p => !p.team);
+      if (missingTeams) {
+        alert("Please assign a team to all selected players.");
         setLoading(false);
         return;
       }
@@ -181,7 +216,7 @@ function App() {
         match_id: matchId,
         player_name: p.name,
         team_id: teamData.find(t => t.team_name === p.team).id,
-        physical_group: p.group,
+        physical_group: null, // Removed group selection
         handicap: useHandicaps ? p.hcp : 0
       }));
 
@@ -656,45 +691,101 @@ function App() {
           )}
 
           <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px', color: '#666' }}>
-            <div style={{ flex: 2 }}>Name</div>
+            <div style={{ flex: 2 }}>Player</div>
             <div style={{ flex: 1 }}>Team</div>
-            <div style={{ flex: 1 }}>Group</div>
             <div style={{ width: '60px' }}>HCP</div>
+            <div style={{ width: '30px' }}></div>
           </div>
           {players.map((p, i) => (
             <div key={i} style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-              <input
-                placeholder="Player Name" value={p.name}
-                onChange={e => handlePlayerChange(i, 'name', e.target.value)}
+              <select
+                value={p.name}
+                onChange={e => {
+                  const selectedName = e.target.value;
+                  const globalP = globalPlayers.find(gp => gp.player_name === selectedName);
+                  handlePlayerChange(i, 'name', selectedName);
+                  if (globalP) {
+                    handlePlayerChange(i, 'hcp', globalP.handicap);
+                  }
+                }}
                 style={{ flex: 2, padding: '8px' }}
-              />
+              >
+                <option value="">-- Select Player --</option>
+                {globalPlayers.map(gp => (
+                  <option key={gp.id} value={gp.player_name}>{gp.player_name}</option>
+                ))}
+              </select>
               <select value={p.team} onChange={e => handlePlayerChange(i, 'team', e.target.value)} style={{ flex: 1 }}>
+                <option value="">-- Team --</option>
                 {['Team A', 'Team B', 'Team C', 'Team D'].map(t => (
                   <option key={t} value={t}>{t.replace('Team ', '')}</option>
                 ))}
               </select>
-              <select value={p.group} onChange={e => handlePlayerChange(i, 'group', e.target.value)} style={{ flex: 1 }}>
-                <option value="Group 1">G1</option>
-                <option value="Group 2">G2</option>
-              </select>
               <select
                 value={p.hcp}
-                disabled={!useHandicaps}
                 onChange={e => handlePlayerChange(i, 'hcp', e.target.value)}
                 style={{
                   width: '65px',
                   padding: '8px',
-                  opacity: useHandicaps ? 1 : 0.3,
                   fontSize: '14px'
                 }}
               >
-                {[...Array(26)].map((_, num) => (
+                {[...Array(40)].map((_, num) => (
                   <option key={num} value={num}>{num}</option>
                 ))}
               </select>
+              <button 
+                type="button" 
+                onClick={() => {
+                  const newPlayers = [...players];
+                  newPlayers.splice(i, 1);
+                  setPlayers(newPlayers);
+                }}
+                style={{ width: '30px', padding: '8px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                X
+              </button>
             </div>
           ))}
-          <button onClick={savePlayers} disabled={loading} style={{ width: '100%', padding: '15px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', fontSize: '18px', fontWeight: 'bold' }}>
+          
+          <button 
+            type="button" 
+            onClick={() => setPlayers([...players, { name: '', team: '', hcp: 0 }])}
+            style={{ width: '100%', padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px', marginBottom: '20px', cursor: 'pointer' }}
+          >
+            + Add Player Slot
+          </button>
+
+          {/* New Global Player Form */}
+          <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #ddd' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#333' }}>Save New Player to Database</h4>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <input 
+                type="text" 
+                placeholder="Name" 
+                value={newGlobalPlayerName}
+                onChange={e => setNewGlobalPlayerName(e.target.value)}
+                style={{ flex: 2, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+              />
+              <select 
+                value={newGlobalPlayerHcp} 
+                onChange={e => setNewGlobalPlayerHcp(parseInt(e.target.value) || 0)}
+                style={{ width: '65px', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+              >
+                {[...Array(40)].map((_, i) => <option key={i} value={i}>{i}</option>)}
+              </select>
+              <button 
+                type="button" 
+                onClick={handleCreateGlobalPlayer}
+                disabled={!newGlobalPlayerName.trim()}
+                style={{ padding: '8px 12px', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+
+          <button onClick={savePlayers} disabled={loading} style={{ width: '100%', padding: '15px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>
             {loading ? 'Starting...' : 'Start Round'}
           </button>
         </div>

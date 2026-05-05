@@ -261,11 +261,11 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
           👑 Chairman {useHandicaps ? '(Net)' : '(Gross)'}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '8px', textAlign: 'center', flexWrap: 'wrap' }}>
-          {sortedPlayers.slice(0, 8).map((player, idx) => {
-            const points = chairmanPoints[player.id] || 0;
-            const isChairman = currentChairman === player.id;
+          {sortedTeams.slice(0, 8).map((teamName, idx) => {
+            const points = chairmanPoints[teamName] || 0;
+            const isChairman = currentChairman === teamName;
             return (
-              <div key={player.id} style={{ 
+              <div key={teamName} style={{ 
                 flex: '1 1 80px',
                 minWidth: '70px',
                 background: isChairman ? '#8B451333' : idx === 0 && points > 0 ? '#FFD70022' : '#252525', 
@@ -274,7 +274,7 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
                 border: `2px solid ${isChairman ? '#8B4513' : idx === 0 && points > 0 ? '#FFD700' : '#333'}` 
               }}>
                 <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {isChairman ? '👑 ' : ''}{player.player_name || player.name}
+                  {isChairman ? '👑 ' : ''}{teamName}
                 </div>
                 <div style={{ fontSize: '24px', fontWeight: '900', color: points > 0 ? '#FFD700' : '#666', marginTop: '2px' }}>
                   {points}
@@ -326,111 +326,140 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
             </tr>
           </thead>
           <tbody>
-            {players.map((player, globalIdx) => {
-              const playerScores = scores[player.id] || {};
-              const playerHcp = player.handicap ?? player.hcp ?? 0;
-              const quotaGoal = 36 - playerHcp;
-              const isCurrentChairman = currentChairman === player.id;
+            {(() => {
+              const renderedPlayersList = activeTeams.flatMap(t => getTeamPlayers(t));
+              return activeTeams.map(teamName => {
+                const teamPlayers = getTeamPlayers(teamName);
+                const color = teamColors[teamName] || '#8B4513';
+                const isCurrentChairman = currentChairman === teamName;
 
-              let outStrokes = 0;
-              let inStrokes = 0;
-              for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
-              for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
-              const totalStrokes = outStrokes + inStrokes;
-
-              const handleScoreChange = (holeNum, val) => {
-                saveScore(player.id, holeNum, val);
-                if (val.length === 1) {
-                  const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
-                  if (nextInput) setTimeout(() => nextInput.focus(), 10);
-                }
-              };
-
-              return (
-                <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a', backgroundColor: isCurrentChairman ? '#8B451311' : 'transparent' }}>
-                  <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: isCurrentChairman ? '#1a1a1a' : '#1a1a1a', padding: '8px 10px', fontWeight: 'bold', borderRight: '2px solid #333', whiteSpace: 'nowrap' }}>
-                    {isCurrentChairman ? '👑 ' : ''}{player.player_name || player.name}
-                    <div style={{ fontSize: '8px', color: '#666', fontWeight: 'normal' }}>
-                      {useHandicaps && `HCP: ${playerHcp}`}
-                      {useQuota && (() => {
-                        const totalPoints = getPlayerPointsUpToHole(player.id, 18, playerHcp);
-                        const remaining = quotaGoal - totalPoints;
-                        return (
-                          <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#4CAF50' : '#ff9800', fontWeight: 'bold' }}>
-                            Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  </td>
-                  {[...Array(9)].map((_, i) => {
-                    const holeNum = i + 1;
-                    const strokes = playerScores[holeNum];
-                    const net = getNetScore(strokes, i, playerHcp);
-                    const par = pars[i];
-                    const result = holeResults[i] || { status: 'incomplete' };
-                    const wonPoint = result.status === 'chairman_wins' && result.chairman === player.id;
-                    const becameChairman = result.status === 'new_chairman' && result.chairman === player.id;
-                    const holeDiff = hcds[i];
-                    const hasOneStroke = useHandicaps && playerHcp >= holeDiff;
-                    const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
-
-                    return (
-                      <td key={`f-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: wonPoint ? '#FFD70033' : becameChairman ? '#8B451322' : (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
-                        <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
-                          {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
-                        </div>
-                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: wonPoint ? '#FFD70044' : becameChairman ? '#8B451333' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: wonPoint ? '2px solid #FFD700' : becameChairman ? '2px solid #8B4513' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
-                        {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
-                        {wonPoint && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>+1</div>}
-                        {becameChairman && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>👑</div>}
+                return (
+                  <React.Fragment key={teamName}>
+                    <tr>
+                      <td colSpan={22} style={{ backgroundColor: color + '22', padding: '4px 10px', fontSize: '10px', fontWeight: 'bold', color, textTransform: 'uppercase', letterSpacing: '1px', borderTop: `2px solid ${color}55` }}>
+                        {isCurrentChairman ? '👑 ' : ''}{teamName}
                       </td>
-                    );
-                  })}
-                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #8B4513', borderRight: '2px solid #8B4513', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
-                    {outStrokes > 0 ? outStrokes : '-'}
-                  </td>
-                  {[...Array(9)].map((_, i) => {
-                    const holeNum = i + 10;
-                    const realIndex = i + 9;
-                    const strokes = playerScores[holeNum];
-                    const net = getNetScore(strokes, realIndex, playerHcp);
-                    const par = pars[realIndex];
-                    const result = holeResults[realIndex] || { status: 'incomplete' };
-                    const wonPoint = result.status === 'chairman_wins' && result.chairman === player.id;
-                    const becameChairman = result.status === 'new_chairman' && result.chairman === player.id;
-                    const holeDiff = hcds[realIndex];
-                    const hasOneStroke = useHandicaps && playerHcp >= holeDiff;
-                    const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
-
-                    return (
-                      <td key={`b-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: wonPoint ? '#FFD70033' : becameChairman ? '#8B451322' : (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
-                        <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
-                          {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
-                        </div>
-                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: wonPoint ? '#FFD70044' : becameChairman ? '#8B451333' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: wonPoint ? '2px solid #FFD700' : becameChairman ? '2px solid #8B4513' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
-                        {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
-                        {wonPoint && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>+1</div>}
-                        {becameChairman && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>👑</div>}
+                      <td style={{ backgroundColor: color + '22', padding: '4px 10px', fontSize: '14px', fontWeight: 'bold', color: '#FFD700', textAlign: 'center', borderTop: `2px solid ${color}55`, borderLeft: '2px solid #8B4513' }}>
+                        {chairmanPoints[teamName] || 0}
                       </td>
-                    );
-                  })}
-                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #8B4513', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
-                    {inStrokes > 0 ? inStrokes : '-'}
-                  </td>
-                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1e1e1e', fontWeight: 'bold', color: '#fff', fontSize: '14px' }}>
-                    {totalStrokes > 0 ? totalStrokes : '-'}
-                  </td>
-                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #8B4513', fontWeight: 'bold', fontSize: '18px', color: chairmanPoints[player.id] > 0 ? '#FFD700' : '#666' }}>
-                    {chairmanPoints[player.id] || 0}
-                  </td>
-                </tr>
-              );
-            })}
+                    </tr>
+                    {teamPlayers.map(player => {
+                      const globalIdx = renderedPlayersList.findIndex(p => p.id === player.id);
+                      const playerScores = scores[player.id] || {};
+                      const playerHcp = player.handicap ?? player.hcp ?? 0;
+                      const quotaGoal = 36 - playerHcp;
+
+                      let outStrokes = 0;
+                      let inStrokes = 0;
+                      for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
+                      for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
+                      const totalStrokes = outStrokes + inStrokes;
+
+                      const handleScoreChange = (holeNum, val) => {
+                        saveScore(player.id, holeNum, val);
+                        if (val.length === 1) {
+                          const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
+                          if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                        }
+                      };
+
+                      return (
+                        <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a', backgroundColor: isCurrentChairman ? '#8B451311' : 'transparent' }}>
+                          <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: isCurrentChairman ? '#1a1a1a' : '#1a1a1a', padding: '8px 10px', fontWeight: 'bold', borderRight: '2px solid #333', whiteSpace: 'nowrap' }}>
+                            {player.player_name || player.name}
+                            <div style={{ fontSize: '8px', color: '#666', fontWeight: 'normal' }}>
+                              {useHandicaps && `HCP: ${playerHcp}`}
+                              {useQuota && (() => {
+                                const totalPoints = getPlayerPointsUpToHole(player.id, 18, playerHcp);
+                                const remaining = quotaGoal - totalPoints;
+                                return (
+                                  <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#4CAF50' : '#ff9800', fontWeight: 'bold' }}>
+                                    Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          </td>
+                          {[...Array(9)].map((_, i) => {
+                            const holeNum = i + 1;
+                            const strokes = playerScores[holeNum];
+                            const net = getNetScore(strokes, i, playerHcp);
+                            const par = pars[i];
+                            const result = holeResults[i] || { status: 'incomplete' };
+                            const wonPoint = result.status === 'chairman_wins' && result.chairman === teamName;
+                            const becameChairman = result.status === 'new_chairman' && result.chairman === teamName;
+                            
+                            const bestTeamNet = getTeamBestNet(teamName, i);
+                            const isBestForTeam = net !== null && net === bestTeamNet;
+
+                            const holeDiff = hcds[i];
+                            const hasOneStroke = useHandicaps && playerHcp >= holeDiff;
+                            const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
+
+                            return (
+                              <td key={`f-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: wonPoint ? '#FFD70033' : becameChairman ? '#8B451322' : (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
+                                <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
+                                  {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
+                                  {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
+                                </div>
+                                <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
+                                  style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBestForTeam ? color + '33' : wonPoint ? '#FFD70044' : becameChairman ? '#8B451333' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: isBestForTeam ? `2px solid ${color}` : wonPoint ? '2px solid #FFD700' : becameChairman ? '2px solid #8B4513' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
+                                {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                                {wonPoint && isBestForTeam && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>+1</div>}
+                                {becameChairman && isBestForTeam && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>👑</div>}
+                              </td>
+                            );
+                          })}
+                          <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #8B4513', borderRight: '2px solid #8B4513', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
+                            {outStrokes > 0 ? outStrokes : '-'}
+                          </td>
+                          {[...Array(9)].map((_, i) => {
+                            const holeNum = i + 10;
+                            const realIndex = i + 9;
+                            const strokes = playerScores[holeNum];
+                            const net = getNetScore(strokes, realIndex, playerHcp);
+                            const par = pars[realIndex];
+                            const result = holeResults[realIndex] || { status: 'incomplete' };
+                            const wonPoint = result.status === 'chairman_wins' && result.chairman === teamName;
+                            const becameChairman = result.status === 'new_chairman' && result.chairman === teamName;
+                            
+                            const bestTeamNet = getTeamBestNet(teamName, realIndex);
+                            const isBestForTeam = net !== null && net === bestTeamNet;
+                            
+                            const holeDiff = hcds[realIndex];
+                            const hasOneStroke = useHandicaps && playerHcp >= holeDiff;
+                            const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
+
+                            return (
+                              <td key={`b-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: wonPoint ? '#FFD70033' : becameChairman ? '#8B451322' : (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
+                                <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
+                                  {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
+                                  {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#8B4513', borderRadius: '50%' }} />}
+                                </div>
+                                <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
+                                  style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBestForTeam ? color + '33' : wonPoint ? '#FFD70044' : becameChairman ? '#8B451333' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: isBestForTeam ? `2px solid ${color}` : wonPoint ? '2px solid #FFD700' : becameChairman ? '2px solid #8B4513' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
+                                {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                                {wonPoint && isBestForTeam && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>+1</div>}
+                                {becameChairman && isBestForTeam && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px' }}>👑</div>}
+                              </td>
+                            );
+                          })}
+                          <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #8B4513', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
+                            {inStrokes > 0 ? inStrokes : '-'}
+                          </td>
+                          <td style={{ padding: '6px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1e1e1e', fontWeight: 'bold', color: '#fff', fontSize: '14px' }}>
+                            {totalStrokes > 0 ? totalStrokes : '-'}
+                          </td>
+                          <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #8B4513', fontWeight: 'bold', fontSize: '18px', color: '#888' }}>
+                            -
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              });
+            })()}
           </tbody>
         </table>
       </div>

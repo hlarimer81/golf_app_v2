@@ -15,17 +15,17 @@ export default function MatchSummary({
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
 
-  const teamColors = {
-    'Team A': '#4CAF50',
-    'Team B': '#2196F3',
-    'Team C': '#9C27B0',
-    'Team D': '#FF5722'
-  };
-
   // Get team name for a player
   const getPlayerTeam = (player) => {
-    return player.teams?.team_name || player.team || 'Unknown';
+    return player.teams?.team_name || player.team || player.team_name || 'Unknown';
   };
+
+  const activeTeamsList = [...new Set(players.map(p => getPlayerTeam(p)).filter(t => t !== 'Unknown'))];
+  const colorPalette = ['#4CAF50', '#2196F3', '#9C27B0', '#FF5722', '#FFC107', '#00BCD4'];
+  const teamColors = {};
+  activeTeamsList.forEach((t, i) => {
+    teamColors[t] = colorPalette[i % colorPalette.length];
+  });
 
   // Get players by team name
   const getTeamPlayers = (teamName) =>
@@ -184,8 +184,7 @@ export default function MatchSummary({
   });
 
   // Calculate 4-Ball team standings (match play points)
-  const teamNames = ['Team A', 'Team B', 'Team C', 'Team D'];
-  const activeTeams = teamNames.filter(t => getTeamPlayers(t).length > 0);
+  const activeTeams = activeTeamsList.filter(t => getTeamPlayers(t).length > 0);
 
   // Generate all matchups between active teams
   const matchups = [];

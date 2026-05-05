@@ -214,11 +214,28 @@ function App() {
         }
       }
 
+      const distinctTeams = [...new Set(activePlayers.map(p => p.team))];
+      const teamMapping = {};
+
+      for (const t of distinctTeams) {
+        const teamPlayers = activePlayers.filter(p => p.team === t);
+        const teamName = teamPlayers.map(p => {
+          const parts = p.name.trim().split(/\s+/);
+          if (parts.length === 1) {
+            return parts[0][0].toUpperCase();
+          } else {
+            return parts[0][0].toUpperCase() + parts[parts.length - 1][0].toUpperCase();
+          }
+        }).join('-');
+        
+        teamMapping[t] = teamName;
+      }
+
       const { data: teamData, error: teamError } = await supabase
         .from('teams')
-        .insert(['Team A', 'Team B', 'Team C', 'Team D'].map(name => ({
+        .insert(distinctTeams.map(t => ({
           match_id: matchId,
-          team_name: name
+          team_name: teamMapping[t]
         })))
         .select();
 
@@ -227,8 +244,8 @@ function App() {
       const playersToInsert = activePlayers.map(p => ({
         match_id: matchId,
         player_name: p.name,
-        team_id: teamData.find(t => t.team_name === p.team).id,
-        physical_group: null, // Removed group selection
+        team_id: teamData.find(t => t.team_name === teamMapping[p.team]).id,
+        physical_group: null,
         handicap: useHandicaps ? p.hcp : 0
       }));
 

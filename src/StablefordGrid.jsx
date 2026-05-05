@@ -119,7 +119,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #4CAF50' 
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
-          {['Team A', 'Team B', 'Team C', 'Team D'].map(tName => {
+          {[...new Set(players.map(p => p.teams?.team_name || p.team || p.team_name).filter(Boolean))].map(tName => {
             const teamPlayers = players.filter(p => {
               if (p.team === tName || p.team_name === tName || p.team_id_name === tName) return true;
               if (p.teams && p.teams.team_name === tName) return true;

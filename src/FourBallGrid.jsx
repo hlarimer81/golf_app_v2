@@ -147,17 +147,14 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
     return '#f44336';
   };
 
-  // --- All 4 teams ---
-  const teamNames = ['Team A', 'Team B', 'Team C', 'Team D'];
-  const teamColors = {
-    'Team A': '#4CAF50',
-    'Team B': '#2196F3',
-    'Team C': '#9C27B0',
-    'Team D': '#FF5722'
-  };
-
-  // Get teams that have players
-  const activeTeams = teamNames.filter(t => getTeamPlayers(t).length > 0);
+  // --- Active teams and colors ---
+  const activeTeams = [...new Set(players.map(p => p.teams?.team_name || p.team || p.team_name).filter(Boolean))];
+  
+  const colorPalette = ['#4CAF50', '#2196F3', '#9C27B0', '#FF5722', '#FFC107', '#00BCD4'];
+  const teamColors = {};
+  activeTeams.forEach((t, i) => {
+    teamColors[t] = colorPalette[i % colorPalette.length];
+  });
 
   // Generate all matchups between active teams (combinations of 2)
   const matchups = [];

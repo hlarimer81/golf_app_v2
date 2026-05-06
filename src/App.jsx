@@ -4,6 +4,7 @@ import StablefordGrid from './StablefordGrid';
 import FourBallGrid from './FourBallGrid';
 import SkinsGrid from './SkinsGrid';
 import ChairmanGrid from './ChairmanGrid';
+import NinePointGrid from './NinePointGrid';
 import { GOLF_COURSES, PENINSULA_NINES, combinePeninsulaNines } from './courses';
 
 // Generate a random 6-character code
@@ -88,7 +89,9 @@ function App() {
     
     // Auto-add next row if a name was just selected/typed in the last row
     if (updates.name !== undefined && updates.name.trim() !== '' && index === updatedPlayers.length - 1) {
-      updatedPlayers.push({ name: '', team: '', hcp: 0, isGuest: false });
+      if (gameType !== 'ninepoint' || updatedPlayers.length < 3) {
+        updatedPlayers.push({ name: '', team: '', hcp: 0, isGuest: false });
+      }
     }
     
     setPlayers(updatedPlayers);
@@ -214,6 +217,12 @@ function App() {
         }
       }
 
+      if (gameType === 'ninepoint' && activePlayers.length !== 3) {
+        alert("9-Point requires exactly 3 players.");
+        setLoading(false);
+        return;
+      }
+
       const distinctTeams = [...new Set(activePlayers.map(p => p.team))];
       const teamMapping = {};
 
@@ -282,6 +291,9 @@ function App() {
     } else if (gameType === 'chairman') {
       ScorerComponent = ChairmanGrid;
       bannerColor = '#8B4513';
+    } else if (gameType === 'ninepoint') {
+      ScorerComponent = NinePointGrid;
+      bannerColor = '#00BCD4';
     } else {
       ScorerComponent = StablefordGrid;
     }
@@ -340,6 +352,7 @@ function App() {
     fourball: 'Match play. Each player plays their own ball; the best score on each team counts. Team A vs Team B.',
     skins: 'Individual competition. Lowest score wins the hole. Ties can carry over to the next hole.',
     chairman: 'King of the hill. Win a hole outright to become Chairman. Chairman earns 1 point for each hole won.',
+    ninepoint: '3-player game. 9 points awarded per hole: 5 for best, 3 for middle, 1 for worst. Ties split points.',
   };
 
   const peninsulaNineNames = Object.keys(PENINSULA_NINES);
@@ -592,6 +605,7 @@ function App() {
                 <option value="fourball">⚔️ 4-Ball</option>
                 <option value="skins">🎰 Skins</option>
                 <option value="chairman">👑 Chairman</option>
+                <option value="ninepoint">🎯 9-Point</option>
               </select>
               <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', marginBottom: 0 }}>
                 {gameDescriptions[gameType]}
@@ -802,11 +816,24 @@ function App() {
             </div>
           ))}
 
-          {players.length === 0 && (
+          {(players.length === 0 || (players.length < 3 && gameType === 'ninepoint')) && (
             <button 
               type="button" 
-              onClick={() => setPlayers([{ name: '', team: '', hcp: 0, isGuest: false }])}
+              onClick={() => {
+                if (gameType === 'ninepoint' && players.length >= 3) return;
+                if (players.length === 0) setPlayers([{ name: '', team: '', hcp: 0, isGuest: false }]);
+                else setPlayers([...players, { name: '', team: '', hcp: 0, isGuest: false }]);
+              }}
               style={{ width: '100%', padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px', marginBottom: '20px', cursor: 'pointer' }}
+            >
+              + Add Player Slot
+            </button>
+          )}
+          {gameType !== 'ninepoint' && players.length > 0 && (
+            <button 
+              type="button" 
+              onClick={() => setPlayers([...players, { name: '', team: '', hcp: 0, isGuest: false }])}
+              style={{ width: '100%', padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px', marginBottom: '20px', cursor: 'pointer', marginTop: '-5px' }}
             >
               + Add Player Slot
             </button>

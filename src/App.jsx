@@ -5,6 +5,7 @@ import FourBallGrid from './FourBallGrid';
 import SkinsGrid from './SkinsGrid';
 import ChairmanGrid from './ChairmanGrid';
 import NinePointGrid from './NinePointGrid';
+import SinglesGrid from './SinglesGrid';
 import { GOLF_COURSES, PENINSULA_NINES, combinePeninsulaNines } from './courses';
 
 // Generate a random 6-character code
@@ -200,6 +201,13 @@ function App() {
         return;
       }
 
+      // Auto-assign teams for Singles
+      if (gameType === 'singles') {
+        activePlayers.forEach((p, idx) => {
+          p.team = `Player ${idx + 1}`;
+        });
+      }
+
       const missingTeams = activePlayers.some(p => !p.team);
       if (missingTeams) {
         alert("Please assign a team to all selected players.");
@@ -294,6 +302,9 @@ function App() {
     } else if (gameType === 'ninepoint') {
       ScorerComponent = NinePointGrid;
       bannerColor = '#00BCD4';
+    } else if (gameType === 'singles') {
+      ScorerComponent = SinglesGrid;
+      bannerColor = '#9C27B0';
     } else {
       ScorerComponent = StablefordGrid;
     }
@@ -353,6 +364,7 @@ function App() {
     skins: 'Individual competition. Lowest score wins the hole. Ties can carry over to the next hole.',
     chairman: 'King of the hill. Win a hole outright to become Chairman. Chairman earns 1 point for each hole won.',
     ninepoint: '3-player game. 9 points awarded per hole: 5 for best, 3 for middle, 1 for worst. Ties split points.',
+    singles: 'Individual stroke play. No teams, just you vs the course. Keeps track of gross and net scores.',
   };
 
   const peninsulaNineNames = Object.keys(PENINSULA_NINES);
@@ -606,6 +618,7 @@ function App() {
                 <option value="skins">🎰 Skins</option>
                 <option value="chairman">👑 Chairman</option>
                 <option value="ninepoint">🎯 9-Point</option>
+                <option value="singles">🏌️ Singles</option>
               </select>
               <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', marginBottom: 0 }}>
                 {gameDescriptions[gameType]}
@@ -735,7 +748,7 @@ function App() {
 
           <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px', color: '#666' }}>
             <div style={{ flex: 2 }}>Player</div>
-            <div style={{ flex: 1 }}>Team</div>
+            {gameType !== 'singles' && <div style={{ flex: 1 }}>Team</div>}
             <div style={{ width: '60px' }}>HCP</div>
             <div style={{ width: '30px' }}></div>
           </div>
@@ -783,12 +796,14 @@ function App() {
                   <option value="__GUEST__">+ Add Guest Player</option>
                 </select>
               )}
-              <select value={p.team} onChange={e => handlePlayerChange(i, 'team', e.target.value)} style={{ flex: 1 }}>
-                <option value="">-- Team --</option>
-                {['Team A', 'Team B', 'Team C', 'Team D'].map(t => (
-                  <option key={t} value={t}>{t.replace('Team ', '')}</option>
-                ))}
-              </select>
+              {gameType !== 'singles' && (
+                <select value={p.team} onChange={e => handlePlayerChange(i, 'team', e.target.value)} style={{ flex: 1 }}>
+                  <option value="">-- Team --</option>
+                  {['Team A', 'Team B', 'Team C', 'Team D'].map(t => (
+                    <option key={t} value={t}>{t.replace('Team ', '')}</option>
+                  ))}
+                </select>
+              )}
               <select
                 value={p.hcp}
                 onChange={e => handlePlayerChange(i, 'hcp', e.target.value)}

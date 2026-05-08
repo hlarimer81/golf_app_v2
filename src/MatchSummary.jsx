@@ -191,6 +191,7 @@ export default function MatchSummary({
     const quotaGoal = 36 - playerHcp;
 
     let totalStrokes = 0;
+    let totalNetStrokes = 0;
     let totalPoints = 0;
     let totalQuotaPoints = 0;
     let holesPlayed = 0;
@@ -198,6 +199,8 @@ export default function MatchSummary({
     for (let h = 1; h <= 18; h++) {
       if (playerScores[h]) {
         totalStrokes += playerScores[h];
+        const netS = getNetScore(playerScores[h], h - 1, playerHcp);
+        if (netS !== null) totalNetStrokes += netS;
         totalPoints += calculatePoints(playerScores[h], h - 1, playerHcp);
         totalQuotaPoints += calculatePoints(playerScores[h], h - 1, 0); // Gross points for quota
         holesPlayed++;
@@ -211,6 +214,7 @@ export default function MatchSummary({
       team: getPlayerTeam(player),
       handicap: playerHcp,
       strokes: totalStrokes,
+      netStrokes: totalNetStrokes,
       points: totalPoints,
       ninePoints: ninePointTotals[player.id] || 0,
       quotaPoints: totalQuotaPoints,
@@ -223,10 +227,13 @@ export default function MatchSummary({
   // Get all player stats
   const playerStats = players.map(getPlayerStats);
   
-  // Sort by strokes for 4-ball or chairman, by 9-point points for ninepoint, by stableford points for others
+  // Sort by strokes for 4-ball or chairman, by net/gross for singles, by 9-point points for ninepoint, by stableford points for others
   const sortedPlayerStats = [...playerStats].sort((a, b) => {
     if (gameType === 'fourball' || gameType === 'chairman') {
       return a.strokes - b.strokes; // Lower strokes is better
+    }
+    if (gameType === 'singles') {
+      return useHandicaps ? a.netStrokes - b.netStrokes : a.strokes - b.strokes; // Lower strokes is better
     }
     if (gameType === 'ninepoint') {
       return b.ninePoints - a.ninePoints; // Higher nine points is better
@@ -312,7 +319,7 @@ export default function MatchSummary({
       </div>
 
       {/* Team Standings - only show for stableford, fourball, and chairman games */}
-      {gameType !== 'skins' && gameType !== 'ninepoint' && (
+      {gameType !== 'skins' && gameType !== 'ninepoint' && gameType !== 'singles' && (
         <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
           <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
             {gameType === 'fourball' ? '4-Ball Match Play Standings' : gameType === 'chairman' ? '👑 Chairman Team Standings' : 'Team Standings'}
@@ -391,8 +398,11 @@ export default function MatchSummary({
               {gameType !== 'fourball' && gameType !== 'chairman' && <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>#</th>}
               <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>Player</th>
               <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>HCP</th>
-              <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Strokes</th>
-              {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && (
+              <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Gross</th>
+              {gameType === 'singles' && (
+                <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Net</th>
+              )}
+              {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Points</th>
               )}
               {gameType === 'ninepoint' && (
@@ -411,15 +421,20 @@ export default function MatchSummary({
                 )}
                 <td style={{ padding: '12px 10px' }}>
                   <div style={{ fontWeight: 'bold' }}>{player.name}</div>
-                  {gameType !== 'skins' && gameType !== 'ninepoint' && (
+                  {gameType !== 'skins' && gameType !== 'ninepoint' && gameType !== 'singles' && (
                     <div style={{ fontSize: '11px', color: teamColors[player.team] || '#666' }}>{player.team}</div>
                   )}
                 </td>
                 <td style={{ padding: '12px 10px', textAlign: 'center', color: '#888' }}>{player.handicap}</td>
-                <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: gameType === 'fourball' || gameType === 'chairman' ? 'bold' : 'normal', fontSize: gameType === 'fourball' || gameType === 'chairman' ? '18px' : '14px' }}>
+                <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: gameType === 'fourball' || gameType === 'chairman' || (gameType === 'singles' && !useHandicaps) ? 'bold' : 'normal', fontSize: gameType === 'fourball' || gameType === 'chairman' || (gameType === 'singles' && !useHandicaps) ? '18px' : '14px' }}>
                   {player.strokes || '-'}
                 </td>
-                {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && (
+                {gameType === 'singles' && (
+                  <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: useHandicaps ? 'bold' : 'normal', fontSize: useHandicaps ? '18px' : '14px', color: useHandicaps ? '#4CAF50' : '#e0e0e0' }}>
+                    {player.netStrokes || '-'}
+                  </td>
+                )}
+                {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && (
                   <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#4CAF50' }}>
                     {player.points}
                   </td>

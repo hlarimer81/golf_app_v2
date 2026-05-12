@@ -89,6 +89,37 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
       }
       return net;
     };
+
+    const calculatePoints = (strokes, holeIndex, playerHandicap) => {
+      if (!strokes || strokes === 0) return 0;
+      let netStrokes = parseInt(strokes);
+      
+      if (useHandicaps) {
+        const holeDifficulty = hcds[holeIndex];
+        const hcp = parseInt(playerHandicap) || 0;
+        if (hcp >= holeDifficulty) netStrokes -= 1;
+        if (hcp >= holeDifficulty + 18) netStrokes -= 1;
+      }
+  
+      const par = pars[holeIndex];
+      const diff = netStrokes - par;
+      if (diff <= -2) return 4;
+      if (diff === -1) return 3;
+      if (diff === 0) return 2;
+      if (diff === 1) return 1;
+      return 0;
+    };
+
+    const getPlayerPointsUpToHole = (playerId, upToHole, playerHcp) => {
+      const playerScores = scores[playerId] || {};
+      let total = 0;
+      for (let h = 1; h <= upToHole; h++) {
+        if (playerScores[h]) {
+          total += calculatePoints(playerScores[h], h - 1, 0); // Quota always uses gross
+        }
+      }
+      return total;
+    };
   
     return (
       <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -145,6 +176,16 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                       {player.player_name || player.name}
                       <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
                         HCP: {playerHcp}
+                        {useQuota && (() => {
+                          const quotaGoal = 36 - playerHcp;
+                          const totalPoints = getPlayerPointsUpToHole(player.id, 18, playerHcp);
+                          const remaining = quotaGoal - totalPoints;
+                          return (
+                            <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#00BCD4' : '#ff9800', fontWeight: 'bold' }}>
+                              Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </td>
                     {[...Array(9)].map((_, i) => {
@@ -166,7 +207,12 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                           </div>
                           <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                             style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
-                          {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                          {net !== null && useHandicaps && !useQuota && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                          {useQuota && playerScores[holeNum] > 0 && (
+                            <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: calculatePoints(playerScores[holeNum], i, playerHcp) >= 3 ? '#00BCD4' : calculatePoints(playerScores[holeNum], i, playerHcp) === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
+                              {calculatePoints(playerScores[holeNum], i, 0)}
+                            </div>
+                          )}
                         </td>
                       );
                     })}
@@ -193,7 +239,12 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                           </div>
                           <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                             style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
-                          {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                          {net !== null && useHandicaps && !useQuota && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                          {useQuota && playerScores[holeNum] > 0 && (
+                            <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: calculatePoints(playerScores[holeNum], realIndex, playerHcp) >= 3 ? '#00BCD4' : calculatePoints(playerScores[holeNum], realIndex, playerHcp) === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
+                              {calculatePoints(playerScores[holeNum], realIndex, 0)}
+                            </div>
+                          )}
                         </td>
                       );
                     })}

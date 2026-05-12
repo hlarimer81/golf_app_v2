@@ -207,9 +207,9 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                           </div>
                           <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                             style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
-                          {net !== null && useHandicaps && !useQuota && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                          {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
                           {useQuota && playerScores[holeNum] > 0 && (
-                            <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: calculatePoints(playerScores[holeNum], i, playerHcp) >= 3 ? '#00BCD4' : calculatePoints(playerScores[holeNum], i, playerHcp) === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
+                            <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '700', color: calculatePoints(playerScores[holeNum], i, playerHcp) >= 3 ? '#00BCD4' : calculatePoints(playerScores[holeNum], i, playerHcp) === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.5)', padding: '0 3px', borderRadius: '2px' }}>
                               {calculatePoints(playerScores[holeNum], i, 0)}
                             </div>
                           )}
@@ -239,9 +239,9 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                           </div>
                           <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                             style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
-                          {net !== null && useHandicaps && !useQuota && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
+                          {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
                           {useQuota && playerScores[holeNum] > 0 && (
-                            <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: calculatePoints(playerScores[holeNum], realIndex, playerHcp) >= 3 ? '#00BCD4' : calculatePoints(playerScores[holeNum], realIndex, playerHcp) === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
+                            <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '700', color: calculatePoints(playerScores[holeNum], realIndex, playerHcp) >= 3 ? '#00BCD4' : calculatePoints(playerScores[holeNum], realIndex, playerHcp) === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.5)', padding: '0 3px', borderRadius: '2px' }}>
                               {calculatePoints(playerScores[holeNum], realIndex, 0)}
                             </div>
                           )}

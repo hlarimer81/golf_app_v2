@@ -28,7 +28,7 @@ function App() {
   const [useQuota, setUseQuota] = useState(false);
   const [useCarryover, setUseCarryover] = useState(true);
   const [gameType, setGameType] = useState('stableford');
-  const [stablefordPlayMode, setStablefordPlayMode] = useState('team');
+  const [playMode, setPlayMode] = useState('team');
   const [holesCount, setHolesCount] = useState(18);
   const [startHole, setStartHole] = useState(1);
   const [playOffLow, setPlayOffLow] = useState(true);
@@ -241,8 +241,8 @@ function App() {
         return;
       }
 
-      // Auto-assign teams for Singles
-      if (gameType === 'singles') {
+      // Auto-assign teams for Singles or Singles Play Mode
+      if (gameType === 'singles' || playMode === 'singles') {
         activePlayers.forEach((p, idx) => {
           p.team = `Player ${idx + 1}`;
         });
@@ -436,7 +436,7 @@ function App() {
           useQuota={useQuota}
           useCarryover={useCarryover}
           courseData={courseData}
-          initialIsTeamPlay={stablefordPlayMode === 'team'}
+          initialIsTeamPlay={playMode === 'team'}
           onNewMatch={() => {
             setMatchId(null);
             setMatchCode(null);
@@ -447,6 +447,7 @@ function App() {
             setUseHandicaps(false);
             setUseQuota(false);
             setGameType('stableford');
+            setPlayMode('team');
             setHolesCount(18);
             setStartHole(1);
             setPlayOffLow(true);
@@ -730,6 +731,21 @@ function App() {
               </p>
             </div>
 
+            {/* --- Play Mode Selector --- */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
+                Play Mode
+              </label>
+              <select
+                value={playMode}
+                onChange={e => setPlayMode(e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '14px', background: '#fff', color: '#000' }}
+              >
+                <option value="team">👥 Team Play</option>
+                <option value="singles">🏌️ Singles</option>
+              </select>
+            </div>
+
             {/* --- Course Selector --- */}
             <div style={{ marginBottom: '15px' }}>
               <select
@@ -904,7 +920,7 @@ function App() {
 
           <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px', color: '#666' }}>
             <div style={{ flex: 2 }}>Player</div>
-            {gameType !== 'singles' && <div style={{ flex: 1 }}>Team</div>}
+            {gameType !== 'singles' && playMode !== 'singles' && <div style={{ flex: 1 }}>Team</div>}
             <div style={{ width: '60px' }}>HCP</div>
             <div style={{ width: '30px' }}></div>
           </div>
@@ -952,7 +968,7 @@ function App() {
                   <option value="__GUEST__">+ Add Guest Player</option>
                 </select>
               )}
-              {gameType !== 'singles' && (
+              {gameType !== 'singles' && playMode !== 'singles' && (
                 <select value={p.team} onChange={e => handlePlayerChange(i, 'team', e.target.value)} style={{ flex: 1 }}>
                   <option value="">-- Team --</option>
                   {['Team A', 'Team B', 'Team C', 'Team D'].map(t => (

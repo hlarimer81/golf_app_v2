@@ -614,42 +614,6 @@ function App() {
 
       {!matchId ? (
         <>
-          {/* Create or Join buttons */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-            <button
-              onClick={() => setShowJoinForm(true)}
-              style={{
-                flex: 1,
-                padding: '15px',
-                backgroundColor: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                fontSize: '16px',
-                cursor: 'pointer'
-              }}
-            >
-              🔗 Join Round
-            </button>
-            <button
-              onClick={fetchRecentMatches}
-              style={{
-                flex: 1,
-                padding: '15px',
-                backgroundColor: '#17a2b8',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                fontSize: '16px',
-                cursor: 'pointer'
-              }}
-            >
-              📋 Previous Rounds
-            </button>
-          </div>
-
           {/* Recent Matches List */}
           {showRecentMatches && (
             <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
@@ -756,7 +720,8 @@ function App() {
                   required
                 >
                   <option value="" disabled>Start Hole</option>
-                  {[...Array(18)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                  <option value={1}>1</option>
+                  <option value={10}>10</option>
                 </select>
               </div>
               <div style={{ flex: 1 }}>
@@ -766,7 +731,7 @@ function App() {
                   style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                   required
                 >
-                  <option value="" disabled>Hcp %</option>
+                  <option value="" disabled>HCP%</option>
                   <option value={100}>100%</option>
                   <option value={90}>90%</option>
                   <option value={80}>80%</option>

@@ -897,6 +897,42 @@ function App() {
               {loading ? 'Starting...' : 'Start Round'}
             </button>
           </form>
+
+          {/* Create or Join buttons */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+            <button
+              onClick={() => setShowJoinForm(true)}
+              style={{
+                flex: 1,
+                padding: '15px',
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                fontSize: '16px',
+                cursor: 'pointer'
+              }}
+            >
+              Join Round
+            </button>
+            <button
+              onClick={fetchRecentMatches}
+              style={{
+                flex: 1,
+                padding: '15px',
+                backgroundColor: '#17a2b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                fontSize: '16px',
+                cursor: 'pointer'
+              }}
+            >
+              Previous Rounds
+            </button>
+          </div>
         </>
       ) : (
         <div>

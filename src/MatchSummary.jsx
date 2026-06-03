@@ -483,7 +483,7 @@ export default function MatchSummary({
                 )}
                 {gameType === 'fourball' && (
                   <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: '#4CAF50' }}>
-                    ⭐ {player.holesContributed}
+                    {player.holesContributed}
                   </td>
                 )}
                 {useQuota && (

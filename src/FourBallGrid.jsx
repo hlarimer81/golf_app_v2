@@ -157,6 +157,33 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
     teamColors[t] = colorPalette[i % colorPalette.length];
   });
 
+  const didContributeToHolePoints = (playerId, teamName, holeIndex) => {
+    const holeNum = holeIndex + 1;
+    const strokes = scores[playerId]?.[holeNum];
+    if (!strokes) return false;
+    
+    const player = players.find(p => p.id === playerId);
+    const playerHcp = player?.handicap ?? player?.hcp ?? 0;
+    const playerHoleScore = getNetScore(strokes, holeIndex, playerHcp);
+    if (playerHoleScore === null) return false;
+    
+    const teamPlayers = getTeamPlayers(teamName);
+    const bestTeamScore = getBestNet(teamPlayers, holeIndex);
+    if (playerHoleScore !== bestTeamScore) return false;
+    
+    let wonOrHalvedAny = false;
+    activeTeams.forEach(otherTeam => {
+      if (otherTeam === teamName) return;
+      const otherTeamPlayers = getTeamPlayers(otherTeam);
+      const otherTeamBest = getBestNet(otherTeamPlayers, holeIndex);
+      if (otherTeamBest !== null && bestTeamScore <= otherTeamBest) {
+        wonOrHalvedAny = true;
+      }
+    });
+    
+    return wonOrHalvedAny;
+  };
+
   // Generate all matchups between active teams (combinations of 2)
   const matchups = [];
   for (let i = 0; i < activeTeams.length; i++) {
@@ -345,7 +372,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                                 par={pars[i]}
                                 hasOneStroke={hasOneStroke}
                                 hasTwoStrokes={hasTwoStrokes}
-                                showStar={isBest}
+                                showStar={didContributeToHolePoints(player.id, teamName, i)}
                                 customBorderColor={isBest ? color : undefined}
                                 onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                                 style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBest ? color + '33' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}
@@ -389,7 +416,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                                 par={pars[realIndex]}
                                 hasOneStroke={hasOneStroke}
                                 hasTwoStrokes={hasTwoStrokes}
-                                showStar={isBest}
+                                showStar={didContributeToHolePoints(player.id, teamName, realIndex)}
                                 customBorderColor={isBest ? color : undefined}
                                 onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                                 style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBest ? color + '33' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}

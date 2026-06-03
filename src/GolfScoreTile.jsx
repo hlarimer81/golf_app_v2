@@ -187,7 +187,7 @@ export default function GolfScoreTile({
     <div style={{
       position: 'absolute',
       top: '-6px',
-      left: '2px',
+      left: '0px',
       fontSize: '8px',
       zIndex: 5,
       pointerEvents: 'none'

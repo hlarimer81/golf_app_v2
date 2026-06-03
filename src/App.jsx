@@ -538,7 +538,10 @@ function App() {
   if (showJoinForm) {
     return (
       <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '400px', margin: 'auto', textAlign: 'center' }}>
-        <h1>⛳️ Join Round</h1>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
+          <img src="/logo.png" alt="ForePlay Logo" style={{ width: '120px', height: '120px', objectFit: 'contain', borderRadius: '15px', marginBottom: '10px' }} />
+          <h1 style={{ margin: 0, fontSize: '28px', color: '#1b365d', fontWeight: 'bold' }}>Join Round</h1>
+        </div>
         <form onSubmit={joinMatch} style={{ background: '#f4f4f4', padding: '30px', borderRadius: '10px' }}>
           <p style={{ color: '#666', marginBottom: '20px' }}>Enter the 6-character round code</p>
           <input
@@ -602,7 +605,10 @@ function App() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '700px', margin: 'auto' }}>
-      <h1>⛳️ Fore Play</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px' }}>
+        <img src="/logo.png" alt="ForePlay Logo" style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '12px' }} />
+        <h1 style={{ margin: 0, fontSize: '32px', color: '#1b365d', fontWeight: '800', letterSpacing: '-0.5px' }}>ForePlay</h1>
+      </div>
 
       {!matchId ? (
         <>

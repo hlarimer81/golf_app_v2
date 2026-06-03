@@ -28,6 +28,7 @@ function App() {
   const [useQuota, setUseQuota] = useState(false);
   const [useCarryover, setUseCarryover] = useState(true);
   const [gameType, setGameType] = useState('stableford');
+  const [stablefordPlayMode, setStablefordPlayMode] = useState('team');
   const [holesCount, setHolesCount] = useState(18);
   const [startHole, setStartHole] = useState(1);
   const [playOffLow, setPlayOffLow] = useState(true);
@@ -435,6 +436,7 @@ function App() {
           useQuota={useQuota}
           useCarryover={useCarryover}
           courseData={courseData}
+          initialIsTeamPlay={stablefordPlayMode === 'team'}
           onNewMatch={() => {
             setMatchId(null);
             setMatchCode(null);
@@ -836,6 +838,23 @@ function App() {
               <input type="checkbox" checked={useQuota} onChange={e => setUseQuota(e.target.checked)} />
               Enable Quota Game
             </label>
+
+            {/* --- Stableford Play Mode Option --- */}
+            {gameType === 'stableford' && (
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
+                  Stableford Play Mode
+                </label>
+                <select
+                  value={stablefordPlayMode}
+                  onChange={e => setStablefordPlayMode(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '14px', background: '#fff', color: '#000' }}
+                >
+                  <option value="team">👥 Team Play</option>
+                  <option value="singles">🏌️ Singles</option>
+                </select>
+              </div>
+            )}
 
             {/* --- Carryover Skins Toggle (only for skins game) --- */}
             {gameType === 'skins' && (

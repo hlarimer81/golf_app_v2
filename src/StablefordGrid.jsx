@@ -123,40 +123,8 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
           <span style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>
-            🏆 Stableford Leaderboard
+            🏆 Stableford Leaderboard {isTeamPlay ? '(Teams)' : '(Singles)'}
           </span>
-          <div style={{ display: 'flex', gap: '5px' }}>
-            <button 
-              onClick={() => setIsTeamPlay(true)} 
-              style={{
-                padding: '4px 8px',
-                fontSize: '10px',
-                fontWeight: 'bold',
-                backgroundColor: isTeamPlay ? '#4CAF50' : '#333',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Teams
-            </button>
-            <button 
-              onClick={() => setIsTeamPlay(false)} 
-              style={{
-                padding: '4px 8px',
-                fontSize: '10px',
-                fontWeight: 'bold',
-                backgroundColor: !isTeamPlay ? '#4CAF50' : '#333',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Singles
-            </button>
-          </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center', overflowX: 'auto', paddingBottom: '5px' }}>

@@ -987,28 +987,6 @@ function App() {
             </div>
           ))}
 
-          {(players.length === 0 || (players.length < 3 && gameType === 'ninepoint')) && (
-            <button 
-              type="button" 
-              onClick={() => {
-                if (gameType === 'ninepoint' && players.length >= 3) return;
-                if (players.length === 0) setPlayers([{ name: '', team: '', hcp: 0, isGuest: false }]);
-                else setPlayers([...players, { name: '', team: '', hcp: 0, isGuest: false }]);
-              }}
-              style={{ width: '100%', padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px', marginBottom: '20px', cursor: 'pointer' }}
-            >
-              + Add Player Slot
-            </button>
-          )}
-          {gameType !== 'ninepoint' && players.length > 0 && (
-            <button 
-              type="button" 
-              onClick={() => setPlayers([...players, { name: '', team: '', hcp: 0, isGuest: false }])}
-              style={{ width: '100%', padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px', marginBottom: '20px', cursor: 'pointer', marginTop: '-5px' }}
-            >
-              + Add Player Slot
-            </button>
-          )}
 
           {/* New Global Player Form */}
           <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #ddd' }}>

@@ -6,12 +6,13 @@ import GolfScoreTile from './GolfScoreTile';
 export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch, initialIsTeamPlay = true }) {
     const [scores, setScores] = useState({});
     const [showSummary, setShowSummary] = useState(false);
-    const [isTeamPlay, setIsTeamPlay] = useState(initialIsTeamPlay);
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
 
     const activeTeams = [...new Set(players.map(p => p.teams?.team_name || p.team || p.team_name).filter(Boolean))];
+    const hasTeams = activeTeams.length > 0;
+    const isTeamPlay = initialIsTeamPlay && hasTeams;
     const colorPalette = ['#4CAF50', '#2196F3', '#9C27B0', '#FF5722', '#FFC107', '#00BCD4'];
     const teamColors = {};
     activeTeams.forEach((t, i) => {

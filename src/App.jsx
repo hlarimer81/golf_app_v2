@@ -605,10 +605,12 @@ function App() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '700px', margin: 'auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px' }}>
-        <img src="/logo.png" alt="4Play Logo" style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '12px' }} />
-        <h1 style={{ margin: 0, fontSize: '32px', color: '#1b365d', fontWeight: '800', letterSpacing: '-0.5px' }}>4Play</h1>
-      </div>
+      {matchId && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px' }}>
+          <img src="/logo.png" alt="4Play Logo" style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '12px' }} />
+          <h1 style={{ margin: 0, fontSize: '32px', color: '#1b365d', fontWeight: '800', letterSpacing: '-0.5px' }}>4Play</h1>
+        </div>
+      )}
 
       {!matchId ? (
         <>
@@ -713,7 +715,9 @@ function App() {
           )}
 
           <form onSubmit={createMatch} style={{ background: '#f4f4f4', padding: '20px', borderRadius: '10px' }}>
-            <h3>Create New Round</h3>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <img src="/logo.png" alt="4Play Logo" style={{ width: '120px', height: '120px', objectFit: 'contain', borderRadius: '15px' }} />
+            </div>
 
             {/* --- Game Type Selector --- */}
             <div style={{ marginBottom: '15px' }}>

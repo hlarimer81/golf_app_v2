@@ -1,4 +1,4 @@
-# Fore Play - Golf Scoring App
+# 4Play - Golf Scoring App
 
 A real-time golf scoring application built with React, Vite, and Supabase. Support for multiple game types, live leaderboards, and handicap calculations.
 

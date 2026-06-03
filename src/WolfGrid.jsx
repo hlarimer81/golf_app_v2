@@ -9,8 +9,8 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
   
-    const calculatePoints = (strokes, holeIndex, playerHandicap) => {
-      if (!strokes || strokes === 0) return 0;
+    const calculateNetStrokes = (strokes, holeIndex, playerHandicap) => {
+      if (!strokes || strokes === 0) return null;
       let netStrokes = parseInt(strokes);
       
       if (useHandicaps) {
@@ -19,17 +19,9 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
         if (hcp >= holeDifficulty) netStrokes -= 1;
         if (hcp >= holeDifficulty + 18) netStrokes -= 1;
       }
-  
-      const par = pars[holeIndex];
-      const diff = netStrokes - par;
-      if (diff <= -2) return 4;
-      if (diff === -1) return 3;
-      if (diff === 0) return 2;
-      if (diff === 1) return 1;
-      return 0;
+      return netStrokes;
     };
 
-  // Fetch Scores
   useEffect(() => {
     if (!matchId) return;
 
@@ -52,7 +44,6 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
     return () => supabase.removeChannel(channel);
   }, [matchId]);
 
-  // Save Score
   const saveScore = async (playerId, holeNum, strokes) => {
     const val = strokes === '' ? null : parseInt(strokes);
     setScores(prev => ({
@@ -61,7 +52,6 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
     }));
 
     if (val === null) {
-      // Delete the score from database
       await supabase.from('scores')
         .delete()
         .eq('match_id', matchId)
@@ -80,25 +70,12 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
     );
   };
 
-  // Calculate total points for a player up to a certain hole
-  const getPlayerPointsUpToHole = (playerId, upToHole, playerHcp) => {
-    const playerScores = scores[playerId] || {};
-    let total = 0;
-    for (let h = 1; h <= upToHole; h++) {
-      if (playerScores[h]) {
-        total += calculatePoints(playerScores[h], h - 1, 0); // Quota always uses gross
-      }
-    }
-    return total;
-  };
-
-  // Show summary screen
   if (showSummary) {
     return (
       <MatchSummary
         matchName={matchName}
         matchCode={matchCode}
-        gameType="stableford"
+        gameType="wolf"
         players={players}
         scores={scores}
         useHandicaps={useHandicaps}
@@ -113,66 +90,31 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
   return (
     <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
       
-      {/* --- PINNED LEADERBOARD HEADER --- */}
-      <div style={{ 
-        flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', 
-        boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #4CAF50' 
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
-          {[...new Set(players.map(p => p.teams?.team_name || p.team || p.team_name).filter(Boolean))].map(tName => {
-            const teamPlayers = players.filter(p => {
-              if (p.team === tName || p.team_name === tName || p.team_id_name === tName) return true;
-              if (p.teams && p.teams.team_name === tName) return true;
-              return false;
-            });
-
-            if (teamPlayers.length === 0) return null;
-
-            const teamTotal = teamPlayers.reduce((tSum, p) => {
-              const pScores = scores[p.id] || {};
-              const playerHcp = p.handicap ?? p.hcp ?? 0;
-              
-              const pTotalPoints = Object.keys(pScores).reduce((sSum, hNum) => 
-                sSum + calculatePoints(pScores[hNum], hNum - 1, playerHcp), 0
-              );
-              return tSum + pTotalPoints;
-            }, 0);
-
-            return (
-              <div key={tName} style={{ flex: 1 }}>
-                <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>{tName.replace('Team ', '')}</div>
-                <div style={{ fontSize: '24px', fontWeight: '900', color: '#4CAF50' }}>{teamTotal}</div>
-              </div>
-            );
-          })}
+      <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #607D8B' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold' }}>WOLF</div>
+          <div style={{ fontSize: '14px', color: '#607D8B', marginTop: '5px' }}>Partner selection logic goes here.</div>
         </div>
       </div>
 
-      {/* --- THE SCROLLABLE GRID --- */}
       <div style={{ flexGrow: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '8px', border: '1px solid #333', background: '#1a1a1a' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 100 }}>
             <tr style={{ backgroundColor: '#252525' }}>
-              <th style={{ position: 'sticky', left: 0, top: 0, zIndex: 110, backgroundColor: '#252525', padding: '12px', minWidth: '100px', textAlign: 'left', borderRight: '3px solid #4CAF50' }}>PLAYER</th>
+              <th style={{ position: 'sticky', left: 0, top: 0, zIndex: 110, backgroundColor: '#252525', padding: '12px', minWidth: '100px', textAlign: 'left', borderRight: '3px solid #607D8B' }}>PLAYER</th>
               {[...Array(9)].map((_, i) => (
                 <th key={`f-${i}`} style={{ padding: '8px', minWidth: '45px', borderLeft: '1px solid #333', backgroundColor: (i + 1) % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
                     {i + 1}<br/><span style={{fontSize: '9px', color: '#666'}}>P{pars[i]}</span>
                 </th>
               ))}
-              <th style={{ padding: '8px', minWidth: '45px', borderLeft: '3px solid #4CAF50', borderRight: '3px solid #4CAF50', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>
-                OUT
-              </th>
+              <th style={{ padding: '8px', minWidth: '45px', borderLeft: '3px solid #607D8B', borderRight: '3px solid #607D8B', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>OUT</th>
               {[...Array(9)].map((_, i) => (
                 <th key={`b-${i}`} style={{ padding: '8px', minWidth: '45px', borderLeft: '1px solid #333', backgroundColor: (i + 10) % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
                     {i + 10}<br/><span style={{fontSize: '9px', color: '#666'}}>P{pars[i+9]}</span>
                 </th>
               ))}
-              <th style={{ padding: '8px', minWidth: '45px', borderLeft: '3px solid #4CAF50', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>
-                IN
-              </th>
-              <th style={{ padding: '8px', minWidth: '50px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90 }}>
-                TOT
-              </th>
+              <th style={{ padding: '8px', minWidth: '45px', borderLeft: '3px solid #607D8B', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>IN</th>
+              <th style={{ padding: '8px', minWidth: '50px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90 }}>TOT</th>
             </tr>
           </thead>
           <tbody>
@@ -180,14 +122,9 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
               const playerScores = scores[player.id] || {};
               const playerHcp = player.handicap ?? player.hcp ?? 0;
               
-              // Quota calculation: goal = 36 - handicap
-              const quotaGoal = 36 - playerHcp;
-
-              let outStrokes = 0;
-              let inStrokes = 0;
+              let outStrokes = 0; let inStrokes = 0;
               for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
               for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
-              const totalStrokes = outStrokes + inStrokes;
 
               const handleScoreChange = (holeNum, val) => {
                 saveScore(player.id, holeNum, val);
@@ -201,81 +138,48 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
                   <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                     {player.player_name || player.name}
-                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
-                      HCP: {playerHcp}
-                      {useQuota && (() => {
-                        const totalPoints = getPlayerPointsUpToHole(player.id, 18, playerHcp);
-                        const remaining = quotaGoal - totalPoints;
-                        return (
-                          <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#4CAF50' : '#ff9800', fontWeight: 'bold' }}>
-                            Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
-                          </span>
-                        );
-                      })()}
-                    </div>
+                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>HCP: {playerHcp}</div>
                   </td>
                   {[...Array(9)].map((_, i) => {
                     const holeNum = i + 1;
-                    const pts = calculatePoints(playerScores[holeNum], i, playerHcp);
-                    const holeDifficulty = hcds[i];
-                    const hasOneStroke = useHandicaps && playerHcp >= holeDifficulty;
-                    const hasTwoStrokes = useHandicaps && playerHcp >= (holeDifficulty + 18);
+                    const isWolf = (i % players.length) === globalIdx;
+                    const hasOneStroke = useHandicaps && playerHcp >= hcds[i];
+                    const hasTwoStrokes = useHandicaps && playerHcp >= (hcds[i] + 18);
 
                     return (
-                      <td key={`f-${i}`} style={{ 
-                        padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', 
-                        backgroundColor: (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px'
-                      }}>
+                      <td key={`f-${i}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px' }}>
                         <div style={{ position: 'absolute', top: '3px', left: '4px', display: 'flex', gap: '2px' }}>
-                          {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#4CAF50', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#4CAF50', borderRadius: '50%' }} />}
+                          {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#607D8B', borderRadius: '50%' }} />}
+                          {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#607D8B', borderRadius: '50%' }} />}
                         </div>
+                        {isWolf && <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px' }}>🐺</div>}
                         <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
-                        {playerScores[holeNum] > 0 && (
-                          <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: pts >= 3 ? '#4CAF50' : pts === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
-                            {pts}
-                          </div>
-                        )}
                       </td>
                     );
                   })}
-                  <td style={{ padding: '8px', textAlign: 'center', borderLeft: '3px solid #4CAF50', borderRight: '3px solid #4CAF50', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '14px' }}>
-                    {outStrokes > 0 ? outStrokes : '-'}
-                  </td>
+                  <td style={{ padding: '8px', textAlign: 'center', borderLeft: '3px solid #607D8B', borderRight: '3px solid #607D8B', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '14px' }}>{outStrokes || '-'}</td>
                   {[...Array(9)].map((_, i) => {
                     const holeNum = i + 10;
                     const realIndex = i + 9;
-                    const pts = calculatePoints(playerScores[holeNum], realIndex, playerHcp);
-                    const holeDifficulty = hcds[realIndex];
-                    const hasOneStroke = useHandicaps && playerHcp >= holeDifficulty;
-                    const hasTwoStrokes = useHandicaps && playerHcp >= (holeDifficulty + 18);
+                    const isWolf = (realIndex % players.length) === globalIdx;
+                    const hasOneStroke = useHandicaps && playerHcp >= hcds[realIndex];
+                    const hasTwoStrokes = useHandicaps && playerHcp >= (hcds[realIndex] + 18);
 
                     return (
-                      <td key={`b-${i}`} style={{ 
-                        padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', 
-                        backgroundColor: (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px'
-                      }}>
+                      <td key={`b-${i}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px' }}>
                         <div style={{ position: 'absolute', top: '3px', left: '4px', display: 'flex', gap: '2px' }}>
-                          {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#4CAF50', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#4CAF50', borderRadius: '50%' }} />}
+                          {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#607D8B', borderRadius: '50%' }} />}
+                          {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#607D8B', borderRadius: '50%' }} />}
                         </div>
+                        {isWolf && <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px' }}>🐺</div>}
                         <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
-                        {playerScores[holeNum] > 0 && (
-                          <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: pts >= 3 ? '#4CAF50' : pts === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
-                            {pts}
-                          </div>
-                        )}
                       </td>
                     );
                   })}
-                  <td style={{ padding: '8px', textAlign: 'center', borderLeft: '3px solid #4CAF50', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '14px' }}>
-                    {inStrokes > 0 ? inStrokes : '-'}
-                  </td>
-                  <td style={{ padding: '8px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1e1e1e', fontWeight: 'bold', color: '#fff', fontSize: '16px' }}>
-                    {totalStrokes > 0 ? totalStrokes : '-'}
-                  </td>
+                  <td style={{ padding: '8px', textAlign: 'center', borderLeft: '3px solid #607D8B', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '14px' }}>{inStrokes || '-'}</td>
+                  <td style={{ padding: '8px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1e1e1e', fontWeight: 'bold', color: '#fff', fontSize: '16px' }}>{(outStrokes + inStrokes) || '-'}</td>
                 </tr>
               );
             })}
@@ -283,35 +187,9 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
         </table>
       </div>
 
-      {/* --- FINISH MATCH BUTTON (PINNED) --- */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: '10px',
-        background: 'linear-gradient(transparent, #121212 30%)',
-        zIndex: 200
-      }}>
-        <button
-          onClick={() => setShowSummary(true)}
-          style={{
-            padding: '15px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            width: '100%',
-            boxShadow: '0 -2px 10px rgba(0,0,0,0.5)'
-          }}
-        >
-          🏁 Finish Round
-        </button>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '10px', background: 'linear-gradient(transparent, #121212 30%)', zIndex: 200 }}>
+        <button onClick={() => setShowSummary(true)} style={{ padding: '15px', backgroundColor: '#607D8B', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
       </div>
-      {/* Spacer to prevent content from being hidden behind fixed button */}
       <div style={{ height: '70px', flexShrink: 0 }} />
     </div>
   );

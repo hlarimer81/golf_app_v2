@@ -5,13 +5,10 @@ const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkSchema() {
-  const tables = ['matches', 'holes'];
-  for (const t of tables) {
-    const { data, error } = await supabase.from(t).select('*').limit(1);
-    if (error) console.error(`Error fetching ${t}:`, error.message);
-    else {
-      console.log(`Table ${t} columns:`, data.length ? Object.keys(data[0]) : 'empty table');
-    }
+  const { data, error } = await supabase.from('courses').select('name, greens');
+  if (error) console.error(error.message);
+  else {
+    console.log(JSON.stringify(data, null, 2));
   }
 }
 checkSchema();

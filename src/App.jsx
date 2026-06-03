@@ -131,12 +131,13 @@ function App() {
         pars: [...front.par, ...back.par],
         handicaps: newHandicaps,
         slope: front.slope && back.slope ? Math.round((front.slope + back.slope) / 2) : null,
-        rating: front.rating && back.rating ? front.rating + back.rating : null
+        rating: front.rating && back.rating ? front.rating + back.rating : null,
+        greens: [...(front.greens || []), ...(back.greens || [])]
       };
     }
     const c = dbCourses.find(c => c.name === selectedCourse);
     if (!c) return { pars: Array(18).fill(4), handicaps: Array(18).fill(10) };
-    return { pars: c.par, handicaps: c.stroke_index, slope: c.slope, rating: c.rating };
+    return { pars: c.par, handicaps: c.stroke_index, slope: c.slope, rating: c.rating, greens: c.greens };
   }, [selectedCourse, peninsulaFront, peninsulaBack, dbCourses]);
 
   // All course options (including Peninsula as a special entry)
@@ -415,6 +416,7 @@ function App() {
           borderBottom: `2px solid ${bannerColor}`
         }}>
           <span style={{ color: '#888', fontSize: '12px' }}>{selectedCourse}</span>
+          <GolfGPSWidget courseData={courseData} matchId={matchId} players={playersWithPops} />
           <span style={{ 
             background: bannerColor, 
             color: gameType === 'skins' ? '#000' : '#fff', 

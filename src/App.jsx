@@ -28,8 +28,8 @@ function App() {
   const [useHandicaps, setUseHandicaps] = useState(false);
   const [useQuota, setUseQuota] = useState(false);
   const [useCarryover, setUseCarryover] = useState(true);
-  const [gameType, setGameType] = useState('stableford');
-  const [playMode, setPlayMode] = useState('team');
+  const [gameType, setGameType] = useState('');
+  const [playMode, setPlayMode] = useState('');
   const [holesCount, setHolesCount] = useState(18);
   const [startHole, setStartHole] = useState(1);
   const [playOffLow, setPlayOffLow] = useState(true);
@@ -784,14 +784,13 @@ function App() {
 
             {/* --- Game Type Selector --- */}
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                Select Game Type
-              </label>
               <select
                 value={gameType}
                 onChange={(e) => setGameType(e.target.value)}
                 style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                required
               >
+                <option value="" disabled>Select Game Type</option>
                 <option value="stableford">🏆 Stableford</option>
                 <option value="fourball">⚔️ 4-Ball</option>
                 <option value="skins">🎰 Skins</option>
@@ -802,21 +801,22 @@ function App() {
                 <option value="vegas">🎲 Vegas</option>
                 <option value="wolf">🐺 Wolf</option>
               </select>
-              <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', marginBottom: 0 }}>
-                {gameDescriptions[gameType]}
-              </p>
+              {gameType && (
+                <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', marginBottom: 0 }}>
+                  {gameDescriptions[gameType]}
+                </p>
+              )}
             </div>
 
             {/* --- Play Mode Selector --- */}
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
-                Play Mode
-              </label>
               <select
                 value={playMode}
                 onChange={e => setPlayMode(e.target.value)}
                 style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '14px', background: '#fff', color: '#000' }}
+                required
               >
+                <option value="" disabled>Play Mode</option>
                 <option value="team">👥 Team Play</option>
                 <option value="singles">🏌️ Singles</option>
               </select>

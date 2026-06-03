@@ -207,6 +207,39 @@ export default function MatchSummary({
       }
     }
 
+    // Calculate 4-ball holes contributed
+    let holesContributed = 0;
+    if (gameType === 'fourball') {
+      const teamName = getPlayerTeam(player);
+      const teamPlayers = getTeamPlayers(teamName);
+      
+      for (let h = 0; h < 18; h++) {
+        const holeNum = h + 1;
+        const strokes = playerScores[holeNum];
+        if (!strokes) continue;
+        
+        const playerHoleScore = getNetScore(strokes, h, playerHcp);
+        if (playerHoleScore === null) continue;
+        
+        const bestTeamScore = getBestNet(teamPlayers, h);
+        if (playerHoleScore !== bestTeamScore) continue;
+        
+        let wonOrHalvedAny = false;
+        activeTeamsList.filter(t => getTeamPlayers(t).length > 0).forEach(otherTeam => {
+          if (otherTeam === teamName) return;
+          const otherTeamPlayers = getTeamPlayers(otherTeam);
+          const otherTeamBest = getBestNet(otherTeamPlayers, h);
+          if (otherTeamBest !== null && bestTeamScore <= otherTeamBest) {
+            wonOrHalvedAny = true;
+          }
+        });
+        
+        if (wonOrHalvedAny) {
+          holesContributed++;
+        }
+      }
+    }
+
     const quotaResult = totalQuotaPoints - quotaGoal;
     return {
       id: player.id,
@@ -220,7 +253,8 @@ export default function MatchSummary({
       quotaPoints: totalQuotaPoints,
       holesPlayed,
       quotaGoal,
-      quotaResult
+      quotaResult,
+      holesContributed
     };
   };
 
@@ -402,6 +436,9 @@ export default function MatchSummary({
               {gameType === 'singles' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Net</th>
               )}
+              {gameType === 'fourball' && (
+                <th style={{ padding: '10px', textAlign: 'center', color: '#4CAF50' }}>Holes Contributed</th>
+              )}
               {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Points</th>
               )}
@@ -442,6 +479,11 @@ export default function MatchSummary({
                 {gameType === 'ninepoint' && (
                   <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#00BCD4' }}>
                     {player.ninePoints}
+                  </td>
+                )}
+                {gameType === 'fourball' && (
+                  <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: '#4CAF50' }}>
+                    ⭐ {player.holesContributed}
                   </td>
                 )}
                 {useQuota && (

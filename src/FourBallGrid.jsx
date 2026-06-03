@@ -345,6 +345,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                                 par={pars[i]}
                                 hasOneStroke={hasOneStroke}
                                 hasTwoStrokes={hasTwoStrokes}
+                                showStar={isBest}
                                 customBorderColor={isBest ? color : undefined}
                                 onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                                 style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBest ? color + '33' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}
@@ -388,6 +389,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                                 par={pars[realIndex]}
                                 hasOneStroke={hasOneStroke}
                                 hasTwoStrokes={hasTwoStrokes}
+                                showStar={isBest}
                                 customBorderColor={isBest ? color : undefined}
                                 onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                                 style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBest ? color + '33' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}

@@ -6,6 +6,7 @@ export default function GolfScoreTile({
   hasOneStroke,
   hasTwoStrokes,
   wolfPoints,
+  showStar,
   style = {},
   id,
   onChange,
@@ -182,6 +183,19 @@ export default function GolfScoreTile({
     </div>
   );
 
+  const starContainer = showStar && (
+    <div style={{
+      position: 'absolute',
+      top: '-6px',
+      left: '2px',
+      fontSize: '8px',
+      zIndex: 5,
+      pointerEvents: 'none'
+    }}>
+      ⭐
+    </div>
+  );
+
   return (
     <div style={outerStyle}>
       {shapeDecorations}
@@ -195,6 +209,7 @@ export default function GolfScoreTile({
       />
       {popDots}
       {wolfPointsContainer}
+      {starContainer}
     </div>
   );
 }

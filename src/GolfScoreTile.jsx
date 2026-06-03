@@ -146,7 +146,7 @@ export default function GolfScoreTile({
   const popDots = (hasOneStroke || hasTwoStrokes) && (
     <div style={{
       position: 'absolute',
-      top: '2px',
+      top: '-6px',
       right: '2px',
       display: 'flex',
       flexDirection: 'row',

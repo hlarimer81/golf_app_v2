@@ -30,10 +30,10 @@ function App() {
   const [useCarryover, setUseCarryover] = useState(true);
   const [gameType, setGameType] = useState('');
   const [playMode, setPlayMode] = useState('');
-  const [holesCount, setHolesCount] = useState(18);
-  const [startHole, setStartHole] = useState(1);
+  const [holesCount, setHolesCount] = useState('');
+  const [startHole, setStartHole] = useState('');
   const [playOffLow, setPlayOffLow] = useState(true);
-  const [hcpAllowance, setHcpAllowance] = useState(100);
+  const [hcpAllowance, setHcpAllowance] = useState('');
   const [loading, setLoading] = useState(false);
   const [showScorer, setShowScorer] = useState(false);
   const [finalPlayers, setFinalPlayers] = useState([]);
@@ -449,12 +449,12 @@ function App() {
             setSelectedCourse('');
             setUseHandicaps(false);
             setUseQuota(false);
-            setGameType('stableford');
-            setPlayMode('team');
-            setHolesCount(18);
-            setStartHole(1);
+            setGameType('');
+            setPlayMode('');
+            setHolesCount('');
+            setStartHole('');
             setPlayOffLow(true);
-            setHcpAllowance(100);
+            setHcpAllowance('');
           }}
         />
       </div>
@@ -724,7 +724,7 @@ function App() {
               <select
                 value={selectedCourse}
                 onChange={(e) => setSelectedCourse(e.target.value)}
-                style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }}
+                style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                 required
               >
                 <option value="" disabled>Select Course</option>
@@ -732,6 +732,49 @@ function App() {
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
+            </div>
+
+            {/* --- Holes, Start Hole, Hcp % Selector --- */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <div style={{ flex: 1 }}>
+                <select
+                  value={holesCount}
+                  onChange={e => setHolesCount(parseInt(e.target.value))}
+                  style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                  required
+                >
+                  <option value="" disabled>Holes</option>
+                  <option value={9}>9</option>
+                  <option value={18}>18</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <select
+                  value={startHole}
+                  onChange={e => setStartHole(parseInt(e.target.value))}
+                  style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                  required
+                >
+                  <option value="" disabled>Start Hole</option>
+                  {[...Array(18)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <select
+                  value={hcpAllowance}
+                  onChange={e => setHcpAllowance(parseInt(e.target.value))}
+                  style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                  required
+                >
+                  <option value="" disabled>Hcp %</option>
+                  <option value={100}>100%</option>
+                  <option value={90}>90%</option>
+                  <option value={80}>80%</option>
+                  <option value={70}>70%</option>
+                  <option value={60}>60%</option>
+                  <option value={50}>50%</option>
+                </select>
+              </div>
             </div>
 
             {/* --- Peninsula Nine Selection --- */}
@@ -813,40 +856,13 @@ function App() {
               <select
                 value={playMode}
                 onChange={e => setPlayMode(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '14px', background: '#fff', color: '#000' }}
+                style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                 required
               >
                 <option value="" disabled>Play Mode</option>
                 <option value="team">👥 Team Play</option>
                 <option value="singles">🏌️ Singles</option>
               </select>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '4px' }}>Holes</label>
-                <select value={holesCount} onChange={e => setHolesCount(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}>
-                  <option value={9}>9</option>
-                  <option value={18}>18</option>
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '4px' }}>Start Hole</label>
-                <select value={startHole} onChange={e => setStartHole(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}>
-                  {[...Array(18)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '4px' }}>Hcp %</label>
-                <select value={hcpAllowance} onChange={e => setHcpAllowance(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}>
-                  <option value={100}>100%</option>
-                  <option value={90}>90%</option>
-                  <option value={80}>80%</option>
-                  <option value={70}>70%</option>
-                  <option value={60}>60%</option>
-                  <option value={50}>50%</option>
-                </select>
-              </div>
             </div>
 
             {/* --- Handicap Toggle --- */}

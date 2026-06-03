@@ -373,9 +373,8 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                                 hasOneStroke={hasOneStroke}
                                 hasTwoStrokes={hasTwoStrokes}
                                 showStar={didContributeToHolePoints(player.id, teamName, i)}
-                                customBorderColor={isBest ? color : undefined}
                                 onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                                style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBest ? color + '33' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}
+                                style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}
                               />
                               {net !== null && useHandicaps && (
                                 <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
@@ -417,9 +416,8 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                                 hasOneStroke={hasOneStroke}
                                 hasTwoStrokes={hasTwoStrokes}
                                 showStar={didContributeToHolePoints(player.id, teamName, realIndex)}
-                                customBorderColor={isBest ? color : undefined}
                                 onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                                style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: isBest ? color + '33' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}
+                                style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}
                               />
                               {net !== null && useHandicaps && (
                                 <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>

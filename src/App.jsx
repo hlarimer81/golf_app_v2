@@ -613,67 +613,71 @@ function App() {
 
       {!matchId ? (
         <>
-          {/* Recent Matches List */}
+          {/* Recent Matches Overlay */}
           {showRecentMatches && (
-            <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <h4 style={{ margin: 0, color: '#333' }}>📋 Recent Rounds (Last 30 Days)</h4>
-                <button 
-                  onClick={() => setShowRecentMatches(false)}
-                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#666' }}
-                >
-                  ✕
-                </button>
-              </div>
-              {recentMatches.length === 0 ? (
-                <p style={{ color: '#666', textAlign: 'center', margin: '20px 0' }}>No rounds found in the last 30 days</p>
-              ) : (
-                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  {recentMatches.map(match => (
-                    <div 
-                      key={match.id}
-                      onClick={() => loadMatch(match)}
-                      style={{ 
-                        background: '#fff', 
-                        padding: '12px', 
-                        borderRadius: '8px', 
-                        marginBottom: '8px',
-                        cursor: 'pointer',
-                        border: '1px solid #ddd',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseOver={e => e.currentTarget.style.background = '#e8f4f8'}
-                      onMouseOut={e => e.currentTarget.style.background = '#fff'}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 'bold', color: '#333' }}>{match.course_name || 'No course'}</div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          {match.game_type === 'fourball' ? '4-Ball' : match.game_type === 'skins' ? 'Skins' : match.game_type === 'chairman' ? 'Chairman' : 'Stableford'}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ 
-                          background: '#17a2b8', 
-                          color: '#fff', 
-                          padding: '2px 8px', 
-                          borderRadius: '4px', 
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          letterSpacing: '1px'
-                        }}>
-                          {match.match_code}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
-                          {formatDate(match.created_at)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', boxSizing: 'border-box' }}
+              onClick={(e) => { if (e.target === e.currentTarget) setShowRecentMatches(false); }}
+            >
+              <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', width: '100%', maxWidth: '500px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexShrink: 0 }}>
+                  <h4 style={{ margin: 0, color: '#333' }}>📋 Recent Rounds (Last 30 Days)</h4>
+                  <button 
+                    onClick={() => setShowRecentMatches(false)}
+                    style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#666', padding: '5px' }}
+                  >
+                    ✕
+                  </button>
                 </div>
-              )}
+                {recentMatches.length === 0 ? (
+                  <p style={{ color: '#666', textAlign: 'center', margin: '20px 0' }}>No rounds found in the last 30 days</p>
+                ) : (
+                  <div style={{ overflowY: 'auto', flex: 1 }}>
+                    {recentMatches.map(match => (
+                      <div 
+                        key={match.id}
+                        onClick={() => loadMatch(match)}
+                        style={{ 
+                          background: '#f8f9fa', 
+                          padding: '12px', 
+                          borderRadius: '8px', 
+                          marginBottom: '8px',
+                          cursor: 'pointer',
+                          border: '1px solid #ddd',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseOver={e => e.currentTarget.style.background = '#e8f4f8'}
+                        onMouseOut={e => e.currentTarget.style.background = '#f8f9fa'}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: '#333' }}>{match.course_name || 'No course'}</div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>
+                            {{ stableford: 'Stableford', fourball: '4-Ball', skins: 'Skins', chairman: 'Chairman', ninepoint: '9-Point', singles: 'Singles', nassau: 'Nassau', vegas: 'Vegas', wolf: 'Wolf' }[match.game_type] || match.game_type || 'Unknown'}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ 
+                            background: '#17a2b8', 
+                            color: '#fff', 
+                            padding: '2px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            letterSpacing: '1px'
+                          }}>
+                            {match.match_code}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+                            {formatDate(match.created_at)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

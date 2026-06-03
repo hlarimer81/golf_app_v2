@@ -30,10 +30,10 @@ function App() {
   const [useCarryover, setUseCarryover] = useState(true);
   const [gameType, setGameType] = useState('');
   const [playMode, setPlayMode] = useState('');
-  const [holesCount, setHolesCount] = useState('');
-  const [startHole, setStartHole] = useState('');
+  const [holesCount, setHolesCount] = useState(18);
+  const [startHole, setStartHole] = useState(1);
   const [playOffLow, setPlayOffLow] = useState(true);
-  const [hcpAllowance, setHcpAllowance] = useState('');
+  const [hcpAllowance, setHcpAllowance] = useState(100);
   const [loading, setLoading] = useState(false);
   const [showScorer, setShowScorer] = useState(false);
   const [finalPlayers, setFinalPlayers] = useState([]);

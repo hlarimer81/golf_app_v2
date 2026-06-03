@@ -6,6 +6,9 @@ import SkinsGrid from './SkinsGrid';
 import ChairmanGrid from './ChairmanGrid';
 import NinePointGrid from './NinePointGrid';
 import SinglesGrid from './SinglesGrid';
+import NassauGrid from './NassauGrid';
+import VegasGrid from './VegasGrid';
+import WolfGrid from './WolfGrid';
 import { GOLF_COURSES, PENINSULA_NINES, combinePeninsulaNines } from './courses';
 
 // Generate a random 6-character code
@@ -26,6 +29,10 @@ function App() {
   const [useQuota, setUseQuota] = useState(false);
   const [useCarryover, setUseCarryover] = useState(true);
   const [gameType, setGameType] = useState('stableford');
+  const [holesCount, setHolesCount] = useState(18);
+  const [startHole, setStartHole] = useState(1);
+  const [playOffLow, setPlayOffLow] = useState(true);
+  const [hcpAllowance, setHcpAllowance] = useState(100);
   const [loading, setLoading] = useState(false);
   const [showScorer, setShowScorer] = useState(false);
   const [finalPlayers, setFinalPlayers] = useState([]);
@@ -129,7 +136,11 @@ function App() {
         match_code: code,
         game_type: gameType,
         course_name: selectedCourse,
-        use_quota: useQuota
+        use_quota: useQuota,
+        holes: holesCount,
+        start_hole: startHole,
+        play_off_low: playOffLow,
+        handicap_allowance_pct: hcpAllowance
       }])
       .select();
 
@@ -186,6 +197,10 @@ function App() {
     setUseQuota(matchData.use_quota || false);
     setGameType(matchData.game_type || 'stableford');
     setSelectedCourse(matchData.course_name || 'Default Course');
+    setHolesCount(matchData.holes || 18);
+    setStartHole(matchData.start_hole || 1);
+    setPlayOffLow(matchData.play_off_low ?? true);
+    setHcpAllowance(matchData.handicap_allowance_pct || 100);
     setFinalPlayers(playersData);
     setShowScorer(true);
     setLoading(false);
@@ -305,6 +320,15 @@ function App() {
     } else if (gameType === 'singles') {
       ScorerComponent = SinglesGrid;
       bannerColor = '#9C27B0';
+    } else if (gameType === 'nassau') {
+      ScorerComponent = NassauGrid;
+      bannerColor = '#0D47A1';
+    } else if (gameType === 'vegas') {
+      ScorerComponent = VegasGrid;
+      bannerColor = '#E91E63';
+    } else if (gameType === 'wolf') {
+      ScorerComponent = WolfGrid;
+      bannerColor = '#607D8B';
     } else {
       ScorerComponent = StablefordGrid;
     }
@@ -352,6 +376,10 @@ function App() {
             setUseHandicaps(false);
             setUseQuota(false);
             setGameType('stableford');
+            setHolesCount(18);
+            setStartHole(1);
+            setPlayOffLow(true);
+            setHcpAllowance(100);
           }}
         />
       </div>
@@ -365,6 +393,9 @@ function App() {
     chairman: 'King of the hill. Win a hole outright to become Chairman. Chairman earns 1 point for each hole won.',
     ninepoint: '3-player game. 9 points awarded per hole: 5 for best, 3 for middle, 1 for worst. Ties split points.',
     singles: 'Individual stroke play. No teams, just you vs the course. Keeps track of gross and net scores.',
+    nassau: 'Classic 3-part match: Front 9, Back 9, and 18-hole total.',
+    vegas: '2v2 per-hole points. Scores are concatenated (e.g. 4 and 5 makes 45).',
+    wolf: 'Rotational 4-player game. The "Wolf" tees off first and can choose a partner or play lone wolf.',
   };
 
   const peninsulaNineNames = Object.keys(PENINSULA_NINES);
@@ -619,6 +650,9 @@ function App() {
                 <option value="chairman">👑 Chairman</option>
                 <option value="ninepoint">🎯 9-Point</option>
                 <option value="singles">🏌️ Singles</option>
+                <option value="nassau">🇺🇸 Nassau</option>
+                <option value="vegas">🎲 Vegas</option>
+                <option value="wolf">🐺 Wolf</option>
               </select>
               <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', marginBottom: 0 }}>
                 {gameDescriptions[gameType]}
@@ -688,11 +722,45 @@ function App() {
               </div>
             )}
 
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '4px' }}>Holes</label>
+                <select value={holesCount} onChange={e => setHolesCount(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}>
+                  <option value={9}>9</option>
+                  <option value={18}>18</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '4px' }}>Start Hole</label>
+                <select value={startHole} onChange={e => setStartHole(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}>
+                  {[...Array(18)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '4px' }}>Hcp %</label>
+                <select value={hcpAllowance} onChange={e => setHcpAllowance(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}>
+                  <option value={100}>100%</option>
+                  <option value={90}>90%</option>
+                  <option value={80}>80%</option>
+                  <option value={70}>70%</option>
+                  <option value={60}>60%</option>
+                  <option value={50}>50%</option>
+                </select>
+              </div>
+            </div>
+
             {/* --- Handicap Toggle --- */}
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '10px' }}>
               <input type="checkbox" checked={useHandicaps} onChange={e => setUseHandicaps(e.target.checked)} />
               Enable Net Scoring (Handicaps)
             </label>
+
+            {useHandicaps && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '10px', marginLeft: '25px', fontSize: '13px' }}>
+                <input type="checkbox" checked={playOffLow} onChange={e => setPlayOffLow(e.target.checked)} />
+                Play Off Low (subtract lowest handicap from all players)
+              </label>
+            )}
 
             {/* --- Quota Toggle --- */}
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '10px' }}>

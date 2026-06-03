@@ -439,6 +439,8 @@ function App() {
           useQuota={useQuota}
           useCarryover={useCarryover}
           courseData={courseData}
+          holesCount={holesCount}
+          startHole={startHole}
           initialIsTeamPlay={playMode === 'team'}
           onNewMatch={() => {
             setMatchId(null);
@@ -704,25 +706,25 @@ function App() {
             {/* --- Holes, Start Hole Selector --- */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#666', fontWeight: 'bold', marginBottom: '4px' }}>Holes</label>
                 <select
                   value={holesCount}
                   onChange={e => setHolesCount(parseInt(e.target.value))}
                   style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                   required
                 >
-                  <option value="" disabled>Holes</option>
                   <option value={9}>9</option>
                   <option value={18}>18</option>
                 </select>
               </div>
               <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#666', fontWeight: 'bold', marginBottom: '4px' }}>Starting Hole</label>
                 <select
                   value={startHole}
                   onChange={e => setStartHole(parseInt(e.target.value))}
                   style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                   required
                 >
-                  <option value="" disabled>Start Hole</option>
                   <option value={1}>1</option>
                   <option value={10}>10</option>
                 </select>
@@ -844,22 +846,24 @@ function App() {
                   <option value="net">Net (Handicaps)</option>
                 </select>
               </div>
-              <div style={{ flex: 1 }}>
-                <select
-                  value={hcpAllowance}
-                  onChange={e => setHcpAllowance(parseInt(e.target.value))}
-                  style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
-                  required
-                >
-                  <option value="" disabled>HCP%</option>
-                  <option value={100}>100%</option>
-                  <option value={90}>90%</option>
-                  <option value={80}>80%</option>
-                  <option value={70}>70%</option>
-                  <option value={60}>60%</option>
-                  <option value={50}>50%</option>
-                </select>
-              </div>
+              {useHandicaps && (
+                <div style={{ flex: 1 }}>
+                  <select
+                    value={hcpAllowance}
+                    onChange={e => setHcpAllowance(parseInt(e.target.value))}
+                    style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                    required
+                  >
+                    <option value="" disabled>HCP%</option>
+                    <option value={100}>100%</option>
+                    <option value={90}>90%</option>
+                    <option value={80}>80%</option>
+                    <option value={70}>70%</option>
+                    <option value={60}>60%</option>
+                    <option value={50}>50%</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* --- Stacked Games Selector --- */}

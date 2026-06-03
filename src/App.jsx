@@ -604,7 +604,7 @@ function App() {
   }
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '700px', margin: 'auto' }}>
+    <div style={{ padding: '10px', fontFamily: 'sans-serif', maxWidth: '100%', margin: '0 auto', boxSizing: 'border-box', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
       {matchId && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px' }}>
           <img src="/logo.png" alt="4Play Logo" style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '12px' }} />
@@ -778,7 +778,16 @@ function App() {
             <div style={{ marginBottom: '15px' }}>
               <select
                 value={gameType}
-                onChange={(e) => setGameType(e.target.value)}
+                onChange={(e) => {
+                  const gt = e.target.value;
+                  setGameType(gt);
+                  // Auto-set play mode based on game type
+                  if (['fourball', 'vegas'].includes(gt)) {
+                    setPlayMode('team');
+                  } else if (['ninepoint', 'singles', 'wolf'].includes(gt)) {
+                    setPlayMode('singles');
+                  }
+                }}
                 style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                 required
               >
@@ -807,10 +816,15 @@ function App() {
                 onChange={e => setPlayMode(e.target.value)}
                 style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                 required
+                disabled={['fourball', 'vegas', 'ninepoint', 'singles', 'wolf'].includes(gameType)}
               >
                 <option value="" disabled>Play Mode</option>
-                <option value="team">Team Play</option>
-                <option value="singles">Singles</option>
+                {!['ninepoint', 'singles', 'wolf'].includes(gameType) && (
+                  <option value="team">Team Play</option>
+                )}
+                {!['fourball', 'vegas'].includes(gameType) && (
+                  <option value="singles">Singles</option>
+                )}
               </select>
             </div>
 

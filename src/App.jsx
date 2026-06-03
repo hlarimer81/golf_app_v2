@@ -9,6 +9,7 @@ import SinglesGrid from './SinglesGrid';
 import NassauGrid from './NassauGrid';
 import VegasGrid from './VegasGrid';
 import WolfGrid from './WolfGrid';
+import GolfGPSWidget from './GolfGPSWidget';
 
 // Generate a random 6-character code
 const generateMatchCode = () => {

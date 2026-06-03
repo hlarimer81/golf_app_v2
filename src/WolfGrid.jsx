@@ -6,9 +6,15 @@ import GolfScoreTile from './GolfScoreTile';
 export default function WolfGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch }) {
     const [scores, setScores] = useState({});
     const [showSummary, setShowSummary] = useState(false);
+    // wolfChoices[holeNum] = { wolf: playerId, partner: playerId | 'lone' | null }
+    const [wolfChoices, setWolfChoices] = useState({});
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
+
+    // Wolf rotation: each hole the wolf rotates through the players
+    const getWolfIndex = (holeNum) => (holeNum - 1) % players.length;
+    const getWolfPlayer = (holeNum) => players[getWolfIndex(holeNum)];
   
     const calculateNetStrokes = (strokes, holeIndex, playerHandicap) => {
       if (!strokes || strokes === 0) return null;
@@ -22,6 +28,76 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
       }
       return netStrokes;
     };
+
+    // Calculate net score for a player on a hole
+    const getNetScore = (playerId, holeNum) => {
+      const strokes = scores[playerId]?.[holeNum];
+      if (!strokes) return null;
+      const player = players.find(p => p.id === playerId);
+      if (!player) return strokes;
+      return calculateNetStrokes(strokes, holeNum - 1, player.handicap ?? player.hcp ?? 0);
+    };
+
+    // Calculate Wolf game points for each player across all holes
+    const calculateWolfPoints = () => {
+      const points = {};
+      players.forEach(p => { points[p.id] = 0; });
+
+      for (let hole = 1; hole <= 18; hole++) {
+        const choice = wolfChoices[hole];
+        if (!choice || !choice.wolf) continue;
+
+        const wolfId = choice.wolf;
+        const isLoneWolf = choice.partner === 'lone';
+        const partnerId = !isLoneWolf ? choice.partner : null;
+
+        // Get all net scores for this hole
+        const holeScores = {};
+        let allScored = true;
+        players.forEach(p => {
+          const ns = getNetScore(p.id, hole);
+          if (ns === null) allScored = false;
+          holeScores[p.id] = ns;
+        });
+
+        if (!allScored) continue;
+
+        if (isLoneWolf) {
+          // Lone Wolf: wolf vs all others. Points doubled (2 per opponent beaten)
+          const wolfScore = holeScores[wolfId];
+          const others = players.filter(p => p.id !== wolfId);
+          const bestOther = Math.min(...others.map(p => holeScores[p.id]));
+
+          if (wolfScore < bestOther) {
+            // Wolf wins: gets 4 points (doubled since lone wolf)
+            points[wolfId] += 4;
+          } else if (wolfScore > bestOther) {
+            // Others win: each gets 2 points
+            others.forEach(p => { points[p.id] += 2; });
+          }
+          // Tie = no points
+        } else if (partnerId) {
+          // Wolf + Partner vs Others
+          const wolfTeam = [wolfId, partnerId];
+          const otherTeam = players.filter(p => !wolfTeam.includes(p.id)).map(p => p.id);
+
+          const bestWolfTeam = Math.min(...wolfTeam.map(id => holeScores[id]));
+          const bestOtherTeam = Math.min(...otherTeam.map(id => holeScores[id]));
+
+          if (bestWolfTeam < bestOtherTeam) {
+            // Wolf team wins
+            wolfTeam.forEach(id => { points[id] += 2; });
+          } else if (bestOtherTeam < bestWolfTeam) {
+            // Other team wins
+            otherTeam.forEach(id => { points[id] += 2; });
+          }
+          // Tie = no points
+        }
+      }
+      return points;
+    };
+
+    const wolfPoints = calculateWolfPoints();
 
   useEffect(() => {
     if (!matchId) return;
@@ -71,6 +147,22 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
     );
   };
 
+  const handleWolfChoice = (holeNum, partnerId) => {
+    const wolfPlayer = getWolfPlayer(holeNum);
+    setWolfChoices(prev => ({
+      ...prev,
+      [holeNum]: {
+        wolf: wolfPlayer.id,
+        partner: partnerId
+      }
+    }));
+  };
+
+  // Check if the current hole has all scores entered (to show partner picker)
+  const holeHasScores = (holeNum) => {
+    return players.every(p => scores[p.id]?.[holeNum] != null);
+  };
+
   if (showSummary) {
     return (
       <MatchSummary
@@ -91,10 +183,96 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
   return (
     <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
       
-      <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #607D8B' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold' }}>WOLF</div>
-          <div style={{ fontSize: '14px', color: '#607D8B', marginTop: '5px' }}>Partner selection logic goes here.</div>
+      {/* Wolf Points Summary */}
+      <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '12px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '10px', borderBottom: '2px solid #607D8B' }}>
+        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+          <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', letterSpacing: '2px' }}>🐺 WOLF POINTS</div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap' }}>
+          {players.map(p => (
+            <div key={p.id} style={{ textAlign: 'center', minWidth: '60px' }}>
+              <div style={{ fontSize: '11px', color: '#aaa' }}>{(p.player_name || p.name || '').split(' ')[0]}</div>
+              <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#607D8B' }}>{wolfPoints[p.id] || 0}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Partner Selection Panel */}
+      <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '10px', borderRadius: '8px', marginBottom: '10px', maxHeight: '180px', overflowY: 'auto' }}>
+        <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '8px', letterSpacing: '1px', textAlign: 'center' }}>PARTNER SELECTION</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {[...Array(18)].map((_, i) => {
+            const holeNum = i + 1;
+            const wolfPlayer = getWolfPlayer(holeNum);
+            const wolfName = (wolfPlayer.player_name || wolfPlayer.name || '').split(' ')[0];
+            const otherPlayers = players.filter(p => p.id !== wolfPlayer.id);
+            const choice = wolfChoices[holeNum];
+            const hasChoice = choice && choice.partner;
+
+            return (
+              <div key={holeNum} style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '6px 8px', 
+                background: hasChoice ? '#252525' : '#2a2a2a', 
+                borderRadius: '6px',
+                border: hasChoice ? '1px solid #607D8B' : '1px solid #333'
+              }}>
+                <div style={{ 
+                  fontSize: '11px', 
+                  fontWeight: 'bold', 
+                  color: '#607D8B', 
+                  minWidth: '20px' 
+                }}>
+                  #{holeNum}
+                </div>
+                <div style={{ fontSize: '11px', color: '#ccc', minWidth: '50px' }}>
+                  🐺 {wolfName}
+                </div>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', flex: 1 }}>
+                  {otherPlayers.map(op => {
+                    const opName = (op.player_name || op.name || '').split(' ')[0];
+                    const isSelected = choice?.partner === op.id;
+                    return (
+                      <button
+                        key={op.id}
+                        onClick={() => handleWolfChoice(holeNum, op.id)}
+                        style={{
+                          padding: '3px 8px',
+                          fontSize: '10px',
+                          fontWeight: isSelected ? 'bold' : 'normal',
+                          background: isSelected ? '#607D8B' : '#333',
+                          color: isSelected ? '#fff' : '#aaa',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {opName}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => handleWolfChoice(holeNum, 'lone')}
+                    style={{
+                      padding: '3px 8px',
+                      fontSize: '10px',
+                      fontWeight: choice?.partner === 'lone' ? 'bold' : 'normal',
+                      background: choice?.partner === 'lone' ? '#FF5722' : '#333',
+                      color: choice?.partner === 'lone' ? '#fff' : '#aaa',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Lone 🐺
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -139,17 +317,24 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
                   <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                     {player.player_name || player.name}
-                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>HCP: {playerHcp}</div>
+                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>HCP: {playerHcp} | Pts: {wolfPoints[player.id] || 0}</div>
                   </td>
                   {[...Array(9)].map((_, i) => {
                     const holeNum = i + 1;
-                    const isWolf = (i % players.length) === globalIdx;
+                    const isWolf = getWolfIndex(holeNum) === globalIdx;
+                    const choice = wolfChoices[holeNum];
+                    const isPartner = choice?.partner === player.id;
                     const hasOneStroke = useHandicaps && playerHcp >= hcds[i];
                     const hasTwoStrokes = useHandicaps && playerHcp >= (hcds[i] + 18);
 
+                    let cellBg = (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e';
+                    if (isWolf) cellBg = '#2a2620';
+                    if (isPartner) cellBg = '#1a2a20';
+
                     return (
-                      <td key={`f-${i}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px' }}>
-                        {isWolf && <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', zIndex: 10 }}>🐺</div>}
+                      <td key={`f-${i}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: cellBg, position: 'relative', minWidth: '55px' }}>
+                        {isWolf && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', zIndex: 10 }}>🐺</div>}
+                        {isPartner && <div style={{ position: 'absolute', top: '1px', left: '3px', fontSize: '8px', zIndex: 10 }}>🤝</div>}
                         <GolfScoreTile 
                           id={`score-${holeNum}-${globalIdx}`}
                           type="tel"
@@ -168,13 +353,20 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                   {[...Array(9)].map((_, i) => {
                     const holeNum = i + 10;
                     const realIndex = i + 9;
-                    const isWolf = (realIndex % players.length) === globalIdx;
+                    const isWolf = getWolfIndex(holeNum) === globalIdx;
+                    const choice = wolfChoices[holeNum];
+                    const isPartner = choice?.partner === player.id;
                     const hasOneStroke = useHandicaps && playerHcp >= hcds[realIndex];
                     const hasTwoStrokes = useHandicaps && playerHcp >= (hcds[realIndex] + 18);
 
+                    let cellBg = (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e';
+                    if (isWolf) cellBg = '#2a2620';
+                    if (isPartner) cellBg = '#1a2a20';
+
                     return (
-                      <td key={`b-${i}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px' }}>
-                        {isWolf && <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', zIndex: 10 }}>🐺</div>}
+                      <td key={`b-${i}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: cellBg, position: 'relative', minWidth: '55px' }}>
+                        {isWolf && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', zIndex: 10 }}>🐺</div>}
+                        {isPartner && <div style={{ position: 'absolute', top: '1px', left: '3px', fontSize: '8px', zIndex: 10 }}>🤝</div>}
                         <GolfScoreTile 
                           id={`score-${holeNum}-${globalIdx}`}
                           type="tel"

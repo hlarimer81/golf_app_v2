@@ -606,9 +606,8 @@ function App() {
   return (
     <div style={{ padding: '10px', fontFamily: 'sans-serif', maxWidth: '100%', margin: '0 auto', boxSizing: 'border-box', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
       {matchId && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px' }}>
-          <img src="/logo.png" alt="4Play Logo" style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '12px' }} />
-          <h1 style={{ margin: 0, fontSize: '32px', color: '#1b365d', fontWeight: '800', letterSpacing: '-0.5px' }}>4Play</h1>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
+          <img src="/logo.png" alt="4Play Logo" style={{ width: '80px', height: '80px', objectFit: 'contain', borderRadius: '12px' }} />
         </div>
       )}
 
@@ -1005,9 +1004,11 @@ function App() {
                   style={{ flex: 2, padding: '8px' }}
                 >
                   <option value="">-- Select Player --</option>
-                  {globalPlayers.map(gp => (
-                    <option key={gp.id} value={gp.player_name}>{gp.player_name}</option>
-                  ))}
+                  {globalPlayers
+                    .filter(gp => !players.some((pl, pi) => pi !== i && pl.name === gp.player_name))
+                    .map(gp => (
+                      <option key={gp.id} value={gp.player_name}>{gp.player_name}</option>
+                    ))}
                   <option value="__GUEST__">+ Add Guest Player</option>
                 </select>
               )}

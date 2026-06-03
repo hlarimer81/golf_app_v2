@@ -799,15 +799,15 @@ function App() {
                 required
               >
                 <option value="" disabled>Select Game Type</option>
-                <option value="stableford">🏆 Stableford</option>
-                <option value="fourball">⚔️ 4-Ball</option>
-                <option value="skins">🎰 Skins</option>
-                <option value="chairman">👑 Chairman</option>
-                <option value="ninepoint">🎯 9-Point</option>
-                <option value="singles">🏌️ Singles</option>
-                <option value="nassau">🇺🇸 Nassau</option>
-                <option value="vegas">🎲 Vegas</option>
-                <option value="wolf">🐺 Wolf</option>
+                <option value="stableford">Stableford</option>
+                <option value="fourball">4-Ball</option>
+                <option value="skins">Skins</option>
+                <option value="chairman">Chairman</option>
+                <option value="ninepoint">9-Point</option>
+                <option value="singles">Singles</option>
+                <option value="nassau">Nassau</option>
+                <option value="vegas">Vegas</option>
+                <option value="wolf">Wolf</option>
               </select>
               {gameType && (
                 <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', marginBottom: 0 }}>
@@ -825,29 +825,41 @@ function App() {
                 required
               >
                 <option value="" disabled>Play Mode</option>
-                <option value="team">👥 Team Play</option>
-                <option value="singles">🏌️ Singles</option>
+                <option value="team">Team Play</option>
+                <option value="singles">Singles</option>
               </select>
             </div>
 
-            {/* --- Handicap Toggle --- */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '10px' }}>
-              <input type="checkbox" checked={useHandicaps} onChange={e => setUseHandicaps(e.target.checked)} />
-              Enable Net Scoring (Handicaps)
-            </label>
+            {/* --- Scoring Mode & Stacked Games Selectors --- */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <div style={{ flex: 1 }}>
+                <select
+                  value={useHandicaps ? 'net' : 'gross'}
+                  onChange={e => setUseHandicaps(e.target.value === 'net')}
+                  style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                >
+                  <option value="gross">Gross</option>
+                  <option value="net">Net (Handicaps)</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <select
+                  value={useQuota ? 'quota' : 'stacked'}
+                  onChange={e => setUseQuota(e.target.value === 'quota')}
+                  style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                >
+                  <option value="stacked">Stacked Games</option>
+                  <option value="quota">Quota</option>
+                </select>
+              </div>
+            </div>
 
             {useHandicaps && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '10px', marginLeft: '25px', fontSize: '13px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '10px', fontSize: '13px' }}>
                 <input type="checkbox" checked={playOffLow} onChange={e => setPlayOffLow(e.target.checked)} />
                 Play Off Low (subtract lowest handicap from all players)
               </label>
             )}
-
-            {/* --- Quota Toggle --- */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '10px' }}>
-              <input type="checkbox" checked={useQuota} onChange={e => setUseQuota(e.target.checked)} />
-              Enable Quota Game
-            </label>
 
 
             {/* --- Carryover Skins Toggle (only for skins game) --- */}

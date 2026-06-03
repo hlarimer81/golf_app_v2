@@ -9,6 +9,7 @@ export default function MatchSummary({
   useHandicaps, 
   useQuota, 
   courseData,
+  stablefordMode,
   onBack,
   onNewMatch 
 }) {
@@ -352,8 +353,8 @@ export default function MatchSummary({
         </div>
       </div>
 
-      {/* Team Standings - only show for stableford, fourball, and chairman games */}
-      {gameType !== 'skins' && gameType !== 'ninepoint' && gameType !== 'singles' && (
+      {/* Team Standings - only show for stableford (if team play), fourball, and chairman games */}
+      {gameType !== 'skins' && gameType !== 'ninepoint' && gameType !== 'singles' && !(gameType === 'stableford' && stablefordMode === 'singles') && (
         <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
           <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
             {gameType === 'fourball' ? '4-Ball Match Play Standings' : gameType === 'chairman' ? '👑 Chairman Team Standings' : 'Team Standings'}
@@ -458,7 +459,7 @@ export default function MatchSummary({
                 )}
                 <td style={{ padding: '12px 10px' }}>
                   <div style={{ fontWeight: 'bold' }}>{player.name}</div>
-                  {gameType !== 'skins' && gameType !== 'ninepoint' && gameType !== 'singles' && (
+                  {gameType !== 'skins' && gameType !== 'ninepoint' && gameType !== 'singles' && !(gameType === 'stableford' && stablefordMode === 'singles') && (
                     <div style={{ fontSize: '11px', color: teamColors[player.team] || '#666' }}>{player.team}</div>
                   )}
                 </td>

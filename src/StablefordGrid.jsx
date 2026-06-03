@@ -6,6 +6,7 @@ import GolfScoreTile from './GolfScoreTile';
 export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch }) {
     const [scores, setScores] = useState({});
     const [showSummary, setShowSummary] = useState(false);
+    const [isTeamPlay, setIsTeamPlay] = useState(true);
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -105,6 +106,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         useHandicaps={useHandicaps}
         useQuota={useQuota}
         courseData={courseData}
+        stablefordMode={isTeamPlay ? 'team' : 'singles'}
         onBack={() => setShowSummary(false)}
         onNewMatch={onNewMatch}
       />
@@ -119,33 +121,87 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', 
         boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #4CAF50' 
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
-          {[...new Set(players.map(p => p.teams?.team_name || p.team || p.team_name).filter(Boolean))].map(tName => {
-            const teamPlayers = players.filter(p => {
-              if (p.team === tName || p.team_name === tName || p.team_id_name === tName) return true;
-              if (p.teams && p.teams.team_name === tName) return true;
-              return false;
-            });
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
+          <span style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>
+            🏆 Stableford Leaderboard
+          </span>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <button 
+              onClick={() => setIsTeamPlay(true)} 
+              style={{
+                padding: '4px 8px',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                backgroundColor: isTeamPlay ? '#4CAF50' : '#333',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Teams
+            </button>
+            <button 
+              onClick={() => setIsTeamPlay(false)} 
+              style={{
+                padding: '4px 8px',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                backgroundColor: !isTeamPlay ? '#4CAF50' : '#333',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Singles
+            </button>
+          </div>
+        </div>
 
-            if (teamPlayers.length === 0) return null;
+        <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center', overflowX: 'auto', paddingBottom: '5px' }}>
+          {isTeamPlay ? (
+            [...new Set(players.map(p => p.teams?.team_name || p.team || p.team_name).filter(Boolean))].map(tName => {
+              const teamPlayers = players.filter(p => {
+                if (p.team === tName || p.team_name === tName || p.team_id_name === tName) return true;
+                if (p.teams && p.teams.team_name === tName) return true;
+                return false;
+              });
 
-            const teamTotal = teamPlayers.reduce((tSum, p) => {
+              if (teamPlayers.length === 0) return null;
+
+              const teamTotal = teamPlayers.reduce((tSum, p) => {
+                const pScores = scores[p.id] || {};
+                const playerHcp = p.handicap ?? p.hcp ?? 0;
+                
+                const pTotalPoints = Object.keys(pScores).reduce((sSum, hNum) => 
+                  sSum + calculatePoints(pScores[hNum], hNum - 1, playerHcp), 0
+                );
+                return tSum + pTotalPoints;
+              }, 0);
+
+              return (
+                <div key={tName} style={{ flex: 1, minWidth: '80px' }}>
+                  <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tName.replace('Team ', '')}</div>
+                  <div style={{ fontSize: '24px', fontWeight: '900', color: '#4CAF50' }}>{teamTotal}</div>
+                </div>
+              );
+            })
+          ) : (
+            players.map(p => {
               const pScores = scores[p.id] || {};
               const playerHcp = p.handicap ?? p.hcp ?? 0;
-              
               const pTotalPoints = Object.keys(pScores).reduce((sSum, hNum) => 
                 sSum + calculatePoints(pScores[hNum], hNum - 1, playerHcp), 0
               );
-              return tSum + pTotalPoints;
-            }, 0);
-
-            return (
-              <div key={tName} style={{ flex: 1 }}>
-                <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>{tName.replace('Team ', '')}</div>
-                <div style={{ fontSize: '24px', fontWeight: '900', color: '#4CAF50' }}>{teamTotal}</div>
-              </div>
-            );
-          })}
+              return (
+                <div key={p.id} style={{ flex: 1, minWidth: '80px' }}>
+                  <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.player_name || p.name}</div>
+                  <div style={{ fontSize: '24px', fontWeight: '900', color: '#4CAF50' }}>{pTotalPoints}</div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

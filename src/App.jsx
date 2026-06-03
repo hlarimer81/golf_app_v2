@@ -604,7 +604,7 @@ function App() {
   }
 
   return (
-    <div style={{ padding: '10px', fontFamily: 'sans-serif', maxWidth: '100%', margin: '0 auto', boxSizing: 'border-box', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+    <div style={{ padding: '10px', fontFamily: 'sans-serif', maxWidth: '100%', margin: '0 auto', boxSizing: 'border-box', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {matchId && (
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
           <img src="/logo.png" alt="4Play Logo" style={{ width: '80px', height: '80px', objectFit: 'contain', borderRadius: '12px' }} />

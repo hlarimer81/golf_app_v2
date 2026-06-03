@@ -198,83 +198,70 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
         </div>
       </div>
 
-      {/* Partner Selection Panel */}
-      <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '10px', borderRadius: '8px', marginBottom: '10px', maxHeight: '180px', overflowY: 'auto' }}>
-        <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '8px', letterSpacing: '1px', textAlign: 'center' }}>PARTNER SELECTION</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {[...Array(18)].map((_, i) => {
-            const holeNum = i + 1;
-            const wolfPlayer = getWolfPlayer(holeNum);
-            const wolfName = (wolfPlayer.player_name || wolfPlayer.name || '').split(' ')[0];
-            const otherPlayers = players.filter(p => p.id !== wolfPlayer.id);
-            const choice = wolfChoices[holeNum];
-            const hasChoice = choice && choice.partner;
+      {/* Partner Selection Panel - only show next unscored hole */}
+      {(() => {
+        // Find the first hole without a wolf choice
+        let nextHole = null;
+        for (let h = 1; h <= 18; h++) {
+          if (!wolfChoices[h] || !wolfChoices[h].partner) {
+            nextHole = h;
+            break;
+          }
+        }
+        if (nextHole === null) return null;
 
-            return (
-              <div key={holeNum} style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                padding: '6px 8px', 
-                background: hasChoice ? '#252525' : '#2a2a2a', 
-                borderRadius: '6px',
-                border: hasChoice ? '1px solid #607D8B' : '1px solid #333'
-              }}>
-                <div style={{ 
-                  fontSize: '11px', 
-                  fontWeight: 'bold', 
-                  color: '#607D8B', 
-                  minWidth: '20px' 
-                }}>
-                  #{holeNum}
-                </div>
-                <div style={{ fontSize: '11px', color: '#ccc', minWidth: '50px' }}>
-                  🐺 {wolfName}
-                </div>
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', flex: 1 }}>
-                  {otherPlayers.map(op => {
-                    const opName = (op.player_name || op.name || '').split(' ')[0];
-                    const isSelected = choice?.partner === op.id;
-                    return (
-                      <button
-                        key={op.id}
-                        onClick={() => handleWolfChoice(holeNum, op.id)}
-                        style={{
-                          padding: '3px 8px',
-                          fontSize: '10px',
-                          fontWeight: isSelected ? 'bold' : 'normal',
-                          background: isSelected ? '#607D8B' : '#333',
-                          color: isSelected ? '#fff' : '#aaa',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {opName}
-                      </button>
-                    );
-                  })}
+        const wolfPlayer = getWolfPlayer(nextHole);
+        const wolfName = (wolfPlayer.player_name || wolfPlayer.name || '').split(' ')[0];
+        const otherPlayers = players.filter(p => p.id !== wolfPlayer.id);
+        const choice = wolfChoices[nextHole];
+
+        return (
+          <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '12px', borderRadius: '8px', marginBottom: '10px' }}>
+            <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '10px', letterSpacing: '1px', textAlign: 'center' }}>
+              HOLE {nextHole} — 🐺 {wolfName} IS THE WOLF
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {otherPlayers.map(op => {
+                const opName = (op.player_name || op.name || '').split(' ')[0];
+                const isSelected = choice?.partner === op.id;
+                return (
                   <button
-                    onClick={() => handleWolfChoice(holeNum, 'lone')}
+                    key={op.id}
+                    onClick={() => handleWolfChoice(nextHole, op.id)}
                     style={{
-                      padding: '3px 8px',
-                      fontSize: '10px',
-                      fontWeight: choice?.partner === 'lone' ? 'bold' : 'normal',
-                      background: choice?.partner === 'lone' ? '#FF5722' : '#333',
-                      color: choice?.partner === 'lone' ? '#fff' : '#aaa',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: isSelected ? 'bold' : 'normal',
+                      background: isSelected ? '#607D8B' : '#333',
+                      color: isSelected ? '#fff' : '#aaa',
                       border: 'none',
-                      borderRadius: '4px',
+                      borderRadius: '6px',
                       cursor: 'pointer'
                     }}
                   >
-                    Lone 🐺
+                    {opName}
                   </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                );
+              })}
+              <button
+                onClick={() => handleWolfChoice(nextHole, 'lone')}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  fontWeight: choice?.partner === 'lone' ? 'bold' : 'normal',
+                  background: choice?.partner === 'lone' ? '#FF5722' : '#333',
+                  color: choice?.partner === 'lone' ? '#fff' : '#aaa',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Lone 🐺
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={{ flexGrow: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '8px', border: '1px solid #333', background: '#1a1a1a' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>

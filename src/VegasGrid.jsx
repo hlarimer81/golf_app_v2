@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
+import GolfScoreTile from './GolfScoreTile';
 
 export default function VegasGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch }) {
     const [scores, setScores] = useState({});
@@ -215,14 +216,19 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                         padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', 
                         backgroundColor: (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px'
                       }}>
-                        <div style={{ position: 'absolute', top: '3px', left: '4px', display: 'flex', gap: '2px' }}>
-                          {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#E91E63', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#E91E63', borderRadius: '50%' }} />}
-                        </div>
-                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                          style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
+                        <GolfScoreTile 
+                          id={`score-${holeNum}-${globalIdx}`}
+                          type="tel"
+                          inputMode="numeric"
+                          score={playerScores[holeNum] || ''}
+                          par={pars[i]}
+                          hasOneStroke={hasOneStroke}
+                          hasTwoStrokes={hasTwoStrokes}
+                          onChange={(e) => handleScoreChange(holeNum, e.target.value)}
+                          style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
+                        />
                         {isWinningTeam && playerScores[holeNum] > 0 && (
-                          <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: '#E91E63', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
+                          <div style={{ position: 'absolute', bottom: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: '#E91E63', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
                             +{pts[player.team]}
                           </div>
                         )}
@@ -247,14 +253,19 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                         padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', 
                         backgroundColor: (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px'
                       }}>
-                        <div style={{ position: 'absolute', top: '3px', left: '4px', display: 'flex', gap: '2px' }}>
-                          {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#E91E63', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#E91E63', borderRadius: '50%' }} />}
-                        </div>
-                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                          style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
+                        <GolfScoreTile 
+                          id={`score-${holeNum}-${globalIdx}`}
+                          type="tel"
+                          inputMode="numeric"
+                          score={playerScores[holeNum] || ''}
+                          par={pars[realIndex]}
+                          hasOneStroke={hasOneStroke}
+                          hasTwoStrokes={hasTwoStrokes}
+                          onChange={(e) => handleScoreChange(holeNum, e.target.value)}
+                          style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
+                        />
                         {isWinningTeam && playerScores[holeNum] > 0 && (
-                          <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: '#E91E63', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>
+                          <div style={{ position: 'absolute', bottom: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: '#E91E63', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
                             +{pts[player.team]}
                           </div>
                         )}

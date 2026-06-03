@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
+import GolfScoreTile from './GolfScoreTile';
 
 export default function WolfGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch }) {
     const [scores, setScores] = useState({});
@@ -148,13 +149,18 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
 
                     return (
                       <td key={`f-${i}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px' }}>
-                        <div style={{ position: 'absolute', top: '3px', left: '4px', display: 'flex', gap: '2px' }}>
-                          {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#607D8B', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#607D8B', borderRadius: '50%' }} />}
-                        </div>
-                        {isWolf && <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px' }}>🐺</div>}
-                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                          style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
+                        {isWolf && <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', zIndex: 10 }}>🐺</div>}
+                        <GolfScoreTile 
+                          id={`score-${holeNum}-${globalIdx}`}
+                          type="tel"
+                          inputMode="numeric"
+                          score={playerScores[holeNum] || ''}
+                          par={pars[i]}
+                          hasOneStroke={hasOneStroke}
+                          hasTwoStrokes={hasTwoStrokes}
+                          onChange={(e) => handleScoreChange(holeNum, e.target.value)}
+                          style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
+                        />
                       </td>
                     );
                   })}
@@ -168,13 +174,18 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
 
                     return (
                       <td key={`b-${i}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px' }}>
-                        <div style={{ position: 'absolute', top: '3px', left: '4px', display: 'flex', gap: '2px' }}>
-                          {hasOneStroke && <div style={{ width: '5px', height: '5px', backgroundColor: '#607D8B', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '5px', height: '5px', backgroundColor: '#607D8B', borderRadius: '50%' }} />}
-                        </div>
-                        {isWolf && <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px' }}>🐺</div>}
-                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={playerScores[holeNum] || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                          style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '18px', outline: 'none' }} />
+                        {isWolf && <div style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px', zIndex: 10 }}>🐺</div>}
+                        <GolfScoreTile 
+                          id={`score-${holeNum}-${globalIdx}`}
+                          type="tel"
+                          inputMode="numeric"
+                          score={playerScores[holeNum] || ''}
+                          par={pars[realIndex]}
+                          hasOneStroke={hasOneStroke}
+                          hasTwoStrokes={hasTwoStrokes}
+                          onChange={(e) => handleScoreChange(holeNum, e.target.value)}
+                          style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
+                        />
                       </td>
                     );
                   })}

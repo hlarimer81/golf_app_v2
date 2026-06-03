@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
+import GolfScoreTile from './GolfScoreTile';
 
 export default function NinePointGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch }) {
   const [scores, setScores] = useState({});
@@ -286,14 +287,20 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
 
                     return (
                       <td key={`f-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: holePoints === 5 ? '#00BCD433' : (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
-                        <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
-                          {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#00BCD4', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#00BCD4', borderRadius: '50%' }} />}
-                        </div>
-                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: holePoints === 5 ? '#00BCD444' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: holePoints === 5 ? '2px solid #00BCD4' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
-                        {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
-                        {holePoints !== undefined && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px', color: '#00BCD4', fontWeight: 'bold' }}>{holePoints}p</div>}
+                        <GolfScoreTile 
+                          id={`score-${holeNum}-${globalIdx}`}
+                          type="tel"
+                          inputMode="numeric"
+                          score={strokes || ''}
+                          par={pars[i]}
+                          hasOneStroke={hasOneStroke}
+                          hasTwoStrokes={hasTwoStrokes}
+                          customBorderColor={holePoints === 5 ? '#00BCD4' : undefined}
+                          onChange={(e) => handleScoreChange(holeNum, e.target.value)}
+                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: holePoints === 5 ? '#00BCD444' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}
+                        />
+                        {net !== null && useHandicaps && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>{net}</div>}
+                        {holePoints !== undefined && <div style={{ position: 'absolute', bottom: '1px', left: '3px', fontSize: '10px', color: '#00BCD4', fontWeight: 'bold', zIndex: 10 }}>{holePoints}p</div>}
                       </td>
                     );
                   })}
@@ -316,14 +323,20 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
 
                     return (
                       <td key={`b-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: holePoints === 5 ? '#00BCD433' : (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
-                        <div style={{ position: 'absolute', top: '2px', left: '3px', display: 'flex', gap: '1px' }}>
-                          {hasOneStroke && <div style={{ width: '4px', height: '4px', backgroundColor: '#00BCD4', borderRadius: '50%' }} />}
-                          {hasTwoStrokes && <div style={{ width: '4px', height: '4px', backgroundColor: '#00BCD4', borderRadius: '50%' }} />}
-                        </div>
-                        <input id={`score-${holeNum}-${globalIdx}`} type="tel" inputMode="numeric" value={strokes || ''} onChange={(e) => handleScoreChange(holeNum, e.target.value)}
-                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: holePoints === 5 ? '#00BCD444' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', border: holePoints === 5 ? '2px solid #00BCD4' : '1px solid #444', borderRadius: '4px', fontSize: '16px', outline: 'none' }} />
-                        {net !== null && useHandicaps && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px' }}>{net}</div>}
-                        {holePoints !== undefined && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '10px', color: '#00BCD4', fontWeight: 'bold' }}>{holePoints}p</div>}
+                        <GolfScoreTile 
+                          id={`score-${holeNum}-${globalIdx}`}
+                          type="tel"
+                          inputMode="numeric"
+                          score={strokes || ''}
+                          par={pars[realIndex]}
+                          hasOneStroke={hasOneStroke}
+                          hasTwoStrokes={hasTwoStrokes}
+                          customBorderColor={holePoints === 5 ? '#00BCD4' : undefined}
+                          onChange={(e) => handleScoreChange(holeNum, e.target.value)}
+                          style={{ width: '34px', height: '34px', textAlign: 'center', backgroundColor: holePoints === 5 ? '#00BCD444' : '#2a2a2a', color: net !== null ? scoreColor(net, par) : '#fff', fontSize: '16px', outline: 'none' }}
+                        />
+                        {net !== null && useHandicaps && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>{net}</div>}
+                        {holePoints !== undefined && <div style={{ position: 'absolute', bottom: '1px', left: '3px', fontSize: '10px', color: '#00BCD4', fontWeight: 'bold', zIndex: 10 }}>{holePoints}p</div>}
                       </td>
                     );
                   })}

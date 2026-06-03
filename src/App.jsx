@@ -9,7 +9,6 @@ import SinglesGrid from './SinglesGrid';
 import NassauGrid from './NassauGrid';
 import VegasGrid from './VegasGrid';
 import WolfGrid from './WolfGrid';
-import { GOLF_COURSES, PENINSULA_NINES, combinePeninsulaNines } from './courses';
 
 // Generate a random 6-character code
 const generateMatchCode = () => {
@@ -57,10 +56,17 @@ function App() {
   const [players, setPlayers] = useState([
     { name: '', team: '', hcp: 0, isGuest: false }
   ]);
+  const [dbCourses, setDbCourses] = useState([]);
 
   useEffect(() => {
     fetchGlobalPlayers();
+    fetchDbCourses();
   }, []);
+
+  const fetchDbCourses = async () => {
+    const { data, error } = await supabase.from('courses').select('*').order('name');
+    if (data && !error) setDbCourses(data);
+  };
 
   const fetchGlobalPlayers = async () => {
     const { data, error } = await supabase
@@ -112,16 +118,34 @@ function App() {
   // Build the course data (handles Peninsula combination)
   const courseData = useMemo(() => {
     if (selectedCourse === 'Peninsula Golf Club') {
-      return combinePeninsulaNines(peninsulaFront, peninsulaBack);
+      const front = dbCourses.find(c => c.name === peninsulaFront);
+      const back = dbCourses.find(c => c.name === peninsulaBack);
+      if (!front || !back) return { pars: Array(18).fill(4), handicaps: Array(18).fill(10) };
+      
+      const newHandicaps = [...front.stroke_index, ...back.stroke_index].map((hcp, i) => {
+        // Simple logic to interleave odds/evens for front/back nines like courses.js did
+        return i < 9 ? (hcp * 2) - 1 : (hcp * 2);
+      });
+      return {
+        pars: [...front.par, ...back.par],
+        handicaps: newHandicaps,
+        slope: front.slope && back.slope ? Math.round((front.slope + back.slope) / 2) : null,
+        rating: front.rating && back.rating ? front.rating + back.rating : null
+      };
     }
-    return GOLF_COURSES[selectedCourse];
-  }, [selectedCourse, peninsulaFront, peninsulaBack]);
+    const c = dbCourses.find(c => c.name === selectedCourse);
+    if (!c) return { pars: Array(18).fill(4), handicaps: Array(18).fill(10) };
+    return { pars: c.par, handicaps: c.stroke_index, slope: c.slope, rating: c.rating };
+  }, [selectedCourse, peninsulaFront, peninsulaBack, dbCourses]);
 
   // All course options (including Peninsula as a special entry)
-  const courseOptions = [
-    ...Object.keys(GOLF_COURSES),
-    'Peninsula Golf Club'
-  ];
+  const courseOptions = useMemo(() => {
+    const full18s = dbCourses.filter(c => c.holes === 18).map(c => c.name);
+    if (dbCourses.some(c => c.holes === 9)) {
+        return [...full18s, 'Peninsula Golf Club'];
+    }
+    return full18s;
+  }, [dbCourses]);
 
   const createMatch = async (e) => {
     e.preventDefault();
@@ -303,6 +327,51 @@ function App() {
 
   // --- Show the correct scorer based on game type ---
   if (showScorer) {
+    // Dynamically calculate Effective Handicap (Pops) based on WHS formula
+    const getEffectiveHandicaps = () => {
+      if (!useHandicaps) return finalPlayers.map(p => ({ ...p, handicap: 0 }));
+      
+      const slope = courseData?.slope;
+      const rating = courseData?.rating;
+      const pars = courseData?.pars || Array(18).fill(4);
+      const parTotal = pars.slice(0, holesCount).reduce((a, b) => a + b, 0);
+
+      const getCourseHcp = (rawHcp) => {
+        if (!slope || !rating || slope <= 0 || rating <= 0) return rawHcp;
+        const ch = (rawHcp * slope / 113.0) + (rating - parTotal);
+        return Math.max(0, Math.round(ch));
+      };
+
+      const getAllowanceAdj = (cHcp) => {
+        if (cHcp <= 0) return 0;
+        return Math.round(cHcp * (hcpAllowance / 100));
+      };
+
+      let pData = finalPlayers.map(p => {
+        const raw = p.handicap || 0;
+        const c = getCourseHcp(raw);
+        const a = getAllowanceAdj(c);
+        return { ...p, _allowanceHcp: a };
+      });
+
+      if (playOffLow && pData.length > 0) {
+        const minHcp = Math.min(...pData.map(p => p._allowanceHcp));
+        pData = pData.map(p => ({
+          ...p,
+          effectiveHcp: Math.max(0, p._allowanceHcp - minHcp)
+        }));
+      } else {
+        pData = pData.map(p => ({ ...p, effectiveHcp: p._allowanceHcp }));
+      }
+
+      return pData.map(p => ({
+         ...p,
+         handicap: p.effectiveHcp // Override the raw DB handicap before passing to grids
+      }));
+    };
+
+    const playersWithPops = getEffectiveHandicaps();
+
     let ScorerComponent;
     let bannerColor = '#4CAF50';
     
@@ -361,7 +430,7 @@ function App() {
           matchId={matchId}
           matchName={matchName}
           matchCode={matchCode}
-          players={finalPlayers}
+          players={playersWithPops}
           useHandicaps={useHandicaps}
           useQuota={useQuota}
           useCarryover={useCarryover}
@@ -398,7 +467,7 @@ function App() {
     wolf: 'Rotational 4-player game. The "Wolf" tees off first and can choose a partner or play lone wolf.',
   };
 
-  const peninsulaNineNames = Object.keys(PENINSULA_NINES);
+  const peninsulaNineNames = dbCourses.filter(c => c.holes === 9).map(c => c.name);
 
   // Fetch recent matches
   const fetchRecentMatches = async () => {

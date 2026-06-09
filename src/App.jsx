@@ -417,7 +417,7 @@ function App() {
           borderBottom: `2px solid ${bannerColor}`
         }}>
           <span style={{ color: '#888', fontSize: '12px' }}>{selectedCourse}</span>
-          <GolfGPSWidget courseData={courseData} matchId={matchId} players={playersWithPops} />
+          <GolfGPSWidget courseData={courseData} matchId={matchId} players={playersWithPops} courseName={selectedCourse} />
           <span style={{ 
             background: bannerColor, 
             color: gameType === 'skins' ? '#000' : '#fff', 

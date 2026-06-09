@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+import GreenView from './GreenView';
 
 // Haversine formula to calculate distance in yards
 const calculateDistanceInYards = (lat1, lon1, lat2, lon2) => {
@@ -21,12 +22,13 @@ const calculateDistanceInYards = (lat1, lon1, lat2, lon2) => {
   return Math.round(distanceInMeters * 1.09361); // Convert to yards
 };
 
-export default function GolfGPSWidget({ courseData, matchId, players }) {
+export default function GolfGPSWidget({ courseData, matchId, players, courseName }) {
   const [isOpen, setIsOpen] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [error, setError] = useState(null);
   const [distances, setDistances] = useState({ front: null, middle: null, back: null });
   const [targetHole, setTargetHole] = useState(1);
+  const [showGreen, setShowGreen] = useState(false);
 
   // Fetch real-time scores and determine the next unscored hole when opened
   useEffect(() => {
@@ -192,6 +194,35 @@ export default function GolfGPSWidget({ courseData, matchId, players }) {
         <div style={{ fontSize: '8px', color: '#555', textAlign: 'right', marginTop: '6px' }}>
           GPS accuracy: ±{Math.round(userLocation.accuracy)} yds
         </div>
+      )}
+
+      {/* View Green button */}
+      {courseName && (
+        <button
+          onClick={() => setShowGreen(true)}
+          style={{
+            marginTop: 10,
+            width: '100%',
+            padding: '8px',
+            background: '#2e7d32',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            fontWeight: 'bold',
+            fontSize: 13,
+            cursor: 'pointer'
+          }}
+        >
+          🟢 View Green – Hole {targetHole}
+        </button>
+      )}
+
+      {showGreen && (
+        <GreenView
+          courseName={courseName}
+          holeNumber={targetHole}
+          onClose={() => setShowGreen(false)}
+        />
       )}
     </div>
   );

@@ -26,6 +26,7 @@ function App() {
   const [matchCode, setMatchCode] = useState(null);
   const [matchName, setMatchName] = useState('');
   const [useHandicaps, setUseHandicaps] = useState(false);
+  const [scoringMode, setScoringMode] = useState(''); // '', 'gross', or 'net'
   const [useQuota, setUseQuota] = useState(false);
   const [useCarryover, setUseCarryover] = useState(true);
   const [gameType, setGameType] = useState('');
@@ -851,8 +852,12 @@ function App() {
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <div style={{ flex: 1 }}>
                 <select
-                  value={useHandicaps ? 'net' : ''}
-                  onChange={e => setUseHandicaps(e.target.value === 'net')}
+                  value={scoringMode}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setScoringMode(v);
+                    setUseHandicaps(v === 'net');
+                  }}
                   style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                 >
                   <option value="">Scoring Mode</option>

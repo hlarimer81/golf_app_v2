@@ -3,12 +3,19 @@ import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 
-export default function NinePointGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch }) {
+export default function NinePointGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
   const [scores, setScores] = useState({});
   const [showSummary, setShowSummary] = useState(false);
 
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
+
+  // Build dynamic hole list
+  const holeNumbers = [];
+  for (let i = 0; i < holesCount; i++) holeNumbers.push(startHole + i);
+  const is18 = holesCount === 18;
+  const frontHoles = is18 ? holeNumbers.slice(0, 9) : holeNumbers;
+  const backHoles = is18 ? holeNumbers.slice(9) : [];
 
   // Fetch & Realtime
   useEffect(() => {
@@ -143,7 +150,8 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
     const totals = {};
     players.forEach(p => { totals[p.id] = 0; });
 
-    for (let i = 0; i < 18; i++) {
+    for (const holeNum of holeNumbers) {
+      const i = holeNum - 1;
       const dist = getHoleDistribution(i);
       players.forEach(p => {
         if (dist[p.id] !== undefined) totals[p.id] += dist[p.id];
@@ -176,6 +184,8 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
         useHandicaps={useHandicaps}
         useQuota={useQuota}
         courseData={courseData}
+        holesCount={holesCount}
+        startHole={startHole}
         onBack={() => setShowSummary(false)}
         onNewMatch={onNewMatch}
       />
@@ -220,18 +230,22 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
           <thead style={{ position: 'sticky', top: 0, zIndex: 100 }}>
             <tr style={{ backgroundColor: '#252525' }}>
               <th style={{ position: 'sticky', left: 0, top: 0, zIndex: 110, backgroundColor: '#252525', padding: '10px', minWidth: '100px', textAlign: 'left', borderRight: '2px solid #00BCD4' }}>PLAYER</th>
-              {[...Array(9)].map((_, i) => (
-                <th key={`f-${i}`} style={{ padding: '6px', minWidth: '42px', borderLeft: '1px solid #333', backgroundColor: (i + 1) % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
-                  {i + 1}<br /><span style={{ fontSize: '8px', color: '#666' }}>P{pars[i]}</span>
+              {frontHoles.map((hNum) => (
+                <th key={`f-${hNum}`} style={{ padding: '6px', minWidth: '42px', borderLeft: '1px solid #333', backgroundColor: hNum % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
+                  {hNum}<br /><span style={{ fontSize: '8px', color: '#666' }}>P{pars[hNum - 1]}</span>
                 </th>
               ))}
-              <th style={{ padding: '6px', minWidth: '42px', borderLeft: '2px solid #00BCD4', borderRight: '2px solid #00BCD4', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>OUT</th>
-              {[...Array(9)].map((_, i) => (
-                <th key={`b-${i}`} style={{ padding: '6px', minWidth: '42px', borderLeft: '1px solid #333', backgroundColor: (i + 10) % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
-                  {i + 10}<br /><span style={{ fontSize: '8px', color: '#666' }}>P{pars[i+9]}</span>
+              {is18 && (
+                <th style={{ padding: '6px', minWidth: '42px', borderLeft: '2px solid #00BCD4', borderRight: '2px solid #00BCD4', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>OUT</th>
+              )}
+              {backHoles.map((hNum) => (
+                <th key={`b-${hNum}`} style={{ padding: '6px', minWidth: '42px', borderLeft: '1px solid #333', backgroundColor: hNum % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
+                  {hNum}<br /><span style={{ fontSize: '8px', color: '#666' }}>P{pars[hNum - 1]}</span>
                 </th>
               ))}
-              <th style={{ padding: '6px', minWidth: '42px', borderLeft: '2px solid #00BCD4', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>IN</th>
+              {is18 && (
+                <th style={{ padding: '6px', minWidth: '42px', borderLeft: '2px solid #00BCD4', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>IN</th>
+              )}
               <th style={{ padding: '6px', minWidth: '50px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90 }}>TOT</th>
             </tr>
           </thead>
@@ -243,8 +257,8 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
 
               let outStrokes = 0;
               let inStrokes = 0;
-              for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
-              for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
+              frontHoles.forEach(h => { if (playerScores[h]) outStrokes += playerScores[h]; });
+              backHoles.forEach(h => { if (playerScores[h]) inStrokes += playerScores[h]; });
               const totalStrokes = outStrokes + inStrokes;
 
               const handleScoreChange = (holeNum, val) => {
@@ -272,8 +286,8 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
                       })()}
                     </div>
                   </td>
-                  {[...Array(9)].map((_, i) => {
-                    const holeNum = i + 1;
+                  {frontHoles.map((holeNum) => {
+                    const i = holeNum - 1;
                     const strokes = playerScores[holeNum];
                     const net = getNetScore(strokes, i, playerHcp);
                     const par = pars[i];
@@ -286,7 +300,7 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
                     const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
 
                     return (
-                      <td key={`f-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: holePoints === 5 ? '#00BCD433' : (i + 1) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
+                      <td key={`f-${holeNum}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: holePoints === 5 ? '#00BCD433' : holeNum % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
                         <GolfScoreTile 
                           id={`score-${holeNum}-${globalIdx}`}
                           type="tel"
@@ -304,12 +318,13 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
                       </td>
                     );
                   })}
-                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #00BCD4', borderRight: '2px solid #00BCD4', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
-                    {outStrokes > 0 ? outStrokes : '-'}
-                  </td>
-                  {[...Array(9)].map((_, i) => {
-                    const holeNum = i + 10;
-                    const realIndex = i + 9;
+                  {is18 && (
+                    <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #00BCD4', borderRight: '2px solid #00BCD4', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
+                      {outStrokes > 0 ? outStrokes : '-'}
+                    </td>
+                  )}
+                  {backHoles.map((holeNum) => {
+                    const realIndex = holeNum - 1;
                     const strokes = playerScores[holeNum];
                     const net = getNetScore(strokes, realIndex, playerHcp);
                     const par = pars[realIndex];
@@ -322,7 +337,7 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
                     const hasTwoStrokes = useHandicaps && playerHcp >= holeDiff + 18;
 
                     return (
-                      <td key={`b-${i}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: holePoints === 5 ? '#00BCD433' : (i + 10) % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
+                      <td key={`b-${holeNum}`} style={{ padding: '3px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: holePoints === 5 ? '#00BCD433' : holeNum % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '50px' }}>
                         <GolfScoreTile 
                           id={`score-${holeNum}-${globalIdx}`}
                           type="tel"
@@ -340,9 +355,11 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
                       </td>
                     );
                   })}
-                  <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #00BCD4', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
-                    {inStrokes > 0 ? inStrokes : '-'}
-                  </td>
+                  {is18 && (
+                    <td style={{ padding: '6px', textAlign: 'center', borderLeft: '2px solid #00BCD4', backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '13px' }}>
+                      {inStrokes > 0 ? inStrokes : '-'}
+                    </td>
+                  )}
                   <td style={{ padding: '6px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1e1e1e', fontWeight: 'bold', color: '#fff', fontSize: '14px' }}>
                     {totalStrokes > 0 ? totalStrokes : '-'}
                   </td>

@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 
-export default function NassauGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch }) {
+export default function NassauGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
     const [scores, setScores] = useState({});
     const [showSummary, setShowSummary] = useState(false);
     
@@ -107,6 +107,8 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
         useHandicaps={useHandicaps}
         useQuota={useQuota}
         courseData={courseData}
+        holesCount={holesCount}
+        startHole={startHole}
         onBack={() => setShowSummary(false)}
         onNewMatch={onNewMatch}
       />

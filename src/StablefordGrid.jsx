@@ -130,6 +130,8 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         useQuota={useQuota}
         courseData={courseData}
         stablefordMode={isTeamPlay ? 'team' : 'singles'}
+        holesCount={holesCount}
+        startHole={startHole}
         onBack={() => setShowSummary(false)}
         onNewMatch={onNewMatch}
       />
@@ -366,8 +368,8 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
 
                 let outStrokes = 0;
                 let inStrokes = 0;
-                for (let h = 1; h <= 9; h++) if (playerScores[h]) outStrokes += playerScores[h];
-                for (let h = 10; h <= 18; h++) if (playerScores[h]) inStrokes += playerScores[h];
+                frontHoles.forEach(h => { if (playerScores[h]) outStrokes += playerScores[h]; });
+                backHoles.forEach(h => { if (playerScores[h]) inStrokes += playerScores[h]; });
                 const totalStrokes = outStrokes + inStrokes;
 
                 const handleScoreChange = (holeNum, val) => {

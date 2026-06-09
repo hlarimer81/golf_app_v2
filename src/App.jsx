@@ -273,6 +273,12 @@ function App() {
         return;
       }
 
+      if (gameType === 'nassau' && holesCount !== 18) {
+        alert("Nassau requires a full 18-hole round (front 9, back 9, and overall).");
+        setLoading(false);
+        return;
+      }
+
       const distinctTeams = [...new Set(activePlayers.map(p => p.team))];
       const teamMapping = {};
 
@@ -806,13 +812,18 @@ function App() {
                 <option value="chairman">Chairman</option>
                 <option value="ninepoint">9-Point</option>
                 <option value="singles">Singles</option>
-                <option value="nassau">Nassau</option>
+                <option value="nassau" disabled={holesCount !== 18}>Nassau {holesCount !== 18 ? '(18 holes only)' : ''}</option>
                 <option value="vegas">Vegas</option>
                 <option value="wolf">Wolf</option>
               </select>
               {gameType && (
                 <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', marginBottom: 0 }}>
                   {gameDescriptions[gameType]}
+                </p>
+              )}
+              {gameType === 'nassau' && holesCount !== 18 && (
+                <p style={{ fontSize: '12px', color: '#c0392b', marginTop: '6px', marginBottom: 0, fontWeight: 'bold' }}>
+                  ⚠️ Nassau requires 18 holes (front 9, back 9, overall). Switch Holes to 18.
                 </p>
               )}
             </div>

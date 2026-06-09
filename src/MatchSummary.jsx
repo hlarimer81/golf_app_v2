@@ -11,10 +11,16 @@ export default function MatchSummary({
   courseData,
   stablefordMode,
   onBack,
-  onNewMatch 
+  onNewMatch,
+  holesCount = 18,
+  startHole = 1
 }) {
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
+
+  // Build dynamic hole list of holes actually played
+  const holeNumbers = [];
+  for (let i = 0; i < holesCount; i++) holeNumbers.push(startHole + i);
 
   // Get team name for a player
   const getPlayerTeam = (player) => {
@@ -127,7 +133,8 @@ export default function MatchSummary({
     const totals = {};
     players.forEach(p => { totals[p.id] = 0; });
 
-    for (let i = 0; i < 18; i++) {
+    for (const holeNum of holeNumbers) {
+      const i = holeNum - 1;
       const dist = getNinePointDistribution(i);
       players.forEach(p => {
         if (dist[p.id] !== undefined) totals[p.id] += dist[p.id];
@@ -145,7 +152,8 @@ export default function MatchSummary({
     
     let currentChairman = null; // Will hold teamName
     
-    for (let holeIndex = 0; holeIndex < 18; holeIndex++) {
+    for (const holeNum of holeNumbers) {
+      const holeIndex = holeNum - 1;
       const holeScores = [];
       
       // Get best net score for each team
@@ -197,7 +205,7 @@ export default function MatchSummary({
     let totalQuotaPoints = 0;
     let holesPlayed = 0;
 
-    for (let h = 1; h <= 18; h++) {
+    for (const h of holeNumbers) {
       if (playerScores[h]) {
         totalStrokes += playerScores[h];
         const netS = getNetScore(playerScores[h], h - 1, playerHcp);
@@ -214,8 +222,8 @@ export default function MatchSummary({
       const teamName = getPlayerTeam(player);
       const teamPlayers = getTeamPlayers(teamName);
       
-      for (let h = 0; h < 18; h++) {
-        const holeNum = h + 1;
+      for (const holeNum of holeNumbers) {
+        const h = holeNum - 1;
         const strokes = playerScores[holeNum];
         if (!strokes) continue;
         
@@ -294,7 +302,8 @@ export default function MatchSummary({
   matchups.forEach(({ team1, team2 }) => {
     const t1Players = getTeamPlayers(team1);
     const t2Players = getTeamPlayers(team2);
-    for (let h = 0; h < 18; h++) {
+    for (const holeNum of holeNumbers) {
+      const h = holeNum - 1;
       const result = getHoleResult(t1Players, t2Players, h);
       if (result === 1) {
         fourBallStandings[team1].wins++;

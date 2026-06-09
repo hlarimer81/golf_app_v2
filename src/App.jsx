@@ -410,7 +410,10 @@ function App() {
         {/* Match code banner */}
         <div style={{ 
           background: '#1e1e1e', 
-          padding: '8px 15px', 
+          padding: '8px 15px',
+          paddingTop: 'max(8px, env(safe-area-inset-top))',
+          paddingLeft: 'max(15px, env(safe-area-inset-left))',
+          paddingRight: 'max(15px, env(safe-area-inset-right))',
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',

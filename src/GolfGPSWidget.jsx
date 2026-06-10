@@ -292,6 +292,7 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
           courseName={courseName}
           holeNumber={targetHole}
           greenCoords={courseData?.greens?.[targetHole - 1]}
+          greenPolygon={greenPolys[targetHole]?.polygon}
           onClose={() => setShowGreen(false)}
         />
       )}

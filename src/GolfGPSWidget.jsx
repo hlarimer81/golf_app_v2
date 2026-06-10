@@ -2,24 +2,55 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import GreenView from './GreenView';
 
-// Haversine formula to calculate distance in yards
-const calculateDistanceInYards = (lat1, lon1, lat2, lon2) => {
-  if (lat1 === undefined || lon1 === undefined || lat2 === undefined || lon2 === undefined) return null;
-  const R = 6371e3; // Earth radius in meters
+// Haversine formula → distance in meters (raw, no rounding).
+const haversineMeters = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3;
   const phi1 = (lat1 * Math.PI) / 180;
   const phi2 = (lat2 * Math.PI) / 180;
   const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
   const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
-
   const a =
     Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
     Math.cos(phi1) * Math.cos(phi2) *
     Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-    
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distanceInMeters = R * c;
+  return R * c;
+};
 
-  return Math.round(distanceInMeters * 1.09361); // Convert to yards
+const metersToYards = (m) => Math.round(m * 1.09361);
+
+const calculateDistanceInYards = (lat1, lon1, lat2, lon2) => {
+  if (lat1 === undefined || lon1 === undefined || lat2 === undefined || lon2 === undefined) return null;
+  return metersToYards(haversineMeters(lat1, lon1, lat2, lon2));
+};
+
+// Given the user's lat/lon and a polygon of [lat, lon] points, return
+// { front, middle, back } distances in yards, where:
+//   - middle = distance to the polygon centroid
+//   - front  = distance to the nearest polygon vertex
+//   - back   = distance to the farthest polygon vertex
+// (Vertex-based approximation is plenty good for greens at this scale.)
+const distancesToPolygon = (lat, lon, polygon) => {
+  if (!polygon || polygon.length === 0) return null;
+  let minM = Infinity;
+  let maxM = -Infinity;
+  let sumLat = 0;
+  let sumLon = 0;
+  for (const [pLat, pLon] of polygon) {
+    const d = haversineMeters(lat, lon, pLat, pLon);
+    if (d < minM) minM = d;
+    if (d > maxM) maxM = d;
+    sumLat += pLat;
+    sumLon += pLon;
+  }
+  const centroidLat = sumLat / polygon.length;
+  const centroidLon = sumLon / polygon.length;
+  const midM = haversineMeters(lat, lon, centroidLat, centroidLon);
+  return {
+    front: metersToYards(minM),
+    middle: metersToYards(midM),
+    back: metersToYards(maxM),
+  };
 };
 
 export default function GolfGPSWidget({ courseData, matchId, players, courseName }) {
@@ -29,6 +60,8 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
   const [distances, setDistances] = useState({ front: null, middle: null, back: null });
   const [targetHole, setTargetHole] = useState(1);
   const [showGreen, setShowGreen] = useState(false);
+  // Map of holeNumber -> { polygon: [[lat,lon],...], centerLat, centerLon }
+  const [greenPolys, setGreenPolys] = useState({});
 
   // Fetch real-time scores and determine the next unscored hole when opened
   useEffect(() => {
@@ -60,6 +93,30 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
     determineNextHole();
   }, [isOpen, matchId, players]);
 
+  // Fetch green polygons for this course from Supabase (one query, all holes).
+  useEffect(() => {
+    if (!isOpen || !courseName) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error: fetchErr } = await supabase
+        .from('green_images')
+        .select('hole_number, green_polygon, green_center_lat, green_center_lon')
+        .eq('course_name', courseName);
+      if (cancelled || fetchErr || !data) return;
+      const map = {};
+      for (const row of data) {
+        if (!row.green_polygon) continue;
+        map[row.hole_number] = {
+          polygon: row.green_polygon,
+          centerLat: row.green_center_lat,
+          centerLon: row.green_center_lon,
+        };
+      }
+      setGreenPolys(map);
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, courseName]);
+
   useEffect(() => {
     if (!isOpen) {
       setUserLocation(null);
@@ -75,7 +132,18 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
     const handleSuccess = (position) => {
       const { latitude, longitude, accuracy } = position.coords;
       setUserLocation({ latitude, longitude, accuracy });
-      
+
+      // Prefer OSM polygon data (from green_images) if available for this hole.
+      const polyEntry = greenPolys[targetHole];
+      if (polyEntry?.polygon?.length) {
+        const d = distancesToPolygon(latitude, longitude, polyEntry.polygon);
+        if (d) {
+          setDistances(d);
+          return;
+        }
+      }
+
+      // Fallback: legacy hard-coded greens.f/m/b on courseData
       const green = courseData?.greens?.[targetHole - 1];
       if (green) {
         setDistances({
@@ -99,9 +167,11 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
     });
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [isOpen, targetHole, courseData]);
+  }, [isOpen, targetHole, courseData, greenPolys]);
 
-  const hasGreensData = courseData?.greens && courseData.greens.length > 0;
+  const hasGreensData =
+    (greenPolys[targetHole]?.polygon?.length > 0) ||
+    (courseData?.greens && courseData.greens.length > 0);
 
   if (!isOpen) {
     return (

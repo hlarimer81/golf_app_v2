@@ -278,12 +278,17 @@ export default function GreenView({ courseName, holeNumber, greenPolygon, greenC
   }, [transform, userPos]);
 
   // -------- Rotation applied to the on-screen image when compass-follow is active --------
-  // We want the direction the phone is facing (= heading) to appear at the top of the picture.
-  // The picture's top currently represents bearing `image_north_deg`. So we need to rotate
-  // the picture by (image_north_deg - heading) degrees clockwise.
+  // We want the direction the phone is facing (= `heading`) to appear at the TOP of the
+  // picture. The picture's top currently represents bearing `imageNorthDeg`.
+  //
+  // CSS `transform: rotate(θ)` rotates content CLOCKWISE on screen (because the y-axis
+  // grows downward). To bring the heading bearing to the top, we need to rotate the
+  // picture COUNTER-clockwise by (heading − imageNorthDeg) — i.e. CLOCKWISE by
+  // (imageNorthDeg − heading)... but on a screen where y grows DOWN, that comes out
+  // the wrong way. The correct CSS rotation is (heading − imageNorthDeg).
   const imageNorthDeg = Number(record?.image_north_deg) || 0;
   const displayRotationDeg =
-    compassFollow && heading != null ? (imageNorthDeg - heading) : 0;
+    compassFollow && heading != null ? (heading - imageNorthDeg) : 0;
 
   // -------- Handle image click (plot points) --------
   const handleImageClick = (e) => {

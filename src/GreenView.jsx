@@ -348,12 +348,21 @@ export default function GreenView({ courseName, holeNumber, greenPolygon, greenC
           )}
         </div>
 
-        <div style={{ position: 'relative', display: 'inline-block', width: '100%', overflow: 'hidden' }}>
+        <div style={{
+          position: 'relative',
+          display: 'inline-block',
+          width: '100%',
+          overflow: 'hidden',
+          // White backdrop so corners revealed by rotation are white, not black.
+          background: '#fff',
+          borderRadius: 6,
+        }}>
           {/* Wrapper that we rotate as a whole so points/dot stay aligned with the image. */}
           <div
             style={{
               position: 'relative',
               width: '100%',
+              background: '#fff',
               transform: `rotate(${displayRotationDeg}deg)`,
               transformOrigin: '50% 50%',
               transition: 'transform 120ms linear',

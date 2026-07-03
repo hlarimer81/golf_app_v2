@@ -2,10 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
+import MoneyModal from './MoneyModal';
+import WagerConfig from './WagerConfig';
+import { useWager } from './useWager';
+import { settleSkins, wagerHasStake } from './settlement';
 
 export default function SkinsGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, useCarryover, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
   const [scores, setScores] = useState({});
   const [showSummary, setShowSummary] = useState(false);
+  const [showMoney, setShowMoney] = useState(false);
+  const [showWager, setShowWager] = useState(false);
+  const { wager, saveWager } = useWager(matchId);
+
 
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -183,6 +191,26 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
   const skinTotals = calculateSkins();
   const sortedPlayers = [...players].sort((a, b) => (skinTotals[b.id] || 0) - (skinTotals[a.id] || 0));
 
+  // Build per-hole skin winners (with carryover) for the Money breakdown.
+  const buildHoleWinners = () => {
+    const winners = [];
+    let carry = 0;
+    for (const holeNum of holeNumbers) {
+      const result = getHoleSkinResult(holeNum - 1);
+      if (result.status === 'incomplete') continue;
+      if (result.status === 'push') {
+        if (useCarryover) carry += 1;
+        continue;
+      }
+      winners.push({ hole: holeNum, winnerId: result.playerId, skins: 1 + carry });
+      carry = 0;
+    }
+    return winners;
+  };
+  const settlement = settleSkins({ players, wager, skinsById: skinTotals, holeWinners: buildHoleWinners() });
+  const hasStake = wagerHasStake(wager);
+
+
   const scoreColor = (net, par) => {
     if (net === null) return '#fff';
     const diff = net - par;
@@ -218,9 +246,16 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
 
       {/* --- SKINS LEADERBOARD (STICKY) --- */}
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', marginBottom: '15px', borderBottom: '2px solid #FFD700', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>
-        <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', marginBottom: '10px' }}>
-          🎰 Skins {useCarryover ? '(Carryover)' : '(No Carryover)'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            🎰 Skins {useCarryover ? '(Carryover)' : '(No Carryover)'}
+          </div>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button onClick={() => setShowWager(true)} style={{ background: '#333', color: '#FFD700', border: '1px solid #FFD700', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>💵 Wager</button>
+            {hasStake && <button onClick={() => setShowMoney(true)} style={{ background: '#FFD700', color: '#000', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>💰 Money</button>}
+          </div>
         </div>
+
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '8px', textAlign: 'center', flexWrap: 'wrap' }}>
           {sortedPlayers.slice(0, 8).map((player, idx) => {
             const skinCount = skinTotals[player.id] || 0;
@@ -428,6 +463,17 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
       </div>
       {/* Spacer to prevent content from being hidden behind fixed button */}
       <div style={{ height: '70px', flexShrink: 0 }} />
+
+      {showWager && (
+        <WagerConfig gameType="skins" wager={wager} accent="#FFD700"
+          onClose={() => setShowWager(false)}
+          onSave={(w) => { saveWager(w); setShowWager(false); }} />
+      )}
+      {showMoney && (
+        <MoneyModal settlement={settlement} gameName="Skins" accent="#FFD700"
+          onClose={() => setShowMoney(false)} />
+      )}
     </div>
   );
 }
+

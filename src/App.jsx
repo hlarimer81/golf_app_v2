@@ -9,6 +9,8 @@ import SinglesGrid from './SinglesGrid';
 import NassauGrid from './NassauGrid';
 import VegasGrid from './VegasGrid';
 import WolfGrid from './WolfGrid';
+import WolfVegasGrid from './WolfVegasGrid';
+import AggregateGrid from './AggregateGrid';
 import GolfGPSWidget from './GolfGPSWidget';
 
 // Generate a random 6-character code
@@ -408,6 +410,12 @@ function App() {
     } else if (gameType === 'wolf') {
       ScorerComponent = WolfGrid;
       bannerColor = '#607D8B';
+    } else if (gameType === 'wolfvegas') {
+      ScorerComponent = WolfVegasGrid;
+      bannerColor = '#AB47BC';
+    } else if (gameType === 'aggregate') {
+      ScorerComponent = AggregateGrid;
+      bannerColor = '#26A69A';
     } else {
       ScorerComponent = StablefordGrid;
     }
@@ -483,7 +491,10 @@ function App() {
     nassau: 'Classic 3-part match: Front 9, Back 9, and 18-hole total.',
     vegas: '2v2 per-hole points. Scores are concatenated (e.g. 4 and 5 makes 45).',
     wolf: 'Rotational 4-player game. The "Wolf" tees off first and can choose a partner or play lone wolf.',
+    wolfvegas: '4-player Wolf combined with Vegas. The rotating Wolf picks a partner, goes Lone (x2) or Blind (x3); sides form two-digit Vegas numbers and the difference is the points swing.',
+    aggregate: '2-Ball teams. Both partners\' net scores are summed each hole; teams compete pairwise per hole plus a per-nine bonus.',
   };
+
 
   const peninsulaNineNames = dbCourses.filter(c => c.holes === 9).map(c => c.name);
 
@@ -666,7 +677,7 @@ function App() {
                         <div>
                           <div style={{ fontWeight: 'bold', color: '#333' }}>{match.course_name || 'No course'}</div>
                           <div style={{ fontSize: '12px', color: '#666' }}>
-                            {{ stableford: 'Stableford', fourball: '4-Ball', skins: 'Skins', chairman: 'Chairman', ninepoint: '9-Point', singles: 'Singles', nassau: 'Nassau', vegas: 'Vegas', wolf: 'Wolf' }[match.game_type] || match.game_type || 'Unknown'}
+                            {{ stableford: 'Stableford', fourball: '4-Ball', skins: 'Skins', chairman: 'Chairman', ninepoint: '9-Point', singles: 'Singles', nassau: 'Nassau', vegas: 'Vegas', wolf: 'Wolf', wolfvegas: 'Wolf Vegas', aggregate: '2-Ball Aggregate' }[match.game_type] || match.game_type || 'Unknown'}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
@@ -797,9 +808,9 @@ function App() {
                   const gt = e.target.value;
                   setGameType(gt);
                   // Auto-set play mode based on game type
-                  if (['fourball', 'vegas'].includes(gt)) {
+                  if (['fourball', 'vegas', 'aggregate'].includes(gt)) {
                     setPlayMode('team');
-                  } else if (['ninepoint', 'singles', 'wolf'].includes(gt)) {
+                  } else if (['ninepoint', 'singles', 'wolf', 'wolfvegas'].includes(gt)) {
                     setPlayMode('singles');
                   }
                 }}
@@ -816,6 +827,8 @@ function App() {
                 <option value="nassau" disabled={holesCount !== 18}>Nassau {holesCount !== 18 ? '(18 holes only)' : ''}</option>
                 <option value="vegas">Vegas</option>
                 <option value="wolf">Wolf</option>
+                <option value="wolfvegas">Wolf Vegas</option>
+                <option value="aggregate">2-Ball Aggregate</option>
               </select>
               {gameType && (
                 <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', marginBottom: 0 }}>
@@ -836,13 +849,13 @@ function App() {
                 onChange={e => setPlayMode(e.target.value)}
                 style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                 required
-                disabled={['fourball', 'vegas', 'ninepoint', 'singles', 'wolf'].includes(gameType)}
+                disabled={['fourball', 'vegas', 'aggregate', 'ninepoint', 'singles', 'wolf', 'wolfvegas'].includes(gameType)}
               >
                 <option value="" disabled>Play Mode</option>
-                {!['ninepoint', 'singles', 'wolf'].includes(gameType) && (
+                {!['ninepoint', 'singles', 'wolf', 'wolfvegas'].includes(gameType) && (
                   <option value="team">Team Play</option>
                 )}
-                {!['fourball', 'vegas'].includes(gameType) && (
+                {!['fourball', 'vegas', 'aggregate'].includes(gameType) && (
                   <option value="singles">Singles</option>
                 )}
               </select>

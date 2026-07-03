@@ -2,10 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
+import MoneyModal from './MoneyModal';
+import WagerConfig from './WagerConfig';
+import HoleInfoModal from './HoleInfoModal';
+import { useWager } from './useWager';
+import { usePresses } from './usePresses';
+import { settleNassau, wagerHasStake } from './settlement';
+import { computeNassau, nassauSettlementSegments } from './nassauEngine';
 
 export default function NassauGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
     const [scores, setScores] = useState({});
     const [showSummary, setShowSummary] = useState(false);
+    const [showMoney, setShowMoney] = useState(false);
+    const [showWager, setShowWager] = useState(false);
+    const [holeInfo, setHoleInfo] = useState(null);
+    const { wager, saveWager } = useWager(matchId);
+    const { presses, addPress, removePress } = usePresses(matchId);
+
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -139,7 +152,47 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
     return "AS";
   };
 
+  // ---- Nassau engine: best-net per side per hole, then compute matches + settlement ----
+  const bestNetForTeam = (team, holeIndex) => {
+    let best = 0;
+    players.filter((p) => p.team === team).forEach((p) => {
+      const strokes = scores[p.id]?.[holeIndex + 1];
+      const net = calculateNetStrokes(strokes, holeIndex, p.handicap ?? p.hcp ?? 0);
+      if (net != null && (best === 0 || net < best)) best = net;
+    });
+    return best;
+  };
+  const sideNet = [[], []];
+  for (let h = 0; h < 18; h++) {
+    sideNet[0][h] = bestNetForTeam(t1Name, h);
+    sideNet[1][h] = bestNetForTeam(t2Name, h);
+  }
+  const nassau = computeNassau({ sides: [t1Name, t2Name], sideNet, manualPressHoles: presses });
+  const segments = nassauSettlementSegments({ matches: nassau.matches, sideNames: [t1Name, t2Name], wager });
+  const settlement = settleNassau({ wager, teamNames: [t1Name, t2Name], segments });
+  const hasStake = wagerHasStake(wager);
+
+  // Which holes currently have both sides scored (so a press is meaningful there).
+  const holeScored = (holeIndex) => sideNet[0][holeIndex] > 0 && sideNet[1][holeIndex] > 0;
+  const pressActiveAfter = (holeIndex) => presses.includes(holeIndex);
+
+  const openHoleInfo = (holeIndex) => {
+    const holeNum = holeIndex + 1;
+    const rows = players.map((p) => {
+      const gross = scores[p.id]?.[holeNum] ?? null;
+      const net = calculateNetStrokes(gross, holeIndex, p.handicap ?? p.hcp ?? 0);
+      return { name: (p.player_name || p.name), gross, net, note: `Team ${p.team}` };
+    });
+    const w = getHoleWinner(holeIndex);
+    let summary = 'Not enough scores yet.';
+    if (w === 'TIE') summary = 'Hole halved — no change.';
+    else if (w) summary = `${w} wins the hole (low net ${Math.min(sideNet[0][holeIndex] || 99, sideNet[1][holeIndex] || 99)}).`;
+    rows.forEach((r) => { if (r.note === `Team ${w}`) r.highlight = true; });
+    setHoleInfo({ hole: holeNum, par: pars[holeIndex], rows, summary });
+  };
+
   return (
+
     <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
       
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #0D47A1' }}>
@@ -157,7 +210,22 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
             <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#0D47A1' }}>{getStatus(backPoints)}</div>
           </div>
         </div>
+        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginTop: '12px' }}>
+          <button onClick={() => setShowWager(true)} style={{ background: '#333', color: '#64B5F6', border: '1px solid #64B5F6', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>💵 Wager</button>
+          {hasStake && <button onClick={() => setShowMoney(true)} style={{ background: '#1565C0', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>💰 Money</button>}
+        </div>
+        {presses.length > 0 && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '8px' }}>
+            {presses.map((h) => (
+              <button key={h} onClick={() => removePress(h)} title="Tap to remove press"
+                style={{ background: '#0D47A122', color: '#64B5F6', border: '1px solid #0D47A1', borderRadius: '12px', padding: '3px 10px', fontSize: '11px', cursor: 'pointer' }}>
+                Press after {h + 1} ✕
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
 
       <div style={{ flexGrow: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '8px', border: '1px solid #333', background: '#1a1a1a' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
@@ -178,8 +246,45 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
               <th style={{ padding: '8px', minWidth: '45px', borderLeft: '3px solid #0D47A1', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>IN</th>
               <th style={{ padding: '8px', minWidth: '50px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90 }}>TOT</th>
             </tr>
+            {/* Press / Info control row: tap PRESS after a scored hole; (i) explains the hole. */}
+            <tr style={{ backgroundColor: '#1c1c1c' }}>
+              <th style={{ position: 'sticky', left: 0, zIndex: 110, backgroundColor: '#1c1c1c', padding: '4px 8px', textAlign: 'left', borderRight: '3px solid #0D47A1', fontSize: '9px', color: '#666', fontWeight: 'normal' }}>PRESS / INFO</th>
+              {[...Array(9)].map((_, i) => (
+                <th key={`fc-${i}`} style={{ padding: '2px', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1c1c1c' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+                    {holeScored(i) && (
+                      <button onClick={() => (pressActiveAfter(i) ? removePress(i) : addPress(i))}
+                        style={{ fontSize: '8px', padding: '1px 4px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold', background: pressActiveAfter(i) ? '#1565C0' : '#333', color: pressActiveAfter(i) ? '#fff' : '#64B5F6' }}>
+                        {pressActiveAfter(i) ? 'ON' : 'PRS'}
+                      </button>
+                    )}
+                    <button onClick={() => openHoleInfo(i)} style={{ fontSize: '9px', padding: '0 4px', borderRadius: '50%', border: '1px solid #444', background: 'transparent', color: '#888', cursor: 'pointer' }}>i</button>
+                  </div>
+                </th>
+              ))}
+              <th style={{ backgroundColor: '#1c1c1c', borderLeft: '3px solid #0D47A1', borderRight: '3px solid #0D47A1' }} />
+              {[...Array(9)].map((_, i) => {
+                const realIndex = i + 9;
+                return (
+                  <th key={`bc-${i}`} style={{ padding: '2px', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1c1c1c' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+                      {holeScored(realIndex) && (
+                        <button onClick={() => (pressActiveAfter(realIndex) ? removePress(realIndex) : addPress(realIndex))}
+                          style={{ fontSize: '8px', padding: '1px 4px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold', background: pressActiveAfter(realIndex) ? '#1565C0' : '#333', color: pressActiveAfter(realIndex) ? '#fff' : '#64B5F6' }}>
+                          {pressActiveAfter(realIndex) ? 'ON' : 'PRS'}
+                        </button>
+                      )}
+                      <button onClick={() => openHoleInfo(realIndex)} style={{ fontSize: '9px', padding: '0 4px', borderRadius: '50%', border: '1px solid #444', background: 'transparent', color: '#888', cursor: 'pointer' }}>i</button>
+                    </div>
+                  </th>
+                );
+              })}
+              <th style={{ backgroundColor: '#1c1c1c', borderLeft: '3px solid #0D47A1' }} />
+              <th style={{ backgroundColor: '#1c1c1c', borderLeft: '1px solid #333' }} />
+            </tr>
           </thead>
           <tbody>
+
             {players.map((player, globalIdx) => {
               const playerScores = scores[player.id] || {};
               const playerHcp = player.handicap ?? player.hcp ?? 0;
@@ -267,6 +372,21 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
         <button onClick={() => setShowSummary(true)} style={{ padding: '15px', backgroundColor: '#0D47A1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
       </div>
       <div style={{ height: '70px', flexShrink: 0 }} />
+
+      {showWager && (
+        <WagerConfig gameType="nassau" wager={wager} accent="#1565C0"
+          onClose={() => setShowWager(false)}
+          onSave={(w) => { saveWager(w); setShowWager(false); }} />
+      )}
+      {showMoney && (
+        <MoneyModal settlement={settlement} gameName="Nassau" accent="#1565C0"
+          onClose={() => setShowMoney(false)} />
+      )}
+      {holeInfo && (
+        <HoleInfoModal info={holeInfo} gameName="Nassau" accent="#1565C0"
+          onClose={() => setHoleInfo(null)} />
+      )}
     </div>
   );
 }
+

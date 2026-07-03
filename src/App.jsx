@@ -12,6 +12,7 @@ import WolfGrid from './WolfGrid';
 import WolfVegasGrid from './WolfVegasGrid';
 import AggregateGrid from './AggregateGrid';
 import GolfGPSWidget from './GolfGPSWidget';
+import { gameDescriptions, gameRecentLabels } from './lib/gameRegistry';
 
 // Generate a random 6-character code
 const generateMatchCode = () => {
@@ -481,21 +482,6 @@ function App() {
     );
   }
 
-  const gameDescriptions = {
-    stableford: 'Points-based scoring. Each player earns points per hole. Teams accumulate total points.',
-    fourball: 'Match play. Each player plays their own ball; the best score on each team counts. Team A vs Team B.',
-    skins: 'Individual competition. Lowest score wins the hole. Ties can carry over to the next hole.',
-    chairman: 'King of the hill. Win a hole outright to become Chairman. Chairman earns 1 point for each hole won.',
-    ninepoint: '3-player game. 9 points awarded per hole: 5 for best, 3 for middle, 1 for worst. Ties split points.',
-    singles: 'Individual stroke play. No teams, just you vs the course. Keeps track of gross and net scores.',
-    nassau: 'Classic 3-part match: Front 9, Back 9, and 18-hole total.',
-    vegas: '2v2 per-hole points. Scores are concatenated (e.g. 4 and 5 makes 45).',
-    wolf: 'Rotational 4-player game. The "Wolf" tees off first and can choose a partner or play lone wolf.',
-    wolfvegas: '4-player Wolf combined with Vegas. The rotating Wolf picks a partner, goes Lone (x2) or Blind (x3); sides form two-digit Vegas numbers and the difference is the points swing.',
-    aggregate: '2-Ball teams. Both partners\' net scores are summed each hole; teams compete pairwise per hole plus a per-nine bonus.',
-  };
-
-
   const peninsulaNineNames = dbCourses.filter(c => c.holes === 9).map(c => c.name);
 
   // Fetch recent matches
@@ -677,7 +663,7 @@ function App() {
                         <div>
                           <div style={{ fontWeight: 'bold', color: '#333' }}>{match.course_name || 'No course'}</div>
                           <div style={{ fontSize: '12px', color: '#666' }}>
-                            {{ stableford: 'Stableford', fourball: '4-Ball', skins: 'Skins', chairman: 'Chairman', ninepoint: '9-Point', singles: 'Singles', nassau: 'Nassau', vegas: 'Vegas', wolf: 'Wolf', wolfvegas: 'Wolf Vegas', aggregate: '2-Ball Aggregate' }[match.game_type] || match.game_type || 'Unknown'}
+                            {gameRecentLabels[match.game_type] || match.game_type || 'Unknown'}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>

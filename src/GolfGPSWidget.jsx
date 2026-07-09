@@ -23,6 +23,45 @@ const calculateDistanceInYards = (lat1, lon1, lat2, lon2) => {
   return metersToYards(haversineMeters(lat1, lon1, lat2, lon2));
 };
 
+// Calculate front/middle/back distances from green polygon
+const calculateDistancesFromPolygon = (userLat, userLon, polygon) => {
+  if (!polygon || polygon.length === 0) {
+    return { front: null, middle: null, back: null };
+  }
+
+  // MIDDLE: Distance to centroid (center of green)
+  const centroid = calculateCentroid(polygon);
+  const middle = calculateDistanceInYards(userLat, userLon, centroid[0], centroid[1]);
+
+  // FRONT: Distance to closest point on polygon
+  let frontMeters = Infinity;
+  polygon.forEach(point => {
+    const dist = haversineMeters(userLat, userLon, point[0], point[1]);
+    if (dist < frontMeters) frontMeters = dist;
+  });
+  const front = metersToYards(frontMeters);
+
+  // BACK: Distance to farthest point on polygon
+  let backMeters = 0;
+  polygon.forEach(point => {
+    const dist = haversineMeters(userLat, userLon, point[0], point[1]);
+    if (dist > backMeters) backMeters = dist;
+  });
+  const back = metersToYards(backMeters);
+
+  return { front, middle, back };
+};
+
+// Calculate centroid (center point) of polygon
+const calculateCentroid = (polygon) => {
+  let sumLat = 0, sumLon = 0;
+  polygon.forEach(coord => {
+    sumLat += coord[0];
+    sumLon += coord[1];
+  });
+  return [sumLat / polygon.length, sumLon / polygon.length];
+};
+
 export default function GolfGPSWidget({ courseData, matchId, players, courseName }) {
   const [isOpen, setIsOpen] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
@@ -80,11 +119,21 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
       // Use greens data from courseData
       const green = courseData?.greens?.[targetHole - 1];
       if (green) {
-        setDistances({
-          front: calculateDistanceInYards(latitude, longitude, green.f?.[0], green.f?.[1]),
-          middle: calculateDistanceInYards(latitude, longitude, green.m?.[0], green.m?.[1]),
-          back: calculateDistanceInYards(latitude, longitude, green.b?.[0], green.b?.[1]),
-        });
+        // Check if this is polygon format or old f/m/b format
+        if (green.polygon && Array.isArray(green.polygon)) {
+          // NEW: Calculate from polygon
+          const polygonDistances = calculateDistancesFromPolygon(latitude, longitude, green.polygon);
+          setDistances(polygonDistances);
+        } else if (green.f && green.m && green.b) {
+          // OLD: Use static front/middle/back points
+          setDistances({
+            front: calculateDistanceInYards(latitude, longitude, green.f?.[0], green.f?.[1]),
+            middle: calculateDistanceInYards(latitude, longitude, green.m?.[0], green.m?.[1]),
+            back: calculateDistanceInYards(latitude, longitude, green.b?.[0], green.b?.[1]),
+          });
+        } else {
+          setDistances({ front: null, middle: null, back: null });
+        }
       } else {
         setDistances({ front: null, middle: null, back: null });
       }

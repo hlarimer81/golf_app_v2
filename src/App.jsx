@@ -12,6 +12,8 @@ import WolfGrid from './WolfGrid';
 import WolfVegasGrid from './WolfVegasGrid';
 import AggregateGrid from './AggregateGrid';
 import GolfGPSWidget from './GolfGPSWidget';
+import RequestCourseForm from './components/RequestCourseForm';
+import ReportCourseIssue from './components/ReportCourseIssue';
 import { gameDescriptions, gameRecentLabels } from './lib/gameRegistry';
 
 // Generate a random 6-character code
@@ -55,6 +57,10 @@ function App() {
   // Recent matches state
   const [recentMatches, setRecentMatches] = useState([]);
   const [showRecentMatches, setShowRecentMatches] = useState(false);
+
+  // Course request/issue state
+  const [showRequestCourse, setShowRequestCourse] = useState(false);
+  const [showReportIssue, setShowReportIssue] = useState(false);
 
   const [globalPlayers, setGlobalPlayers] = useState([]);
   const [newGlobalPlayerName, setNewGlobalPlayerName] = useState('');
@@ -686,6 +692,26 @@ function App() {
 
   return (
     <div style={{ padding: '10px', fontFamily: 'sans-serif', maxWidth: '100%', margin: '0 auto', boxSizing: 'border-box', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Request Course Modal */}
+      {showRequestCourse && (
+        <RequestCourseForm
+          onClose={() => setShowRequestCourse(false)}
+          onSuccess={() => {
+            fetchGolfCourses(); // Refresh course list
+          }}
+        />
+      )}
+
+      {/* Report Issue Modal */}
+      {showReportIssue && selectedCourseId && (
+        <ReportCourseIssue
+          courseId={selectedCourseId}
+          courseName={selectedCourseName}
+          teeBoxId={selectedTeeBoxId}
+          onClose={() => setShowReportIssue(false)}
+        />
+      )}
+
       {matchId && (
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
           <img src="/logo.png" alt="4Play Logo" style={{ width: '80px', height: '80px', objectFit: 'contain', borderRadius: '12px' }} />
@@ -769,20 +795,58 @@ function App() {
 
             {/* --- Course Selector --- */}
             <div style={{ marginBottom: '15px' }}>
-              <select
-                value={selectedCourseId}
-                onChange={(e) => {
-                  setSelectedCourseId(e.target.value);
-                  setSelectedTeeBoxId(''); // Reset tee box when course changes
-                }}
-                style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
-                required
-              >
-                <option value="" disabled>Select Course</option>
-                {courseOptions.map(course => (
-                  <option key={course.id} value={course.id}>{course.name}</option>
-                ))}
-              </select>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <select
+                  value={selectedCourseId}
+                  onChange={(e) => {
+                    setSelectedCourseId(e.target.value);
+                    setSelectedTeeBoxId(''); // Reset tee box when course changes
+                  }}
+                  style={{ flex: 1, padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                  required
+                >
+                  <option value="" disabled>Select Course</option>
+                  {courseOptions.map(course => (
+                    <option key={course.id} value={course.id}>{course.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowRequestCourse(true)}
+                  style={{
+                    padding: '12px 15px',
+                    background: '#17a2b8',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+                  }}
+                  title="Request a course"
+                >
+                  +
+                </button>
+              </div>
+              {selectedCourseId && selectedCourseId !== 'Peninsula Golf Club' && (
+                <button
+                  type="button"
+                  onClick={() => setShowReportIssue(true)}
+                  style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    color: '#dc3545',
+                    border: '1px solid #dc3545',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    width: '100%'
+                  }}
+                >
+                  🐛 Report Issue with This Course
+                </button>
+              )}
             </div>
 
             {/* --- Tee Box Selector --- */}

@@ -41,7 +41,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [showScorer, setShowScorer] = useState(false);
   const [finalPlayers, setFinalPlayers] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedTeeBoxId, setSelectedTeeBoxId] = useState("");
 
   // Join match state
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -62,12 +63,42 @@ function App() {
   const [players, setPlayers] = useState([
     { name: '', team: '', hcp: 0, isGuest: false }
   ]);
-  const [dbCourses, setDbCourses] = useState([]);
+  const [golfCourses, setGolfCourses] = useState([]);
+  const [teeBoxes, setTeeBoxes] = useState([]);
+  const [dbCourses, setDbCourses] = useState([]); // Keep for Peninsula compatibility
 
   useEffect(() => {
     fetchGlobalPlayers();
-    fetchDbCourses();
+    fetchGolfCourses();
+    fetchDbCourses(); // Keep for Peninsula
   }, []);
+
+  const fetchGolfCourses = async () => {
+    const { data, error } = await supabase
+      .from('golf_courses')
+      .select(`
+        id,
+        name,
+        location,
+        holes,
+        greens,
+        tee_boxes (
+          id,
+          tee_name,
+          tee_color,
+          rating,
+          slope,
+          par,
+          stroke_index,
+          yardage
+        )
+      `)
+      .order('name');
+
+    if (data && !error) {
+      setGolfCourses(data);
+    }
+  };
 
   const fetchDbCourses = async () => {
     const { data, error } = await supabase.from('courses').select('*').order('name');
@@ -121,15 +152,29 @@ function App() {
     updatePlayer(index, { [field]: field === 'hcp' ? (parseInt(value, 10) || 0) : value });
   };
 
-  // Build the course data (handles Peninsula combination)
+  // Get available tee boxes for selected course
+  const availableTeeBoxes = useMemo(() => {
+    if (!selectedCourseId) return [];
+    const course = golfCourses.find(c => c.id === selectedCourseId);
+    return course?.tee_boxes || [];
+  }, [selectedCourseId, golfCourses]);
+
+  // Auto-select first tee box when course changes
+  useEffect(() => {
+    if (availableTeeBoxes.length > 0 && !selectedTeeBoxId) {
+      setSelectedTeeBoxId(availableTeeBoxes[0].id);
+    }
+  }, [availableTeeBoxes, selectedTeeBoxId]);
+
+  // Build the course data (handles both new schema and Peninsula)
   const courseData = useMemo(() => {
-    if (selectedCourse === 'Peninsula Golf Club') {
+    // Handle Peninsula (old schema)
+    if (selectedCourseId === 'Peninsula Golf Club') {
       const front = dbCourses.find(c => c.name === peninsulaFront);
       const back = dbCourses.find(c => c.name === peninsulaBack);
       if (!front || !back) return { pars: Array(18).fill(4), handicaps: Array(18).fill(10) };
-      
+
       const newHandicaps = [...front.stroke_index, ...back.stroke_index].map((hcp, i) => {
-        // Simple logic to interleave odds/evens for front/back nines like courses.js did
         return i < 9 ? (hcp * 2) - 1 : (hcp * 2);
       });
       return {
@@ -140,19 +185,41 @@ function App() {
         greens: [...(front.greens || []), ...(back.greens || [])]
       };
     }
-    const c = dbCourses.find(c => c.name === selectedCourse);
-    if (!c) return { pars: Array(18).fill(4), handicaps: Array(18).fill(10) };
-    return { pars: c.par, handicaps: c.stroke_index, slope: c.slope, rating: c.rating, greens: c.greens };
-  }, [selectedCourse, peninsulaFront, peninsulaBack, dbCourses]);
 
-  // All course options (including Peninsula as a special entry)
+    // New schema: course + tee box
+    if (!selectedTeeBoxId) return { pars: Array(18).fill(4), handicaps: Array(18).fill(10) };
+
+    const course = golfCourses.find(c => c.id === selectedCourseId);
+    const teeBox = course?.tee_boxes.find(tb => tb.id === selectedTeeBoxId);
+
+    if (!course || !teeBox) return { pars: Array(18).fill(4), handicaps: Array(18).fill(10) };
+
+    return {
+      pars: teeBox.par,
+      handicaps: teeBox.stroke_index,
+      slope: teeBox.slope,
+      rating: teeBox.rating,
+      greens: course.greens || [],
+      yardage: teeBox.yardage || []
+    };
+  }, [selectedCourseId, selectedTeeBoxId, peninsulaFront, peninsulaBack, golfCourses, dbCourses]);
+
+  // All course options (new schema + Peninsula special case)
   const courseOptions = useMemo(() => {
-    const full18s = dbCourses.filter(c => c.holes === 18).map(c => c.name);
+    const newCourses = golfCourses.map(c => ({ id: c.id, name: c.name }));
+    // Add Peninsula if old 9-hole courses exist
     if (dbCourses.some(c => c.holes === 9)) {
-        return [...full18s, 'Peninsula Golf Club'];
+      return [...newCourses, { id: 'Peninsula Golf Club', name: 'Peninsula Golf Club' }];
     }
-    return full18s;
-  }, [dbCourses]);
+    return newCourses;
+  }, [golfCourses, dbCourses]);
+
+  // Get selected course name for display
+  const selectedCourseName = useMemo(() => {
+    if (selectedCourseId === 'Peninsula Golf Club') return 'Peninsula Golf Club';
+    const course = golfCourses.find(c => c.id === selectedCourseId);
+    return course?.name || '';
+  }, [selectedCourseId, golfCourses]);
 
   const createMatch = async (e) => {
     e.preventDefault();
@@ -162,11 +229,13 @@ function App() {
     
     const { data, error } = await supabase
       .from('matches')
-      .insert([{ 
+      .insert([{
         use_handicaps: useHandicaps,
         match_code: code,
         game_type: gameType,
-        course_name: selectedCourse,
+        course_name: selectedCourseName,
+        course_id: selectedCourseId === 'Peninsula Golf Club' ? null : selectedCourseId,
+        tee_box_id: selectedCourseId === 'Peninsula Golf Club' ? null : selectedTeeBoxId,
         use_quota: useQuota,
         holes: holesCount,
         start_hole: startHole,
@@ -227,7 +296,8 @@ function App() {
     setUseHandicaps(matchData.use_handicaps);
     setUseQuota(matchData.use_quota || false);
     setGameType(matchData.game_type || 'stableford');
-    setSelectedCourse(matchData.course_name || 'Default Course');
+    setSelectedCourseId(matchData.course_id || 'Peninsula Golf Club');
+    setSelectedTeeBoxId(matchData.tee_box_id || '');
     setHolesCount(matchData.holes || 18);
     setStartHole(matchData.start_hole || 1);
     setPlayOffLow(matchData.play_off_low ?? true);
@@ -435,8 +505,8 @@ function App() {
           alignItems: 'center',
           borderBottom: `2px solid ${bannerColor}`
         }}>
-          <span style={{ color: '#888', fontSize: '12px' }}>{selectedCourse}</span>
-          <GolfGPSWidget courseData={courseData} matchId={matchId} players={playersWithPops} courseName={selectedCourse} />
+          <span style={{ color: '#888', fontSize: '12px' }}>{selectedCourseName}</span>
+          <GolfGPSWidget courseData={courseData} matchId={matchId} players={playersWithPops} courseName={selectedCourseName} />
           <span style={{ 
             background: bannerColor, 
             color: gameType === 'skins' ? '#000' : '#fff', 
@@ -467,7 +537,8 @@ function App() {
             setMatchName('');
             setShowScorer(false);
             setFinalPlayers([]);
-            setSelectedCourse('');
+            setSelectedCourseId('');
+            setSelectedTeeBoxId('');
             setUseHandicaps(false);
             setUseQuota(false);
             setGameType('');
@@ -530,7 +601,8 @@ function App() {
     setUseHandicaps(match.use_handicaps);
     setUseQuota(match.use_quota || false);
     setGameType(match.game_type || 'stableford');
-    setSelectedCourse(match.course_name || '');
+    setSelectedCourseId(match.course_id || 'Peninsula Golf Club');
+    setSelectedTeeBoxId(match.tee_box_id || '');
     setFinalPlayers(playersData);
     setShowScorer(true);
     setShowRecentMatches(false);
@@ -698,17 +770,39 @@ function App() {
             {/* --- Course Selector --- */}
             <div style={{ marginBottom: '15px' }}>
               <select
-                value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
+                value={selectedCourseId}
+                onChange={(e) => {
+                  setSelectedCourseId(e.target.value);
+                  setSelectedTeeBoxId(''); // Reset tee box when course changes
+                }}
                 style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                 required
               >
                 <option value="" disabled>Select Course</option>
-                {courseOptions.map(name => (
-                  <option key={name} value={name}>{name}</option>
+                {courseOptions.map(course => (
+                  <option key={course.id} value={course.id}>{course.name}</option>
                 ))}
               </select>
             </div>
+
+            {/* --- Tee Box Selector --- */}
+            {selectedCourseId && selectedCourseId !== 'Peninsula Golf Club' && availableTeeBoxes.length > 0 && (
+              <div style={{ marginBottom: '15px' }}>
+                <select
+                  value={selectedTeeBoxId}
+                  onChange={(e) => setSelectedTeeBoxId(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                  required
+                >
+                  <option value="" disabled>Select Tees</option>
+                  {availableTeeBoxes.map(tee => (
+                    <option key={tee.id} value={tee.id}>
+                      {tee.tee_name} {tee.rating && tee.slope ? `(${tee.rating}/${tee.slope})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* --- Holes, Start Hole Selector --- */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
@@ -739,7 +833,7 @@ function App() {
             </div>
 
             {/* --- Peninsula Nine Selection --- */}
-            {selectedCourse === 'Peninsula Golf Club' && (
+            {selectedCourseId === 'Peninsula Golf Club' && (
               <div style={{ background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: '8px', padding: '12px', marginBottom: '15px' }}>
                 <div style={{ fontSize: '13px', color: '#1565c0', fontWeight: 'bold', marginBottom: '10px' }}>
                   🏝️ Peninsula: Select 2 of 3 Nines

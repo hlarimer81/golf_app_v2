@@ -230,20 +230,30 @@ serve(async (req) => {
         debugInfo.push(`API Fetch Failed: ${apiError.message}`)
       }
 
-      // Step 2: Use default data if API not available
+      // Step 2: Fail if no course found
       if (!course) {
-        console.log('Using default course data (API search returned no results)')
-        course = {
-          course_name: courseName,
-          club_name: courseName,
-          location: {
-            city: location,
-            state: '',
-            country: ''
-          },
-          tees: { male: [], female: [] }
-        }
+        debugInfo.push('❌ Course not found in database')
+
+        // Update request with helpful error
+        await supabase
+          .from('course_requests')
+          .update({
+            status: 'failed',
+            error_message: debugInfo.join(' | ') + ' | Try: shorter name, different spelling, or check golfcourseapi.com',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', requestRecord.id)
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: `Course "${courseName}" not found in the golf course database. Try a shorter or different spelling, or search at golfcourseapi.com to find the exact name.`
+          }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
+
+      debugInfo.push(`Using: ${course.course_name} (${course.location?.city || 'unknown location'})`)
 
       // Step 3: Fetch green polygons from OpenStreetMap
       let greens = null
@@ -363,7 +373,7 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           course: newCourse,
-          message: 'Course added successfully!'
+          message: `Added: ${newCourse.name}${newCourse.location ? ' - ' + newCourse.location : ''}. Created ${successCount || allTees.length} tee boxes. ${newCourse.name !== courseName ? '(Note: Found as "' + newCourse.name + '")' : ''}`
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

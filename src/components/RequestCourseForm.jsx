@@ -22,10 +22,17 @@ function RequestCourseForm({ onClose, onSuccess }) {
         }
       });
 
-      if (functionError) throw functionError;
+      if (functionError) {
+        // Handle 404 (course not found) differently
+        if (functionError.message?.includes('not found')) {
+          throw new Error(functionError.message);
+        }
+        throw functionError;
+      }
 
       if (data.success) {
-        alert(`✅ ${courseName} has been added! You can select it now.`);
+        // Show what was actually found
+        alert(`✅ ${data.message || 'Course added successfully!'}`);
         onSuccess && onSuccess();
         onClose();
       } else {
@@ -33,7 +40,8 @@ function RequestCourseForm({ onClose, onSuccess }) {
       }
     } catch (err) {
       console.error('Error requesting course:', err);
-      setError('Failed to add course. Please try again or contact support.');
+      // Show the actual error message from the API
+      setError(err.message || 'Failed to add course. Please try again or contact support.');
     } finally {
       setLoading(false);
     }

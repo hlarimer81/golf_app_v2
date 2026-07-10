@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
+import ManualCourseEntry from './ManualCourseEntry';
 
 function RequestCourseForm({ onClose, onSuccess }) {
   const [courseName, setCourseName] = useState('');
@@ -8,6 +9,7 @@ function RequestCourseForm({ onClose, onSuccess }) {
   const [error, setError] = useState('');
   const [choices, setChoices] = useState(null);
   const [selectedChoice, setSelectedChoice] = useState('');
+  const [showManualEntry, setShowManualEntry] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,9 +45,8 @@ function RequestCourseForm({ onClose, onSuccess }) {
 
       // Handle course not found - offer manual entry
       if (data.notFound) {
-        if (confirm(`${data.message}\n\nYou can add basic course info now and enter par/handicap details later when playing.`)) {
-          // User wants to add manually - redirect to manual entry flow
-          alert('Manual course entry coming soon! For now, you can use "Peninsula Golf Club" as a placeholder.');
+        if (confirm(`${data.message}\n\nWould you like to add it manually with par and handicap details?`)) {
+          setShowManualEntry(true);
         }
         setLoading(false);
         return;
@@ -84,6 +85,20 @@ function RequestCourseForm({ onClose, onSuccess }) {
   };
 
   return (
+    <>
+      {showManualEntry && (
+        <ManualCourseEntry
+          courseName={courseName}
+          location={location}
+          onClose={() => {
+            setShowManualEntry(false);
+            onClose();
+          }}
+          onSuccess={onSuccess}
+        />
+      )}
+
+      {!showManualEntry && (
     <div
       style={{
         position: 'fixed',
@@ -306,6 +321,8 @@ function RequestCourseForm({ onClose, onSuccess }) {
         )}
       </div>
     </div>
+      )}
+    </>
   );
 }
 

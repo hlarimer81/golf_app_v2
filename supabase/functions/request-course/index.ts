@@ -279,17 +279,33 @@ serve(async (req) => {
       // Step 5: Create tee boxes from API data
       const allTees = [...(course.tees?.male || []), ...(course.tees?.female || [])]
 
-      console.log(`Found ${allTees.length} tees in API response`)
+      debugInfo.push(`Total tees to create: ${allTees.length}`)
 
       if (allTees.length > 0) {
-        console.log(`Creating ${allTees.length} tee boxes...`)
+        let successCount = 0
+        let failCount = 0
 
         // Insert all tee boxes
         for (const tee of allTees) {
           try {
-            // Extract par and stroke index from holes array
-            const par = tee.holes?.map(h => h.par) || Array(18).fill(4)
-            const strokeIndex = tee.holes?.map(h => h.handicap) || Array.from({length: 18}, (_, i) => i + 1)
+            // Extract par, stroke index, and yardage from holes array
+            // Ensure we have exactly 18 holes of data
+            let par: number[]
+            let strokeIndex: number[]
+            let yardage: number[]
+
+            if (tee.holes && tee.holes.length >= 18) {
+              par = tee.holes.slice(0, 18).map(h => Number(h.par))
+              strokeIndex = tee.holes.slice(0, 18).map(h => Number(h.handicap))
+              yardage = tee.holes.slice(0, 18).map(h => Number(h.yardage))
+            } else {
+              // Fallback to defaults if no hole data
+              par = Array(18).fill(4)
+              strokeIndex = Array.from({length: 18}, (_, i) => i + 1)
+              yardage = Array(18).fill(0)  // Default yardage array
+            }
+
+            debugInfo.push(`Inserting: ${tee.tee_name} (par:${par.length}, SI:${strokeIndex.length}, yds:${yardage.length})`)
 
             const { error: teeError } = await supabase.from('tee_boxes').insert({
               course_id: newCourse.id,
@@ -297,20 +313,25 @@ serve(async (req) => {
               tee_color: getTeeColor(tee.tee_name),
               rating: tee.course_rating || null,
               slope: tee.slope_rating || null,
-              par: par,
-              stroke_index: strokeIndex,
-              yardage: tee.total_yards || null
+              par: par,  // Array of 18 pars
+              stroke_index: strokeIndex,  // Array of 18 stroke indexes
+              yardage: yardage  // Array of 18 yardages (NOT total_yards!)
             })
 
             if (teeError) {
-              console.error(`Failed to insert ${tee.tee_name} tee:`, teeError)
+              failCount++
+              debugInfo.push(`✗ ${tee.tee_name}: ${teeError.message}`)
             } else {
-              console.log(`✓ Created ${tee.tee_name} tee`)
+              successCount++
+              debugInfo.push(`✓ ${tee.tee_name}`)
             }
           } catch (teeInsertError: any) {
-            console.error(`Error inserting ${tee.tee_name}:`, teeInsertError.message)
+            failCount++
+            debugInfo.push(`✗ ${tee.tee_name} exception: ${teeInsertError.message}`)
           }
         }
+
+        debugInfo.push(`Tees created: ${successCount}/${allTees.length}`)
       } else {
         // Create default Blue tees if no API data
         console.log('No API tee data, creating default Blue tees')

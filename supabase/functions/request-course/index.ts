@@ -284,7 +284,7 @@ serve(async (req) => {
           } else {
             debugInfo.push(`× API error: ${searchResponse.status}`)
           }
-          }
+        }
         }
 
         if (!course) {

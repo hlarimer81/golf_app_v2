@@ -235,6 +235,27 @@ serve(async (req) => {
 
             if (courseData.courses && courseData.courses.length > 0) {
               allMatches = courseData.courses
+
+              // Filter by state if location was provided
+              if (location) {
+                const stateMatch = location.match(/\b([A-Z]{2})\b/i)
+                if (stateMatch) {
+                  const requestedState = stateMatch[1].toUpperCase()
+                  const beforeFilter = allMatches.length
+                  allMatches = allMatches.filter(c =>
+                    c.location?.state?.toUpperCase() === requestedState
+                  )
+                  if (beforeFilter > allMatches.length) {
+                    debugInfo.push(`Filtered ${beforeFilter} → ${allMatches.length} matches (state: ${requestedState})`)
+                  }
+                }
+              }
+
+              if (allMatches.length === 0) {
+                debugInfo.push(`× No matches in requested state`)
+                continue // Try next search strategy
+              }
+
               debugInfo.push(`✓ Found ${allMatches.length} match(es)`)
 
               // If multiple matches, return them for user to choose
@@ -293,7 +314,7 @@ serve(async (req) => {
         debugInfo.push(`API Fetch Failed: ${apiError.message}`)
       }
 
-      // Step 2: Fail if no course found
+      // Step 2: Offer manual entry if no course found
       if (!course) {
         debugInfo.push('❌ Course not found in database')
 
@@ -301,8 +322,8 @@ serve(async (req) => {
         await supabase
           .from('course_requests')
           .update({
-            status: 'failed',
-            error_message: debugInfo.join(' | ') + ' | Try: shorter name, different spelling, or check golfcourseapi.com',
+            status: 'not_found',
+            error_message: debugInfo.join(' | ') + ' | Not in Golf API - manual entry available',
             completed_at: new Date().toISOString()
           })
           .eq('id', requestRecord.id)
@@ -310,9 +331,12 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             success: false,
-            message: `Course "${courseName}" not found in the golf course database. Try a shorter or different spelling, or search at golfcourseapi.com to find the exact name.`
+            notFound: true,
+            courseName: courseName,
+            location: location,
+            message: `"${courseName}" not found in our database. Would you like to add it manually?`
           }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 

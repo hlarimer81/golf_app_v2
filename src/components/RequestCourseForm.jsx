@@ -41,6 +41,16 @@ function RequestCourseForm({ onClose, onSuccess }) {
         return;
       }
 
+      // Handle course not found - offer manual entry
+      if (data.notFound) {
+        if (confirm(`${data.message}\n\nYou can add basic course info now and enter par/handicap details later when playing.`)) {
+          // User wants to add manually - redirect to manual entry flow
+          alert('Manual course entry coming soon! For now, you can use "Peninsula Golf Club" as a placeholder.');
+        }
+        setLoading(false);
+        return;
+      }
+
       if (data.success) {
         // Show what was actually found
         alert(`✅ ${data.message || 'Course added successfully!'}`);

@@ -169,8 +169,11 @@ function App() {
   useEffect(() => {
     if (availableTeeBoxes.length > 0 && !selectedTeeBoxId) {
       setSelectedTeeBoxId(availableTeeBoxes[0].id);
+    } else if (availableTeeBoxes.length === 0) {
+      // Clear tee box if no tees available
+      setSelectedTeeBoxId('');
     }
-  }, [availableTeeBoxes, selectedTeeBoxId]);
+  }, [availableTeeBoxes]);
 
   // Build the course data (handles both new schema and Peninsula)
   const courseData = useMemo(() => {
@@ -230,9 +233,16 @@ function App() {
   const createMatch = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
+    // Validation: ensure tee box is selected for non-Peninsula courses
+    if (selectedCourseId !== 'Peninsula Golf Club' && !selectedTeeBoxId) {
+      alert('Please select a tee box before creating the match.');
+      setLoading(false);
+      return;
+    }
+
     const code = generateMatchCode();
-    
+
     const { data, error } = await supabase
       .from('matches')
       .insert([{
@@ -240,8 +250,8 @@ function App() {
         match_code: code,
         game_type: gameType,
         course_name: selectedCourseName,
-        course_id: selectedCourseId === 'Peninsula Golf Club' ? null : selectedCourseId,
-        tee_box_id: selectedCourseId === 'Peninsula Golf Club' ? null : selectedTeeBoxId,
+        course_id: selectedCourseId === 'Peninsula Golf Club' ? null : (selectedCourseId || null),
+        tee_box_id: selectedCourseId === 'Peninsula Golf Club' ? null : (selectedTeeBoxId || null),
         use_quota: useQuota,
         holes: holesCount,
         start_hole: startHole,

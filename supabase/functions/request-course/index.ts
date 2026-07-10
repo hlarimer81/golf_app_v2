@@ -119,6 +119,14 @@ serve(async (req) => {
   }
 
   try {
+    // Debug: Log environment variable status
+    const apiKeyExists = !!Deno.env.get('GOLF_API_KEY')
+    const apiKeyLength = Deno.env.get('GOLF_API_KEY')?.length || 0
+    console.log(`=== ENV CHECK ===`)
+    console.log(`GOLF_API_KEY exists: ${apiKeyExists}`)
+    console.log(`GOLF_API_KEY length: ${apiKeyLength}`)
+    console.log(`================`)
+
     // Parse request
     const { courseName, location, requestedBy } = await req.json()
 
@@ -148,38 +156,78 @@ serve(async (req) => {
 
     if (requestError) throw requestError
 
+    // Store debug info
+    let debugInfo: string[] = []
+    debugInfo.push(`API Key exists: ${!!GOLF_API_KEY}`)
+    debugInfo.push(`API Key length: ${GOLF_API_KEY?.length || 0}`)
+
     try {
       // Step 1: Fetch course data from GolfCourseAPI.com
       let course = null
       let courseData = null
 
       try {
-        console.log(`Searching Golf API for: ${courseName}`)
-        const searchQuery = location ? `${courseName} ${location}` : courseName
-        const searchResponse = await fetch(
-          `${GOLF_API_BASE}/v1/search?search_query=${encodeURIComponent(searchQuery)}`,
-          {
-            headers: {
-              'Authorization': `Key ${GOLF_API_KEY}`
+        if (!GOLF_API_KEY) {
+          const error = 'Golf API key not configured in environment variables'
+          debugInfo.push(`ERROR: ${error}`)
+
+          // Save debug info to request record
+          await supabase
+            .from('course_requests')
+            .update({
+              error_message: debugInfo.join(' | '),
+              status: 'failed'
+            })
+            .eq('id', requestRecord.id)
+
+          throw new Error(error)
+        }
+
+        console.log(`🔍 Searching Golf API for: ${courseName}`)
+        console.log(`✓ API key present, length: ${GOLF_API_KEY.length}`)
+
+        // Try multiple search strategies
+        const searchStrategies = [
+          location ? `${courseName} ${location}` : courseName,  // Strategy 1: Full name + location
+          courseName,  // Strategy 2: Just course name
+          location ? courseName.split(' ').slice(0, 2).join(' ') + ' ' + location : null,  // Strategy 3: First 2 words + location
+        ].filter(Boolean)
+
+        for (const searchQuery of searchStrategies) {
+          debugInfo.push(`Trying: "${searchQuery}"`)
+
+          const searchResponse = await fetch(
+            `${GOLF_API_BASE}/v1/search?search_query=${encodeURIComponent(searchQuery)}`,
+            {
+              headers: {
+                'Authorization': `Key ${GOLF_API_KEY}`
+              }
             }
+          )
+
+          if (searchResponse.ok) {
+            courseData = await searchResponse.json()
+
+            if (courseData.courses && courseData.courses.length > 0) {
+              course = courseData.courses[0]
+              debugInfo.push(`✓ Found: ${course.course_name}`)
+              const maleTees = course.tees?.male?.length || 0
+              const femaleTees = course.tees?.female?.length || 0
+              debugInfo.push(`Tees: male=${maleTees}, female=${femaleTees}`)
+              break  // Found a match, stop searching
+            } else {
+              debugInfo.push(`× No matches for this query`)
+            }
+          } else {
+            debugInfo.push(`× API error: ${searchResponse.status}`)
           }
-        )
+        }
 
-        if (searchResponse.ok) {
-          courseData = await searchResponse.json()
-          console.log(`API returned ${courseData.courses?.length || 0} courses`)
-
-          // Get the first match (most relevant)
-          course = courseData.courses?.[0]
-
-          if (course) {
-            console.log(`Found course: ${course.course_name} at ${course.location?.city}`)
-          }
-        } else {
-          console.warn(`Golf API returned ${searchResponse.status}`)
+        if (!course) {
+          debugInfo.push('⚠ No course found with any search strategy')
         }
       } catch (apiError: any) {
-        console.warn('Golf API fetch failed:', apiError.message)
+        debugInfo.push(`API Fetch Failed: ${apiError.message}`)
       }
 
       // Step 2: Use default data if API not available
@@ -231,24 +279,37 @@ serve(async (req) => {
       // Step 5: Create tee boxes from API data
       const allTees = [...(course.tees?.male || []), ...(course.tees?.female || [])]
 
+      console.log(`Found ${allTees.length} tees in API response`)
+
       if (allTees.length > 0) {
-        console.log(`Creating ${allTees.length} tee boxes`)
+        console.log(`Creating ${allTees.length} tee boxes...`)
 
+        // Insert all tee boxes
         for (const tee of allTees) {
-          // Extract par and stroke index from holes array
-          const par = tee.holes?.map(h => h.par) || Array(18).fill(4)
-          const strokeIndex = tee.holes?.map(h => h.handicap) || Array.from({length: 18}, (_, i) => i + 1)
+          try {
+            // Extract par and stroke index from holes array
+            const par = tee.holes?.map(h => h.par) || Array(18).fill(4)
+            const strokeIndex = tee.holes?.map(h => h.handicap) || Array.from({length: 18}, (_, i) => i + 1)
 
-          await supabase.from('tee_boxes').insert({
-            course_id: newCourse.id,
-            tee_name: tee.tee_name,
-            tee_color: getTeeColor(tee.tee_name),
-            rating: tee.course_rating || null,
-            slope: tee.slope_rating || null,
-            par: par,
-            stroke_index: strokeIndex,
-            yardage: tee.total_yards || null
-          })
+            const { error: teeError } = await supabase.from('tee_boxes').insert({
+              course_id: newCourse.id,
+              tee_name: tee.tee_name,
+              tee_color: getTeeColor(tee.tee_name),
+              rating: tee.course_rating || null,
+              slope: tee.slope_rating || null,
+              par: par,
+              stroke_index: strokeIndex,
+              yardage: tee.total_yards || null
+            })
+
+            if (teeError) {
+              console.error(`Failed to insert ${tee.tee_name} tee:`, teeError)
+            } else {
+              console.log(`✓ Created ${tee.tee_name} tee`)
+            }
+          } catch (teeInsertError: any) {
+            console.error(`Error inserting ${tee.tee_name}:`, teeInsertError.message)
+          }
         }
       } else {
         // Create default Blue tees if no API data
@@ -265,14 +326,15 @@ serve(async (req) => {
         })
       }
 
-      // Step 6: Mark request as completed
+      // Step 6: Mark request as completed with debug info
       await supabase
         .from('course_requests')
         .update({
           status: 'completed',
           created_course_id: newCourse.id,
           completed_at: new Date().toISOString(),
-          api_response: courseData
+          api_response: courseData,
+          error_message: debugInfo.join(' | ') // Store debug info even on success
         })
         .eq('id', requestRecord.id)
 
@@ -322,11 +384,27 @@ function getTeeColor(name: string): string {
     'blue': '#0066CC',
     'white': '#FFFFFF',
     'gold': '#FFD700',
+    'yellow': '#FFEB3B',
     'red': '#CC0000',
     'green': '#00AA00',
-    'championship': '#0066CC'
+    'championship': '#0066CC',
+    'tips': '#000000'
   }
 
   const normalized = name?.toLowerCase() || ''
-  return colorMap[normalized] || '#888888'
+
+  // Try exact match first
+  if (colorMap[normalized]) {
+    return colorMap[normalized]
+  }
+
+  // Try partial match (for names like "BLUE - PAR 4")
+  for (const [color, hex] of Object.entries(colorMap)) {
+    if (normalized.includes(color)) {
+      return hex
+    }
+  }
+
+  // Default gray
+  return '#888888'
 }

@@ -167,44 +167,43 @@ serve(async (req) => {
       let courseData = null
       let allMatches: any[] = []
 
-      // If selectedCourseId provided, fetch that specific course
-      if (selectedCourseId) {
-        debugInfo.push(`Fetching selected course ID: ${selectedCourseId}`)
+      if (!GOLF_API_KEY) {
+        const error = 'Golf API key not configured in environment variables'
+        debugInfo.push(`ERROR: ${error}`)
 
-        const courseResponse = await fetch(
-          `${GOLF_API_BASE}/v1/course/${selectedCourseId}`,
-          {
-            headers: {
-              'Authorization': `Key ${GOLF_API_KEY}`
-            }
-          }
-        )
+        await supabase
+          .from('course_requests')
+          .update({
+            error_message: debugInfo.join(' | '),
+            status: 'failed'
+          })
+          .eq('id', requestRecord.id)
 
-        if (courseResponse.ok) {
-          const courseDetail = await courseResponse.json()
-          course = courseDetail.course
-          debugInfo.push(`✓ Retrieved: ${course.course_name}`)
-        } else {
-          debugInfo.push(`✗ Failed to fetch course ID ${selectedCourseId}`)
-          throw new Error('Failed to fetch selected course')
-        }
+        throw new Error(error)
       }
 
       try {
-        if (!selectedCourseId && !GOLF_API_KEY) {
-          const error = 'Golf API key not configured in environment variables'
-          debugInfo.push(`ERROR: ${error}`)
+        // If selectedCourseId provided, fetch that specific course
+        if (selectedCourseId) {
+          debugInfo.push(`Fetching selected course ID: ${selectedCourseId}`)
 
-          // Save debug info to request record
-          await supabase
-            .from('course_requests')
-            .update({
-              error_message: debugInfo.join(' | '),
-              status: 'failed'
-            })
-            .eq('id', requestRecord.id)
+          const courseResponse = await fetch(
+            `${GOLF_API_BASE}/v1/course/${selectedCourseId}`,
+            {
+              headers: {
+                'Authorization': `Key ${GOLF_API_KEY}`
+              }
+            }
+          )
 
-          throw new Error(error)
+          if (courseResponse.ok) {
+            const courseDetail = await courseResponse.json()
+            course = courseDetail.course
+            debugInfo.push(`✓ Retrieved: ${course.course_name}`)
+          } else {
+            debugInfo.push(`✗ Failed to fetch course ID ${selectedCourseId}`)
+            throw new Error('Failed to fetch selected course')
+          }
         }
 
         // Only search if we don't already have a course from selection
@@ -355,9 +354,10 @@ serve(async (req) => {
 
       debugInfo.push(`Total tees to create: ${allTees.length}`)
 
+      let successCount = 0
+      let failCount = 0
+
       if (allTees.length > 0) {
-        let successCount = 0
-        let failCount = 0
 
         // Insert all tee boxes
         for (const tee of allTees) {

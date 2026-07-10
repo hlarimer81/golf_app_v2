@@ -6,6 +6,8 @@ function RequestCourseForm({ onClose, onSuccess }) {
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [choices, setChoices] = useState(null);
+  const [selectedChoice, setSelectedChoice] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,7 +20,8 @@ function RequestCourseForm({ onClose, onSuccess }) {
         body: {
           courseName: courseName.trim(),
           location: location.trim(),
-          requestedBy: 'user@app' // You can replace with actual user identifier
+          requestedBy: 'user@app', // You can replace with actual user identifier
+          selectedCourseId: selectedChoice || undefined
         }
       });
 
@@ -28,6 +31,14 @@ function RequestCourseForm({ onClose, onSuccess }) {
           throw new Error(functionError.message);
         }
         throw functionError;
+      }
+
+      // Handle multiple choices
+      if (data.needsSelection && data.choices) {
+        setChoices(data.choices);
+        setError('');
+        setLoading(false);
+        return;
       }
 
       if (data.success) {
@@ -45,6 +56,21 @@ function RequestCourseForm({ onClose, onSuccess }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChoiceSelect = (courseId) => {
+    setSelectedChoice(courseId);
+    setError('');
+  };
+
+  const handleConfirmChoice = async () => {
+    if (!selectedChoice) {
+      setError('Please select a course');
+      return;
+    }
+
+    // Re-submit with selected course ID
+    await handleSubmit({ preventDefault: () => {} });
   };
 
   return (
@@ -91,11 +117,101 @@ function RequestCourseForm({ onClose, onSuccess }) {
           </button>
         </div>
 
-        <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
-          Can't find your course? Request it and we'll add it automatically!
-        </p>
+        {!choices && (
+          <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
+            Can't find your course? Request it and we'll add it automatically!
+          </p>
+        )}
 
-        <form onSubmit={handleSubmit}>
+        {choices ? (
+          // Show course selection
+          <div>
+            <p style={{ fontSize: '14px', color: '#333', marginBottom: '15px', fontWeight: 'bold' }}>
+              Found {choices.length} courses. Please select the correct one:
+            </p>
+
+            <div style={{ marginBottom: '20px', maxHeight: '300px', overflowY: 'auto' }}>
+              {choices.map((choice) => (
+                <div
+                  key={choice.id}
+                  onClick={() => handleChoiceSelect(choice.id)}
+                  style={{
+                    padding: '15px',
+                    marginBottom: '10px',
+                    border: selectedChoice === choice.id ? '2px solid #28a745' : '1px solid #ddd',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    background: selectedChoice === choice.id ? '#f0fff0' : '#fff',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '4px' }}>
+                    {choice.name}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#666' }}>
+                    📍 {choice.location}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                    {choice.teeCount} tee boxes available
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  background: '#fee',
+                  border: '1px solid #fcc',
+                  borderRadius: '6px',
+                  padding: '10px',
+                  marginBottom: '15px',
+                  fontSize: '13px',
+                  color: '#c00'
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => { setChoices(null); setSelectedChoice(''); setError(''); }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                Back
+              </button>
+              <button
+                onClick={handleConfirmChoice}
+                disabled={!selectedChoice || loading}
+                style={{
+                  flex: 2,
+                  padding: '12px',
+                  background: (!selectedChoice || loading) ? '#ccc' : '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: (!selectedChoice || loading) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {loading ? 'Adding...' : 'Confirm Selection'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#333', marginBottom: '5px' }}>
               Course Name *
@@ -171,10 +287,13 @@ function RequestCourseForm({ onClose, onSuccess }) {
             {loading ? 'Adding Course...' : 'Add Course'}
           </button>
         </form>
+        )}
 
-        <p style={{ fontSize: '12px', color: '#888', marginTop: '15px', textAlign: 'center' }}>
-          Course data is fetched from public golf databases
-        </p>
+        {!choices && (
+          <p style={{ fontSize: '12px', color: '#888', marginTop: '15px', textAlign: 'center' }}>
+            Course data is fetched from public golf databases
+          </p>
+        )}
       </div>
     </div>
   );

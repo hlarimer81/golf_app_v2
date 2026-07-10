@@ -128,11 +128,11 @@ serve(async (req) => {
     console.log(`================`)
 
     // Parse request
-    const { courseName, location, requestedBy } = await req.json()
+    const { courseName, location, requestedBy, selectedCourseId } = await req.json()
 
-    if (!courseName) {
+    if (!courseName && !selectedCourseId) {
       return new Response(
-        JSON.stringify({ error: 'courseName is required' }),
+        JSON.stringify({ error: 'courseName or selectedCourseId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -165,9 +165,33 @@ serve(async (req) => {
       // Step 1: Fetch course data from GolfCourseAPI.com
       let course = null
       let courseData = null
+      let allMatches: any[] = []
+
+      // If selectedCourseId provided, fetch that specific course
+      if (selectedCourseId) {
+        debugInfo.push(`Fetching selected course ID: ${selectedCourseId}`)
+
+        const courseResponse = await fetch(
+          `${GOLF_API_BASE}/v1/course/${selectedCourseId}`,
+          {
+            headers: {
+              'Authorization': `Key ${GOLF_API_KEY}`
+            }
+          }
+        )
+
+        if (courseResponse.ok) {
+          const courseDetail = await courseResponse.json()
+          course = courseDetail.course
+          debugInfo.push(`✓ Retrieved: ${course.course_name}`)
+        } else {
+          debugInfo.push(`✗ Failed to fetch course ID ${selectedCourseId}`)
+          throw new Error('Failed to fetch selected course')
+        }
+      }
 
       try {
-        if (!GOLF_API_KEY) {
+        if (!selectedCourseId && !GOLF_API_KEY) {
           const error = 'Golf API key not configured in environment variables'
           debugInfo.push(`ERROR: ${error}`)
 
@@ -183,17 +207,19 @@ serve(async (req) => {
           throw new Error(error)
         }
 
-        console.log(`🔍 Searching Golf API for: ${courseName}`)
-        console.log(`✓ API key present, length: ${GOLF_API_KEY.length}`)
+        // Only search if we don't already have a course from selection
+        if (!course && courseName) {
+          console.log(`🔍 Searching Golf API for: ${courseName}`)
+          console.log(`✓ API key present, length: ${GOLF_API_KEY.length}`)
 
-        // Try multiple search strategies
-        const searchStrategies = [
-          location ? `${courseName} ${location}` : courseName,  // Strategy 1: Full name + location
-          courseName,  // Strategy 2: Just course name
-          location ? courseName.split(' ').slice(0, 2).join(' ') + ' ' + location : null,  // Strategy 3: First 2 words + location
-        ].filter(Boolean)
+          // Try multiple search strategies
+          const searchStrategies = [
+            location ? `${courseName} ${location}` : courseName,  // Strategy 1: Full name + location
+            courseName,  // Strategy 2: Just course name
+            location ? courseName.split(' ').slice(0, 2).join(' ') + ' ' + location : null,  // Strategy 3: First 2 words + location
+          ].filter(Boolean)
 
-        for (const searchQuery of searchStrategies) {
+          for (const searchQuery of searchStrategies) {
           debugInfo.push(`Trying: "${searchQuery}"`)
 
           const searchResponse = await fetch(
@@ -209,8 +235,45 @@ serve(async (req) => {
             courseData = await searchResponse.json()
 
             if (courseData.courses && courseData.courses.length > 0) {
-              course = courseData.courses[0]
-              debugInfo.push(`✓ Found: ${course.course_name}`)
+              allMatches = courseData.courses
+              debugInfo.push(`✓ Found ${allMatches.length} match(es)`)
+
+              // If multiple matches, return them for user to choose
+              if (allMatches.length > 1) {
+                const choices = allMatches.map(c => ({
+                  id: c.id,
+                  name: c.course_name || c.club_name,
+                  location: c.location?.city
+                    ? `${c.location.city}${c.location.state ? ', ' + c.location.state : ''}`
+                    : 'Unknown location',
+                  teeCount: (c.tees?.male?.length || 0) + (c.tees?.female?.length || 0)
+                }))
+
+                debugInfo.push(`Multiple matches: ${choices.map(c => c.name).join(', ')}`)
+
+                await supabase
+                  .from('course_requests')
+                  .update({
+                    status: 'needs_selection',
+                    error_message: debugInfo.join(' | '),
+                    api_response: courseData
+                  })
+                  .eq('id', requestRecord.id)
+
+                return new Response(
+                  JSON.stringify({
+                    success: false,
+                    needsSelection: true,
+                    choices: choices,
+                    message: `Found ${choices.length} courses. Please select the correct one.`
+                  }),
+                  { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                )
+              }
+
+              // Single match - use it
+              course = allMatches[0]
+              debugInfo.push(`✓ Using: ${course.course_name}`)
               const maleTees = course.tees?.male?.length || 0
               const femaleTees = course.tees?.female?.length || 0
               debugInfo.push(`Tees: male=${maleTees}, female=${femaleTees}`)
@@ -220,6 +283,7 @@ serve(async (req) => {
             }
           } else {
             debugInfo.push(`× API error: ${searchResponse.status}`)
+          }
           }
         }
 

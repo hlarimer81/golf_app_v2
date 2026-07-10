@@ -88,7 +88,7 @@ function ManualCourseEntry({ courseName, location, onClose, onSuccess }) {
       if (teeError) throw teeError;
 
       alert(`✅ ${name} has been added successfully with ${teeName} tees!`);
-      onSuccess && onSuccess();
+      onSuccess && onSuccess(course.id); // Pass course ID to parent
       onClose();
     } catch (err) {
       console.error('Error creating course:', err);

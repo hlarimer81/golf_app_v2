@@ -55,7 +55,7 @@ function RequestCourseForm({ onClose, onSuccess }) {
       if (data.success) {
         // Show what was actually found
         alert(`✅ ${data.message || 'Course added successfully!'}`);
-        onSuccess && onSuccess();
+        onSuccess && onSuccess(data.course?.id); // Pass course ID to parent
         onClose();
       } else {
         setError(data.message || 'Failed to add course');

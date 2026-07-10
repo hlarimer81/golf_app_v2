@@ -706,8 +706,14 @@ function App() {
       {showRequestCourse && (
         <RequestCourseForm
           onClose={() => setShowRequestCourse(false)}
-          onSuccess={() => {
-            fetchGolfCourses(); // Refresh course list
+          onSuccess={async (newCourseId) => {
+            await fetchGolfCourses(); // Refresh course list
+            if (newCourseId) {
+              // Auto-select the newly created course
+              setTimeout(() => {
+                setSelectedCourseId(newCourseId);
+              }, 100); // Small delay to ensure state is updated
+            }
           }}
         />
       )}

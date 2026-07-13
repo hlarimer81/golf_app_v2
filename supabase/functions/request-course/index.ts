@@ -378,71 +378,119 @@ serve(async (req) => {
 
       debugInfo.push(`Total tees to create: ${allTees.length}`)
 
+      // Check if we have valid tee data - if not, don't create bad data
+      if (allTees.length === 0) {
+        debugInfo.push('❌ No valid tee box data available from API')
+
+        // Delete the course we just created since we can't populate it properly
+        await supabase
+          .from('golf_courses')
+          .delete()
+          .eq('id', newCourse.id)
+
+        // Update request with helpful error
+        await supabase
+          .from('course_requests')
+          .update({
+            status: 'incomplete_data',
+            error_message: debugInfo.join(' | ') + ' | Course found but no tee data available - manual entry required',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', requestRecord.id)
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            incompleteData: true,
+            courseName: course.course_name || courseName,
+            location: locationStr,
+            message: `Found "${course.course_name || courseName}" but it has no tee box data. Would you like to add it manually?`
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       let successCount = 0
       let failCount = 0
 
-      if (allTees.length > 0) {
+      // Insert all tee boxes
+      for (const tee of allTees) {
+        try {
+          // Extract par, stroke index, and yardage from holes array
+          // Ensure we have exactly 18 holes of data
+          let par: number[]
+          let strokeIndex: number[]
+          let yardage: number[]
 
-        // Insert all tee boxes
-        for (const tee of allTees) {
-          try {
-            // Extract par, stroke index, and yardage from holes array
-            // Ensure we have exactly 18 holes of data
-            let par: number[]
-            let strokeIndex: number[]
-            let yardage: number[]
-
-            if (tee.holes && tee.holes.length >= 18) {
-              par = tee.holes.slice(0, 18).map(h => Number(h.par))
-              strokeIndex = tee.holes.slice(0, 18).map(h => Number(h.handicap))
-              yardage = tee.holes.slice(0, 18).map(h => Number(h.yardage))
-            } else {
-              // Fallback to defaults if no hole data
-              par = Array(18).fill(4)
-              strokeIndex = Array.from({length: 18}, (_, i) => i + 1)
-              yardage = Array(18).fill(0)  // Default yardage array
-            }
-
-            debugInfo.push(`Inserting: ${tee.tee_name} (par:${par.length}, SI:${strokeIndex.length}, yds:${yardage.length})`)
-
-            const { error: teeError } = await supabase.from('tee_boxes').insert({
-              course_id: newCourse.id,
-              tee_name: tee.tee_name,
-              tee_color: getTeeColor(tee.tee_name),
-              rating: tee.course_rating || null,
-              slope: tee.slope_rating || null,
-              par: par,  // Array of 18 pars
-              stroke_index: strokeIndex,  // Array of 18 stroke indexes
-              yardage: yardage  // Array of 18 yardages (NOT total_yards!)
-            })
-
-            if (teeError) {
-              failCount++
-              debugInfo.push(`✗ ${tee.tee_name}: ${teeError.message}`)
-            } else {
-              successCount++
-              debugInfo.push(`✓ ${tee.tee_name}`)
-            }
-          } catch (teeInsertError: any) {
+          if (tee.holes && tee.holes.length >= 18) {
+            par = tee.holes.slice(0, 18).map(h => Number(h.par))
+            strokeIndex = tee.holes.slice(0, 18).map(h => Number(h.handicap))
+            yardage = tee.holes.slice(0, 18).map(h => Number(h.yardage))
+          } else {
+            // If individual tee has no hole data, skip it rather than create bad data
+            debugInfo.push(`⚠ Skipping ${tee.tee_name} - no hole data`)
             failCount++
-            debugInfo.push(`✗ ${tee.tee_name} exception: ${teeInsertError.message}`)
+            continue
           }
-        }
 
-        debugInfo.push(`Tees created: ${successCount}/${allTees.length}`)
-      } else {
-        // Create default Blue tees if no API data
-        console.log('No API tee data, creating default Blue tees')
-        await supabase.from('tee_boxes').insert({
-          course_id: newCourse.id,
-          tee_name: 'Blue',
-          tee_color: '#0066CC',
-          rating: null,
-          slope: null,
-          par: Array(18).fill(4), // Default par 4s
-          stroke_index: Array.from({length: 18}, (_, i) => i + 1), // 1-18
-          yardage: null
-        })
+          debugInfo.push(`Inserting: ${tee.tee_name} (par:${par.length}, SI:${strokeIndex.length}, yds:${yardage.length})`)
+
+          const { error: teeError } = await supabase.from('tee_boxes').insert({
+            course_id: newCourse.id,
+            tee_name: tee.tee_name,
+            tee_color: getTeeColor(tee.tee_name),
+            rating: tee.course_rating || null,
+            slope: tee.slope_rating || null,
+            par: par,  // Array of 18 pars
+            stroke_index: strokeIndex,  // Array of 18 stroke indexes
+            yardage: yardage  // Array of 18 yardages (NOT total_yards!)
+          })
+
+          if (teeError) {
+            failCount++
+            debugInfo.push(`✗ ${tee.tee_name}: ${teeError.message}`)
+          } else {
+            successCount++
+            debugInfo.push(`✓ ${tee.tee_name}`)
+          }
+        } catch (teeInsertError: any) {
+          failCount++
+          debugInfo.push(`✗ ${tee.tee_name} exception: ${teeInsertError.message}`)
+        }
+      }
+
+      debugInfo.push(`Tees created: ${successCount}/${allTees.length}`)
+
+      // If no tee boxes were successfully created, delete the course and fail
+      if (successCount === 0) {
+        debugInfo.push('❌ Failed to create any valid tee boxes')
+
+        // Delete the course we created
+        await supabase
+          .from('golf_courses')
+          .delete()
+          .eq('id', newCourse.id)
+
+        // Update request with helpful error
+        await supabase
+          .from('course_requests')
+          .update({
+            status: 'incomplete_data',
+            error_message: debugInfo.join(' | ') + ' | No valid tee boxes could be created - manual entry required',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', requestRecord.id)
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            incompleteData: true,
+            courseName: course.course_name || courseName,
+            location: locationStr,
+            message: `Found "${course.course_name || courseName}" but could not create valid tee boxes. Would you like to add it manually?`
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
 
       // Step 6: Mark request as completed with debug info

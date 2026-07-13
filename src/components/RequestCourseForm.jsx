@@ -43,9 +43,9 @@ function RequestCourseForm({ onClose, onSuccess }) {
         return;
       }
 
-      // Handle course not found - offer manual entry
-      if (data.notFound) {
-        if (confirm(`${data.message}\n\nWould you like to add it manually with par and handicap details?`)) {
+      // Handle course not found or incomplete data - offer manual entry
+      if (data.notFound || data.incompleteData) {
+        if (confirm(data.message)) {
           setShowManualEntry(true);
         }
         setLoading(false);

@@ -11,13 +11,12 @@ function ManualCourseEntry({ courseName, location, onClose, onSuccess }) {
   const [rating, setRating] = useState('');
   const [slope, setSlope] = useState('');
 
-  // Array of hole data: {par, strokeIndex, yardage}
+  // Array of hole data: {par, strokeIndex}
   const [holeData, setHoleData] = useState(
     Array.from({ length: 18 }, (_, i) => ({
       hole: i + 1,
       par: 4,
-      strokeIndex: i + 1,
-      yardage: 0
+      strokeIndex: i + 1
     }))
   );
 
@@ -29,8 +28,7 @@ function ManualCourseEntry({ courseName, location, onClose, onSuccess }) {
     setHoleData(Array.from({ length: newHoles }, (_, i) => ({
       hole: i + 1,
       par: holeData[i]?.par || 4,
-      strokeIndex: holeData[i]?.strokeIndex || (i + 1),
-      yardage: holeData[i]?.yardage || 0
+      strokeIndex: holeData[i]?.strokeIndex || (i + 1)
     })));
   };
 
@@ -82,7 +80,7 @@ function ManualCourseEntry({ courseName, location, onClose, onSuccess }) {
           slope: slope ? parseInt(slope) : null,
           par: holeData.map(h => h.par),
           stroke_index: holeData.map(h => h.strokeIndex),
-          yardage: holeData.map(h => h.yardage)
+          yardage: null  // Not needed for scoring
         });
 
       if (teeError) throw teeError;
@@ -332,7 +330,7 @@ function ManualCourseEntry({ courseName, location, onClose, onSuccess }) {
         {step === 2 && (
           <div>
             <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
-              Enter par, stroke index, and yardage for each hole.
+              Enter par and stroke index (handicap) for each hole.
             </p>
 
             <div style={{ marginBottom: '15px', display: 'flex', gap: '10px' }}>
@@ -372,10 +370,9 @@ function ManualCourseEntry({ courseName, location, onClose, onSuccess }) {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
                   <tr style={{ background: '#f0f0f0', position: 'sticky', top: 0 }}>
-                    <th style={{ padding: '8px', border: '1px solid #ddd', width: '50px' }}>Hole</th>
-                    <th style={{ padding: '8px', border: '1px solid #ddd', width: '80px' }}>Par</th>
-                    <th style={{ padding: '8px', border: '1px solid #ddd', width: '100px' }}>Stroke Index</th>
-                    <th style={{ padding: '8px', border: '1px solid #ddd' }}>Yardage</th>
+                    <th style={{ padding: '8px', border: '1px solid #ddd', width: '60px' }}>Hole</th>
+                    <th style={{ padding: '8px', border: '1px solid #ddd' }}>Par</th>
+                    <th style={{ padding: '8px', border: '1px solid #ddd' }}>Stroke Index</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -407,22 +404,6 @@ function ManualCourseEntry({ courseName, location, onClose, onSuccess }) {
                           max={holes}
                           value={hole.strokeIndex}
                           onChange={(e) => updateHole(index, 'strokeIndex', e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '6px',
-                            border: '1px solid #ccc',
-                            borderRadius: '4px',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </td>
-                      <td style={{ padding: '4px', border: '1px solid #ddd' }}>
-                        <input
-                          type="number"
-                          min="0"
-                          value={hole.yardage}
-                          onChange={(e) => updateHole(index, 'yardage', e.target.value)}
-                          placeholder="yards"
                           style={{
                             width: '100%',
                             padding: '6px',

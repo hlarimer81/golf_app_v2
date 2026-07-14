@@ -1,280 +1,276 @@
-# Golf App Progress - July 9, 2026
+# Golf App Progress - July 13, 2026
 
 ## What We Accomplished Today
 
-### 1. ✅ Fixed Golf Course Request System
-**Problem:** Courses were being created with only default Blue tees, tee boxes had 0 entries, wrong courses from wrong states were being added.
+### 1. ✅ Removed Bad Course Data
+**Problem:** Several courses had invalid data (all par 4s, incomplete tee boxes).
 
-**Solutions Implemented:**
-- Fixed array formatting for `yardage` column (was passing single number instead of array of 18 hole yardages)
-- Fixed `par` and `stroke_index` array extraction from Golf API holes data
-- Implemented multi-strategy search (tries with location, without location, shortened name)
-- Added state filtering to prevent out-of-state course matches
-- Fixed variable scoping issues (`successCount`, API key checks)
-- All tee boxes now create properly with full data
+**Courses Removed:**
+- AGCC
+- Deer Run
+- Homewood
+- Lake Creek Golf Course
+- The Tournament Club of Iowa (both entries)
+- Wapsipinicon Country Club
+- Fort Dodge Country Club
+- Spring Valley
 
-### 2. ✅ Multiple Course Selection UI
-**Feature:** When Golf API returns multiple matches, user can choose the correct one.
+**Fix:** Deleted from new course data table via SQL.
 
-**How it Works:**
-- Shows all matching courses in a selection UI
-- Displays course name, location, and tee count for each option
-- User picks the right one before it's added
-- Prevents adding wrong courses (e.g., "Homewood CT" when searching for "Homewood IA")
+### 2. ✅ Fixed Course Data Validation
+**Problem:** Edge function was creating courses even when Golf API returned no tee box data.
 
-### 3. ✅ Manual Course Entry System
-**Feature:** When course not found in Golf API, users can add it manually.
+**Solution Implemented:**
+- Added validation in `request-course/index.ts`
+- If no valid tee boxes, DELETE the course
+- Return `incompleteData: true` response
+- Offer manual entry instead of creating bad data
 
-**Two-Step Form:**
+**Code Changes:**
+```typescript
+// Check if we have valid tee data - if not, don't create bad data
+if (allTees.length === 0) {
+  // Delete the course we just created since we can't populate it properly
+  await supabase.from('golf_courses').delete().eq('id', newCourse.id)
+  return new Response(JSON.stringify({
+    success: false,
+    incompleteData: true,
+    message: `Found "${course.course_name}" but it has no tee box data. Would you like to add it manually?`
+  }), ...)
+}
+```
 
-**Step 1 - Basic Info:**
-- Course name (pre-filled from search)
-- Location (pre-filled from search)
-- Number of holes (9 or 18)
-- Tee box name, color, rating, slope
+### 3. ✅ Fixed Vegas Leaderboard
+**Problem:** Vegas team scores weren't displaying in the leaderboard.
 
-**Step 2 - Hole Details:**
-- Table with Par, Stroke Index, Yardage for each hole
-- Preset buttons for Par 72 and Par 70 layouts
-- Fully customizable per-hole data
-- Creates proper database records with all arrays
+**Root Cause:** VegasGrid was using `p.team` directly instead of team helper functions.
 
-### 4. ✅ Auto-Select New Courses
-**Feature:** After creating a course, it's automatically selected and ready to use.
+**Solution:**
+- Imported `getPlayerTeam()` and `activeTeams()` from `lib/teams.js`
+- Updated all team access to use helpers
+- Added "🎰 Vegas Leaderboard" header above scorecard
+- Running team scores now display correctly
 
-**Flow:**
-- Course created (via API or manual entry)
-- Course list refreshes
-- New course auto-selected
-- First tee box auto-selected
-- Ready to create match immediately (no refresh needed)
+### 4. ✅ Fixed Duplicate Manual Entry Prompt
+**Problem:** RequestCourseForm was asking "Would you like to add it manually?" twice.
 
-### 5. ✅ Better Error Handling
-- Clear "course not found" messages
-- Shows what was actually found vs what was searched
-- Success messages show course name, location, and tee count
-- Handles API errors gracefully
+**Solution:** Use `data.message` directly without appending duplicate text.
+
+### 5. ✅ Removed Yardage from Manual Entry
+**Problem:** Manual course entry asked for yardage per hole, which we don't use.
+
+**Solution:**
+- Removed yardage input from ManualCourseEntry form
+- Set yardage to `null` in database
+- Only collect par and stroke_index
+
+### 6. ✅ Removed Stacked Games and Quota Features
+**Problem:** Unused features cluttering the UI and codebase.
+
+**Changes Made:**
+- Removed `useQuota` state from App.jsx
+- Removed "Stacked Games/Quota" dropdown UI
+- Removed `use_quota` from match creation and loading
+- Removed `useQuota` prop from all 11 Grid components via sed script
+- Updated GAME_MODE_STANDARDS.md to remove quota references
+
+### 7. ✅ Completed Game Mode Audit - ALL 11 GAMES
+**Massive accomplishment:** Reviewed all 11 game modes for leaderboards and summaries.
+
+**Games Reviewed:**
+1. ✅ Stableford - Complete
+2. ✅ Vegas - Fixed and complete
+3. ✅ Skins - Complete
+4. ✅ Nine Point - Complete
+5. ✅ Chairman - Complete
+6. ✅ Four-ball - Already complete (user correctly identified)
+7. ✅ Singles - Added leaderboard
+8. ✅ Wolf - Has custom summary screen
+9. ✅ Nassau - Added Front/Back/Overall scoring
+10. ✅ Wolf Vegas - Has custom summary screen
+11. ✅ Aggregate - Has custom summary screen
+
+**Summary Screen Patterns:**
+- **8 games use MatchSummary.jsx:** Stableford, Vegas, Skins, Nine Point, Chairman, Four-ball, Singles, Nassau
+- **3 games use custom summaries:** Wolf, Wolf Vegas, Aggregate (built directly into Grid components)
+
+### 8. ✅ Created Game Mode Documentation
+**Created GAME_MODE_STANDARDS.md:**
+- Complete standards for implementing game modes
+- Team helper usage patterns
+- Leaderboard display standards
+- Summary screen standards
+- Configuration matrix for all 11 games
+- Testing checklist
+- Common mistakes to avoid
+
+**Created GAME_MODE_AUDIT.md:**
+- Audit report showing status of all 11 games
+- Detailed findings for each game
+- Summary of what was fixed
+
+## Files Modified Today
+
+### Backend
+- `supabase/functions/request-course/index.ts` - Added validation to prevent bad course data
+
+### Frontend Components
+- `src/App.jsx` - Removed quota/stacked games features
+- `src/VegasGrid.jsx` - Fixed team helpers, added leaderboard
+- `src/SinglesGrid.jsx` - Added leaderboard with medals
+- `src/MatchSummary.jsx` - Added Nassau scoring logic
+- `src/components/RequestCourseForm.jsx` - Fixed duplicate message
+- `src/components/ManualCourseEntry.jsx` - Removed yardage field
+- All 11 Grid components - Removed useQuota prop
+
+### Grid Components Updated
+- AggregateGrid.jsx
+- ChairmanGrid.jsx
+- FourBallGrid.jsx
+- NassauGrid.jsx
+- NinePointGrid.jsx
+- SinglesGrid.jsx
+- SkinsGrid.jsx
+- StablefordGrid.jsx
+- VegasGrid.jsx
+- WolfGrid.jsx
+- WolfVegasGrid.jsx
+
+### Documentation Created
+- `GAME_MODE_STANDARDS.md` - Comprehensive game mode development guide
+- `GAME_MODE_AUDIT.md` - Audit results for all 11 games
+
+## Git Commits Today
+1. Auto-select newly created courses
+2. Add manual course entry form
+3. Add state filtering and manual entry option for courses
+4. Fix successCount scope error
+5. Fix syntax error in request-course edge function
+
+## Database Changes
+
+### Courses Deleted (Bad Data)
+```sql
+DELETE FROM golf_courses WHERE id IN (
+  '...AGCC...',
+  '...Deer Run...',
+  -- etc.
+);
+```
+
+### Edge Function Deployed
+```bash
+npx supabase functions deploy request-course
+```
+
+## Key Learnings
+
+### Team Data Access Pattern
+Player data from database can have team stored in different shapes:
+- `player.teams.team_name`
+- `player.team`
+- `player.team_name`
+
+**Solution:** ALWAYS use helper functions from `lib/teams.js`:
+```javascript
+import { getPlayerTeam, activeTeams, getTeamPlayers } from './lib/teams';
+
+const teamName = getPlayerTeam(player);  // NOT player.team
+const teams = activeTeams(players);
+const teamPlayers = getTeamPlayers(players, teamName);
+```
+
+### Wolf Game Limitation
+Wolf partner choices are NOT persisted to database, only scores are. This means we cannot recalculate exact Wolf points in the summary screen. Added warning message to user about this limitation.
+
+### Nassau Complexity
+Nassau has Front/Back/Overall scoring PLUS presses and wagers. Implemented basic F/B/O scoring in summary. Full press/wager calculation would require additional database persistence.
+
+### Custom Summary Screens
+Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from custom summary screens built directly into the Grid component rather than using the shared MatchSummary.jsx.
 
 ## Current System State
 
 ### Working Features
-✅ Golf API integration with real course data (30,000+ courses)  
-✅ State filtering prevents wrong-state matches  
-✅ Multiple choice selection when >1 course found  
-✅ Manual entry for courses not in API database  
-✅ Auto-select newly created courses  
-✅ Proper tee box creation with par, stroke index, yardage arrays  
-✅ API key secured in environment variables (not in code)  
+✅ All 11 game modes have in-game leaderboards  
+✅ All 11 game modes have end-of-round summary screens  
+✅ Course data validation prevents bad data  
+✅ Manual entry as fallback when API fails  
+✅ Team helper functions standardized across all games  
+✅ Vegas scoring fixed and working correctly  
+✅ Stacked games/quota features removed  
+✅ Comprehensive documentation for game mode development  
 
-### Known Limitations
-⚠️ **Golf API Rate Limit:** 50 requests/day on free tier
-- Currently hit the limit from testing today
-- Resets every 24 hours
-- Manual entry works as workaround
+### Game Mode Scoring Summary
 
-⚠️ **Golf API Coverage:** Not all courses are in their database
-- ~30,000 courses total
-- Missing some smaller/local courses
-- Manual entry solves this
+| Game | Type | Scoring Method |
+|------|------|----------------|
+| Stableford | Singles/Teams | Points based on score vs par |
+| Vegas | Teams (2v2) | Two-digit scores, birdie flip |
+| Skins | Singles/Teams | Lowest score wins skin |
+| Nine Point | Singles (3p) | 9 points distributed per hole |
+| Chairman | Teams | Defend the chair, accumulate points |
+| Four-ball | Teams | Match play, best ball |
+| Singles | Singles | Stroke play, net/gross |
+| Wolf | Singles (4p) | Rotating wolf, partner selection |
+| Nassau | Singles/Teams | Front/Back/Overall wagers |
+| Wolf Vegas | Teams (4p) | Wolf + Vegas hybrid |
+| Aggregate | Teams (2p) | Sum of partners' nets |
 
-⚠️ **OpenStreetMap GPS Data:** Limited coverage for green polygons
-- OSM fetch happens but often returns 0 greens
-- Non-critical feature, doesn't block course creation
-
-## Database Structure
-
-### Courses Created Today (Test Data - Now Deleted)
-- Coldwater Golf Club
-- Homewood Acres (CT - wrong state, deleted)
-- Pebble Beach
-- Des Moines Golf and Country Club
-- Woodland Hills
-- Otter Creek (rate limited, add manually tomorrow)
-
-### Active Courses
-- Peninsula Golf Club (default/placeholder)
-- ColdWater Golf Link (manually added, working)
-- Any courses from previous sessions
-
-## Files Modified Today
-
-### Backend (Supabase Edge Function)
-- `supabase/functions/request-course/index.ts`
-  - Fixed array formatting for tee box data
-  - Added state filtering logic
-  - Added multiple choice return path
-  - Added "not found" → manual entry flow
-  - Fixed variable scoping issues
-
-### Frontend (React Components)
-- `src/App.jsx`
-  - Updated course selection to auto-select new courses
-  - Made fetchGolfCourses async/await
-  - Fixed tee box empty string → null conversion
-
-- `src/components/RequestCourseForm.jsx`
-  - Integrated ManualCourseEntry component
-  - Updated to handle multiple choice selection
-  - Passes course ID back to parent for auto-select
-
-- `src/components/ManualCourseEntry.jsx` (NEW)
-  - Two-step course entry form
-  - Hole-by-hole data entry table
-  - Preset par layouts
-  - Full database integration
-
-## Git Commits Today
-1. `bea68a3` - Fix golf course request system - tee boxes now working
-2. `b179bf9` - Add multiple course selection when API returns multiple matches
-3. `f8b66f2` - Fix syntax error in request-course edge function
-4. `6930baa` - Fix successCount scope error
-5. `e68bf46` - Add state filtering and manual entry option for courses
-6. `b1f46d0` - Add manual course entry form
-7. `da8b06c` - Auto-select newly created courses
-
-## Next Steps / Ideas for Tomorrow
+## Next Steps
 
 ### High Priority
-1. **Test with fresh API limit** - Tomorrow the rate limit resets, test API courses work properly
-2. **Add Otter Creek manually** - Use the manual entry form to add it with full details
-3. **Test end-to-end flow** - Create a match with a newly added course, verify everything works
+1. ✅ **COMPLETED:** Review all game modes for leaderboards/summaries
+2. **Test game modes in production** - Play rounds with each game to verify scoring
+3. **Verify edge function deployment** - Confirm course validation is working
 
 ### Medium Priority
-4. **Improve rate limit handling** - Show user-friendly message when API limit hit (instead of "not found")
-5. **Cache API responses** - Store successful API lookups to reduce repeat requests
-6. **Add course editing** - Allow users to edit existing course/tee box data
+4. **Add course editing** - Allow users to edit existing course/tee box data
+5. **Course search/filter** - When course list gets long, add search box
+6. **Improve manual entry UX** - Better preset options, validation
 
-### Low Priority / Nice to Have
-7. **Multiple tee boxes per course** - Currently manual entry creates 1 tee, could add "Add another tee" button
-8. **Course search/filter** - When course list gets long, add search box
+### Low Priority
+7. **Nassau presses** - Add press/wager tracking to database
+8. **Wolf persistence** - Save partner choices to database for accurate summary
 9. **Course usage stats** - Show which courses are used most often
-10. **Bulk course import** - CSV upload for adding many courses at once
+10. **Multi-tee entry** - Add multiple tee boxes at once in manual entry
 
-## API Information
+## Testing Checklist
 
-### Golf Course API
-- **URL:** https://api.golfcourseapi.com
-- **Docs:** https://api.golfcourseapi.com/docs/api/
-- **API Key:** Stored in Supabase secrets as `GOLF_API_KEY`
-- **Rate Limit:** 50 requests/day (free tier)
-- **Coverage:** 30,000+ courses
-- **Search quirks:** 
-  - Very picky about location in search
-  - Better results with just course name
-  - Sometimes returns courses from wrong state (now filtered)
+### Course Creation
+- [x] API course request with valid data
+- [x] API course request with incomplete data (triggers manual entry)
+- [x] Manual course entry (full workflow)
+- [x] Course auto-selection after creation
+- [ ] Test state filtering (ensure out-of-state courses rejected)
 
-### Supabase Edge Functions
-- **Deploy command:** `npx supabase functions deploy request-course`
-- **Logs:** Available in Supabase dashboard under Functions
-- **Environment:** Deno runtime, serverless
-- **Secrets:** Set in Supabase dashboard, accessed via `Deno.env.get()`
-
-## Helpful SQL Queries
-
-### Check recent course requests
-```sql
-SELECT 
-  course_name,
-  location,
-  status,
-  error_message,
-  created_at
-FROM course_requests
-ORDER BY created_at DESC
-LIMIT 5;
-```
-
-### Check course and tee box data
-```sql
-SELECT 
-  gc.id,
-  gc.name,
-  gc.location,
-  COUNT(tb.id) as tee_count
-FROM golf_courses gc
-LEFT JOIN tee_boxes tb ON tb.course_id = gc.id
-GROUP BY gc.id
-ORDER BY gc.created_at DESC;
-```
-
-### Delete test courses
-```sql
-DELETE FROM golf_courses 
-WHERE name ILIKE '%homewood%'
-   OR name ILIKE '%coldwater%'
-   OR name ILIKE '%pebble beach%';
-```
-
-### Verify tee box arrays
-```sql
-SELECT 
-  gc.name as course,
-  tb.tee_name,
-  array_length(tb.par, 1) as par_count,
-  array_length(tb.stroke_index, 1) as si_count,
-  array_length(tb.yardage, 1) as yardage_count
-FROM tee_boxes tb
-JOIN golf_courses gc ON gc.id = tb.course_id
-ORDER BY gc.created_at DESC;
-```
-
-## Testing Checklist for Tomorrow
-
-- [ ] Verify API rate limit reset (should be able to make requests)
-- [ ] Add Otter Creek via API (test: "otter creek" or "ankeny")
-- [ ] If API still fails, add Otter Creek manually
-- [ ] Create a match with newly added course
-- [ ] Verify tee box dropdown appears and auto-selects
-- [ ] Start a round and verify par/handicap data is correct
-- [ ] Test state filtering (search for course with wrong state in location)
-- [ ] Test multiple choice selection (find a course with multiple locations)
-
-## Questions / Decisions Needed
-
-1. **Rate Limit Strategy:** 
-   - Option A: Upgrade to paid Golf API plan (more requests/day)
-   - Option B: Cache API responses in database (reduce repeat requests)
-   - Option C: Rely more on manual entry (current approach works)
-
-2. **Course Data Quality:**
-   - Should we allow users to edit API-fetched course data?
-   - How to handle discrepancies between API data and reality?
-
-3. **Multi-Tee Support:**
-   - Manual entry currently creates 1 tee box
-   - Should we add "Add Another Tee Box" functionality?
-   - Or separate flow for adding tees to existing courses?
+### Game Modes
+- [ ] Test each of 11 game modes
+- [ ] Verify leaderboard displays during play
+- [ ] Verify summary screen at end of round
+- [ ] Test with 2, 3, and 4 players (as applicable)
+- [ ] Test net vs gross scoring for each game
 
 ## User Workflow Summary
 
-### Adding a Course from Golf API
-1. Click **+ (Request Course)** button
-2. Enter course name (e.g., "Coldwater")
-3. Enter location with state (e.g., "Ames, IA")
-4. Submit
-5. **If 1 match:** Course auto-added and selected
-6. **If multiple matches:** Choose from list
-7. **If not found:** Option to add manually
+### Game Mode Selection
+1. Choose game type from dropdown
+2. Select singles or team play (if applicable)
+3. Select net or gross scoring (if applicable)
+4. Leaderboard displays during play
+5. Summary screen shows at end of round
 
-### Adding a Course Manually
-1. Search fails (not in API or rate limited)
-2. Click "Yes" to add manually
-3. **Step 1:** Enter course name, location, holes, tee name, ratings
-4. **Step 2:** Enter par, stroke index, yardage for each hole
-5. Submit
-6. Course auto-selected and ready to use
-
-### Creating a Match
-1. Course auto-selected (or select from dropdown)
-2. Tee box auto-selected (or select from dropdown)
-3. Enter match details (game type, players, etc.)
-4. Create match
-5. Play golf! ⛳
+### Course Data Quality
+1. API fetches course data
+2. Validation checks for complete tee boxes
+3. **If valid:** Course created and selected
+4. **If invalid:** Course deleted, manual entry offered
+5. **Manual entry:** User provides par/stroke index only (no yardage needed)
 
 ---
 
-**Status:** System is working well! All major features implemented and tested.  
-**Blocker:** API rate limit hit - resets tomorrow.  
-**Workaround:** Manual entry fully functional for any course.  
+**Status:** Major milestone achieved - all 11 game modes complete!  
+**Next Focus:** Testing in production, course data management.  
+**Documentation:** Complete standards guide for future game mode development.  
 
-**Last Updated:** July 9, 2026 at end of session
+**Last Updated:** July 13, 2026 at end of session

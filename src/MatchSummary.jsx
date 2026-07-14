@@ -250,6 +250,17 @@ export default function MatchSummary({
   };
   const chairmanTeamPoints = gameType === 'chairman' ? calculateChairman() : {};
 
+  // Calculate Wolf points (singles game)
+  // Note: Wolf choices (partner selections) are not stored in the database,
+  // so we can't recalculate exact Wolf points in the summary.
+  // This is a limitation - Wolf game should store wolf_choices in the database.
+  // For now, we'll just show individual stroke scores in the summary.
+  const wolfPlayerPoints = {};
+  if (gameType === 'wolf') {
+    // Placeholder - cannot calculate without wolf choices data
+    players.forEach(p => { wolfPlayerPoints[p.id] = 0; });
+  }
+
   // Get player stats
   const getPlayerStats = (player) => {
     const playerScores = scores[player.id] || {};
@@ -316,6 +327,7 @@ export default function MatchSummary({
       netStrokes: totalNetStrokes,
       points: totalPoints,
       ninePoints: ninePointTotals[player.id] || 0,
+      wolfPoints: wolfPlayerPoints[player.id] || 0,
       quotaPoints: totalQuotaPoints,
       holesPlayed,
       quotaGoal,
@@ -337,6 +349,9 @@ export default function MatchSummary({
     }
     if (gameType === 'ninepoint') {
       return b.ninePoints - a.ninePoints; // Higher nine points is better
+    }
+    if (gameType === 'wolf') {
+      return b.wolfPoints - a.wolfPoints; // Higher wolf points is better
     }
     return b.points - a.points; // Higher points is better
   });
@@ -419,6 +434,19 @@ export default function MatchSummary({
         }}>
           {matchCode}
         </div>
+        {gameType === 'wolf' && (
+          <div style={{
+            background: '#FFA50033',
+            border: '1px solid #FFA500',
+            borderRadius: '8px',
+            padding: '12px',
+            marginTop: '12px',
+            fontSize: '13px',
+            color: '#FFA500'
+          }}>
+            ⚠️ Note: Wolf points shown are estimates only. Partner selections are not saved, so exact Wolf scoring cannot be recalculated.
+          </div>
+        )}
       </div>
 
       {/* Team Standings - only show for stableford (if team play), fourball, chairman, and vegas games */}
@@ -483,7 +511,7 @@ export default function MatchSummary({
       {/* Individual Results */}
       <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
         <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
-          {gameType === 'fourball' || gameType === 'chairman' || gameType === 'vegas' ? 'Individual Scores' : 'Individual Leaderboard'}
+          {gameType === 'fourball' || gameType === 'chairman' || gameType === 'vegas' || gameType === 'wolf' ? 'Individual Scores' : 'Individual Leaderboard'}
         </h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
@@ -503,6 +531,9 @@ export default function MatchSummary({
               )}
               {gameType === 'ninepoint' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#00BCD4' }}>9-Pts</th>
+              )}
+              {gameType === 'wolf' && (
+                <th style={{ padding: '10px', textAlign: 'center', color: '#607D8B' }}>Wolf Pts</th>
               )}
             </tr>
           </thead>
@@ -537,6 +568,11 @@ export default function MatchSummary({
                 {gameType === 'ninepoint' && (
                   <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#00BCD4' }}>
                     {player.ninePoints}
+                  </td>
+                )}
+                {gameType === 'wolf' && (
+                  <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#607D8B' }}>
+                    {player.wolfPoints || 0}
                   </td>
                 )}
                 {gameType === 'fourball' && (

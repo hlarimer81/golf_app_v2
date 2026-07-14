@@ -342,6 +342,10 @@ useEffect(() => {
 | Skins       | ✅      | ✅    | ✅  | ✅    | Lowest score wins skin |
 | Nine Point  | ✅      | ❌    | ✅  | ✅    | 3-player only, 9pts/hole |
 | Chairman    | ❌      | ✅    | ✅  | ❌    | Defend the chair |
+| Wolf        | ✅      | ❌    | ✅  | ✅    | 4-player rotation game |
+| Wolf Vegas  | ❌      | ✅    | ❌  | ✅    | Wolf + Vegas hybrid |
+| Nassau      | ✅      | ✅    | ✅  | ✅    | Front/Back/Total wagers |
+| Aggregate   | ❌      | ✅    | ✅  | ✅    | Team aggregate scoring |
 
 ---
 

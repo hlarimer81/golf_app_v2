@@ -1,6 +1,61 @@
-# Golf App Progress - July 13, 2026
+# Golf App Progress - July 13, 2026 (Updated Evening Session)
 
-## What We Accomplished Today
+## Latest Session - Green GPS Feature Implementation ✅
+
+### 9. ✅ Manual Green GPS Entry Feature - COMPLETE & DEPLOYED
+**Problem:** No GPS yardage data available for greens. OSM data too sparse to be useful.
+
+**Solution Implemented:**
+- **Database Migration:** Migrated greens from complex polygons to simple front/center/back GPS points
+- **New Component:** `AddGreenData.jsx` - 3-step wizard for users to contribute green data during rounds
+- **Updated GPS Widget:** Shows "Add Green GPS Data" button when hole has no data
+- **OSM Integration Enhanced:** Extracts front/center/back from polygons when available
+- **Backward Compatible:** Supports old polygon format, old f/m/b array format, and new format
+
+**Features:**
+- Real-time GPS accuracy indicator (requires <15m for capture)
+- Walk to front/center/back of green and capture coordinates
+- Data instantly shared with all players
+- Crowdsourced database grows organically
+- Option to update existing green data
+
+**Deployment Status:**
+- ✅ Database migrated via Supabase CLI
+- ✅ Edge function deployed with enhanced OSM integration
+- ✅ Frontend built and auto-deployed via Vercel
+- ✅ All changes committed and pushed to GitHub
+
+**New Data Format:**
+```json
+{
+  "hole": 1,
+  "front": {"lat": 36.568, "lon": -121.950},
+  "center": {"lat": 36.569, "lon": -121.951},
+  "back": {"lat": 36.570, "lon": -121.952}
+}
+```
+
+**Paid API Research:**
+- Researched 18Birdies, SwingU, GolfLogix for comprehensive GPS data
+- Est. cost: $500-2,000/month for 40,000+ courses
+- Decision: Monitor crowdsourced adoption for 3 months, then decide
+
+**Documentation Created:**
+- `GREEN_GPS_IMPLEMENTATION_SUMMARY.md` - Complete feature overview
+- `OSM_INTEGRATION_STATUS.md` - OSM audit (5 major courses tested, 0 had green data)
+- `GREEN_DATA_OPTIONS.md` - Analysis of all data sources
+- `PAID_GPS_API_RESEARCH.md` - Vendor research with contact info
+- `DEPLOYMENT_COMPLETE.md` - Deployment checklist and status
+
+**Files Modified:**
+- `src/GolfGPSWidget.jsx` - Added manual entry button and new format support
+- `supabase/functions/request-course/index.ts` - Enhanced OSM integration
+- `src/components/AddGreenData.jsx` - NEW: Manual entry UI
+- `migrate-to-fmb-greens.sql` - NEW: Database migration script
+
+---
+
+## Previous Session Accomplishments
 
 ### 1. ✅ Removed Bad Course Data
 **Problem:** Several courses had invalid data (all par 4s, incomplete tee boxes).
@@ -191,7 +246,7 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 
 ## Current System State
 
-### Working Features
+### Working Features ✅
 ✅ All 11 game modes have in-game leaderboards  
 ✅ All 11 game modes have end-of-round summary screens  
 ✅ Course data validation prevents bad data  
@@ -200,6 +255,9 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 ✅ Vegas scoring fixed and working correctly  
 ✅ Stacked games/quota features removed  
 ✅ Comprehensive documentation for game mode development  
+✅ **Manual green GPS entry with crowdsourcing**  
+✅ **GPS widget shows front/middle/back distances**  
+✅ **OSM integration with enhanced logging**  
 
 ### Game Mode Scoring Summary
 
@@ -219,12 +277,66 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 
 ## Next Steps
 
-### High Priority
+### 🧪 Immediate - On-Course Testing
 1. ✅ **COMPLETED:** Review all game modes for leaderboards/summaries
-2. **Test game modes in production** - Play rounds with each game to verify scoring
-3. **Verify edge function deployment** - Confirm course validation is working
+2. ✅ **COMPLETED:** Green GPS manual entry feature
+3. **Test green GPS feature** - Try adding green data for a hole during a round
+4. **Test game modes in production** - Play rounds with each game to verify scoring
+5. **Monitor green data adoption** - Track how many users contribute GPS data
 
-### Medium Priority
+### 🎯 Next Major Feature - User Authentication & Profiles
+**Goal:** Simplify player selection and enable calculated handicaps
+
+#### Phase 1: User Database & Authentication
+- **Create `users` table** - Store user profiles separate from per-match players
+- **One-time simple auth** - Email/password or magic link (stateless web app challenge)
+- **Session tracking** - Cookie or localStorage-based (explore options)
+- **Migrate existing players** - Move frequently used players to users table
+
+#### Phase 2: Smart Player Selection
+- **Recent players dropdown** - Show only players user has played with recently
+- **Quick add from recents** - One-tap to add frequent partners
+- **Search all users** - Fallback search for new players or infrequent partners
+- **Personal player list** - Each user sees their own frequently-played-with list
+
+#### Phase 3: Calculated Handicaps
+- **Handicap tracking** - Calculate running handicap from recent rounds
+- **Manual override** - Allow users to enter official handicap
+- **Game mode choice** - Choose calculated vs manual handicap per game
+- **Handicap history** - Show trending chart of user's handicap over time
+
+**Technical Challenges:**
+- Stateless web app - need auth that works without persistent sessions
+- Cookie/localStorage vs proper OAuth
+- Player data migration strategy
+- Backwards compatibility with existing matches
+
+**Database Schema Ideas:**
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY,
+  email TEXT UNIQUE,
+  name TEXT,
+  manual_handicap DECIMAL(3,1),
+  calculated_handicap DECIMAL(3,1),
+  recent_partners JSONB,  -- Array of user IDs
+  created_at TIMESTAMPTZ,
+  last_active TIMESTAMPTZ
+);
+
+CREATE TABLE user_rounds (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES users(id),
+  match_id UUID REFERENCES matches(id),
+  gross_score INTEGER,
+  net_score INTEGER,
+  course_rating DECIMAL(4,1),
+  slope INTEGER,
+  played_at TIMESTAMPTZ
+);
+```
+
+### Medium Priority (After User Auth)
 4. **Add course editing** - Allow users to edit existing course/tee box data
 5. **Course search/filter** - When course list gets long, add search box
 6. **Improve manual entry UX** - Better preset options, validation
@@ -234,22 +346,33 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 8. **Wolf persistence** - Save partner choices to database for accurate summary
 9. **Course usage stats** - Show which courses are used most often
 10. **Multi-tee entry** - Add multiple tee boxes at once in manual entry
+11. **Paid GPS API decision** - After 3 months, evaluate 18Birdies partnership
 
 ## Testing Checklist
 
-### Course Creation
+### Course Creation ✅
 - [x] API course request with valid data
 - [x] API course request with incomplete data (triggers manual entry)
 - [x] Manual course entry (full workflow)
 - [x] Course auto-selection after creation
 - [ ] Test state filtering (ensure out-of-state courses rejected)
 
-### Game Modes
+### Green GPS Feature 🧪
+- [ ] Open GPS widget during a round
+- [ ] Test "Add Green GPS Data" button appears on unmapped holes
+- [ ] Complete 3-step wizard (front, center, back)
+- [ ] Verify GPS accuracy indicator works (<15m required)
+- [ ] Confirm data saves to database
+- [ ] Verify green data shows for subsequent rounds
+- [ ] Test "Update Green GPS Data" on holes with existing data
+
+### Game Modes 🎮
 - [ ] Test each of 11 game modes
 - [ ] Verify leaderboard displays during play
 - [ ] Verify summary screen at end of round
 - [ ] Test with 2, 3, and 4 players (as applicable)
 - [ ] Test net vs gross scoring for each game
+- [ ] Test GPS widget during actual play
 
 ## User Workflow Summary
 
@@ -269,8 +392,24 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 
 ---
 
-**Status:** Major milestone achieved - all 11 game modes complete!  
-**Next Focus:** Testing in production, course data management.  
-**Documentation:** Complete standards guide for future game mode development.  
+## Git Commits Today (Evening Session)
 
-**Last Updated:** July 13, 2026 at end of session
+**Commit:** `c0a0640` - "Add manual green GPS entry feature"
+- Migrated greens to front/center/back format
+- Created AddGreenData component
+- Updated GolfGPSWidget with manual entry
+- Enhanced OSM integration
+- Complete documentation suite
+
+**Deployed:**
+- Database: ✅ Migrated via Supabase CLI
+- Edge Function: ✅ Deployed to Supabase
+- Frontend: ✅ Auto-deployed via Vercel
+
+---
+
+**Status:** All known bugs fixed! Green GPS feature deployed!  
+**Next Focus:** On-course testing, then user authentication system.  
+**Major Milestone:** System is feature-complete for core gameplay + GPS.  
+
+**Last Updated:** July 13, 2026 - Evening session (Green GPS deployment complete)

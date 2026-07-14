@@ -202,6 +202,58 @@ export default function MatchSummary({
 
   const vegasTeamTotals = gameType === 'vegas' ? calculateVegasTeamTotals() : {};
 
+  // Calculate Nassau Front/Back/Overall points
+  const calculateNassauPoints = () => {
+    const teamNames = activeTeamsList;
+    if (teamNames.length < 2) return {};
+
+    const t1 = teamNames[0];
+    const t2 = teamNames[1];
+    let frontPoints = { [t1]: 0, [t2]: 0 };
+    let backPoints = { [t1]: 0, [t2]: 0 };
+
+    // Best net for a team on a hole
+    const getBestTeamNet = (team, holeIndex) => {
+      const teamPlayers = getTeamPlayers(team);
+      const nets = teamPlayers.map(p => {
+        const holeNum = holeIndex + 1;
+        const strokes = (scores[p.id] || {})[holeNum];
+        const hcp = p.handicap ?? p.hcp ?? 0;
+        return getNetScore(strokes, holeIndex, hcp);
+      }).filter(n => n !== null);
+      return nets.length > 0 ? Math.min(...nets) : null;
+    };
+
+    // Front 9 (holes 1-9)
+    for (let i = 0; i < 9; i++) {
+      const best1 = getBestTeamNet(t1, i);
+      const best2 = getBestTeamNet(t2, i);
+      if (best1 !== null && best2 !== null) {
+        if (best1 < best2) frontPoints[t1]++;
+        else if (best2 < best1) frontPoints[t2]++;
+      }
+    }
+
+    // Back 9 (holes 10-18)
+    for (let i = 9; i < 18; i++) {
+      const best1 = getBestTeamNet(t1, i);
+      const best2 = getBestTeamNet(t2, i);
+      if (best1 !== null && best2 !== null) {
+        if (best1 < best2) backPoints[t1]++;
+        else if (best2 < best1) backPoints[t2]++;
+      }
+    }
+
+    const overallPoints = {
+      [t1]: frontPoints[t1] + backPoints[t1],
+      [t2]: frontPoints[t2] + backPoints[t2]
+    };
+
+    return { frontPoints, backPoints, overallPoints, teamNames: [t1, t2] };
+  };
+
+  const nassauPoints = gameType === 'nassau' ? calculateNassauPoints() : {};
+
   // Calculate Chairman game results for teams
   const calculateChairman = () => {
     const chairmanPoints = {}; // { teamName: points }
@@ -412,9 +464,12 @@ export default function MatchSummary({
       ? [...activeTeamsList].sort((a, b) => chairmanTeamPoints[b] - chairmanTeamPoints[a])
       : gameType === 'vegas'
         ? [...activeTeamsList].sort((a, b) => vegasTeamTotals[b] - vegasTeamTotals[a])
-        : Object.entries(stablefordTeamTotals)
-            .sort((a, b) => b[1].points - a[1].points)
-            .map(([name]) => name);
+        : gameType === 'nassau'
+          ? (nassauPoints.teamNames || []).sort((a, b) =>
+              (nassauPoints.overallPoints?.[b] || 0) - (nassauPoints.overallPoints?.[a] || 0))
+          : Object.entries(stablefordTeamTotals)
+              .sort((a, b) => b[1].points - a[1].points)
+              .map(([name]) => name);
 
   return (
     <div style={{ background: '#121212', color: '#e0e0e0', minHeight: '100vh', padding: '20px', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
@@ -449,11 +504,11 @@ export default function MatchSummary({
         )}
       </div>
 
-      {/* Team Standings - only show for stableford (if team play), fourball, chairman, and vegas games */}
-      {gameType !== 'skins' && gameType !== 'ninepoint' && gameType !== 'singles' && !(gameType === 'stableford' && stablefordMode === 'singles') && (
+      {/* Team Standings - only show for stableford (if team play), fourball, chairman, vegas, and nassau games */}
+      {gameType !== 'skins' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'wolf' && !(gameType === 'stableford' && stablefordMode === 'singles') && (
         <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
           <h2 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            {gameType === 'fourball' ? '4-Ball Match Play Standings' : gameType === 'chairman' ? '👑 Chairman Team Standings' : gameType === 'vegas' ? '🎰 Vegas Team Standings' : 'Team Standings'}
+            {gameType === 'fourball' ? '4-Ball Match Play Standings' : gameType === 'chairman' ? '👑 Chairman Team Standings' : gameType === 'vegas' ? '🎰 Vegas Team Standings' : gameType === 'nassau' ? '💰 Nassau Standings' : 'Team Standings'}
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {sortedTeams.map((teamName, idx) => {
@@ -463,7 +518,13 @@ export default function MatchSummary({
                   ? { points: chairmanTeamPoints[teamName] }
                   : gameType === 'vegas'
                     ? { points: vegasTeamTotals[teamName] }
-                    : stablefordTeamTotals[teamName];
+                    : gameType === 'nassau'
+                      ? {
+                          points: nassauPoints.overallPoints?.[teamName] || 0,
+                          frontPoints: nassauPoints.frontPoints?.[teamName] || 0,
+                          backPoints: nassauPoints.backPoints?.[teamName] || 0
+                        }
+                      : stablefordTeamTotals[teamName];
               
               return (
                 <div key={teamName} style={{ 
@@ -492,13 +553,18 @@ export default function MatchSummary({
                         {stats.wins}W - {stats.losses}L - {stats.halves}H
                       </div>
                     )}
+                    {gameType === 'nassau' && (
+                      <div style={{ fontSize: '11px', color: '#888' }}>
+                        F: {stats.frontPoints} | B: {stats.backPoints}
+                      </div>
+                    )}
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '24px', fontWeight: '900', color: teamColors[teamName] || '#4CAF50' }}>
                       {stats.points}
                     </div>
                     <div style={{ fontSize: '10px', color: '#666' }}>
-                      {gameType === 'fourball' ? 'match pts' : gameType === 'chairman' ? '👑 pts' : gameType === 'vegas' ? 'vegas pts' : 'points'}
+                      {gameType === 'fourball' ? 'match pts' : gameType === 'chairman' ? '👑 pts' : gameType === 'vegas' ? 'vegas pts' : gameType === 'nassau' ? 'overall pts' : 'points'}
                     </div>
                   </div>
                 </div>

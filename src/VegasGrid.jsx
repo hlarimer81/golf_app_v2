@@ -140,6 +140,11 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
     <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
       
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #E91E63' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
+          <span style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>
+            🎰 Vegas Leaderboard
+          </span>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
           {[...new Set(players.map(p => p.team).filter(Boolean))].map(tName => {
             let teamTotal = 0;
@@ -187,9 +192,6 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
               <th style={{ padding: '8px', minWidth: '50px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90 }}>
                 TOT
               </th>
-              <th style={{ padding: '8px', minWidth: '50px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#E91E63' }}>
-                VEGAS
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -202,14 +204,6 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
               frontHoles.forEach(h => { if (playerScores[h]) outStrokes += playerScores[h]; });
               backHoles.forEach(h => { if (playerScores[h]) inStrokes += playerScores[h]; });
               const totalStrokes = outStrokes + inStrokes;
-
-              // Calculate team's running Vegas total
-              let teamVegasTotal = 0;
-              for (const holeNum of holeNumbers) {
-                const h = holeNum - 1;
-                const pts = getVegasPoints(h);
-                teamVegasTotal += pts[player.team] || 0;
-              }
 
               const handleScoreChange = (holeNum, val) => {
                 saveScore(player.id, holeNum, val);
@@ -305,9 +299,6 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                   )}
                   <td style={{ padding: '8px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1e1e1e', fontWeight: 'bold', color: '#fff', fontSize: '16px' }}>
                     {totalStrokes > 0 ? totalStrokes : '-'}
-                  </td>
-                  <td style={{ padding: '8px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1e1e1e', fontWeight: 'bold', color: '#E91E63', fontSize: '18px' }}>
-                    {teamVegasTotal}
                   </td>
                 </tr>
               );

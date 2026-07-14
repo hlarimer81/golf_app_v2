@@ -63,14 +63,13 @@ const calculateCentroid = (polygon) => {
   return [sumLat / polygon.length, sumLon / polygon.length];
 };
 
-export default function GolfGPSWidget({ courseData, matchId, players, courseName }) {
+export default function GolfGPSWidget({ courseData, matchId, players, courseName, onCourseRefresh }) {
   const [isOpen, setIsOpen] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [error, setError] = useState(null);
   const [distances, setDistances] = useState({ front: null, middle: null, back: null });
   const [targetHole, setTargetHole] = useState(1);
   const [showAddGreen, setShowAddGreen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch real-time scores and determine the next unscored hole when opened
   useEffect(() => {
@@ -160,26 +159,16 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
     });
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [isOpen, targetHole, courseData, refreshKey]);
+  }, [isOpen, targetHole, courseData]);
 
   const hasGreensData = courseData?.greens && courseData.greens.length > 0;
   const currentGreen = courseData?.greens?.find(g => g.hole === targetHole);
 
   const handleAddGreenComplete = async () => {
-    setShowAddGreen(false);
-    // Trigger a refresh of courseData
-    setRefreshKey(prev => prev + 1);
-    // Also trigger parent to refetch if needed
-    if (courseData?.id) {
-      const { data } = await supabase
-        .from('golf_courses')
-        .select('greens')
-        .eq('id', courseData.id)
-        .single();
-      if (data?.greens) {
-        courseData.greens = data.greens;
-      }
+    if (onCourseRefresh) {
+      await onCourseRefresh();
     }
+    setShowAddGreen(false);
   };
 
   // Render AddGreenData modal if active

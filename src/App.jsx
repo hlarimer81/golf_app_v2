@@ -203,6 +203,8 @@ function App() {
     if (!course || !teeBox) return { pars: Array(18).fill(4), handicaps: Array(18).fill(10) };
 
     return {
+      id: course.id,
+      name: course.name,
       pars: teeBox.par,
       handicaps: teeBox.stroke_index,
       slope: teeBox.slope,

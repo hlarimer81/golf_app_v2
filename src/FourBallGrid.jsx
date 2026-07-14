@@ -356,15 +356,6 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                           {player.player_name || player.name}
                           <div style={{ fontSize: '8px', color: '#666', fontWeight: 'normal' }}>
                             HCP: {playerHcp}
-                            {useQuota && (() => {
-                              const totalPoints = getPlayerPointsUpToHole(player.id, 18, playerHcp);
-                              const remaining = quotaGoal - totalPoints;
-                              return (
-                                <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#4CAF50' : '#ff9800', fontWeight: 'bold' }}>
-                                  Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
-                                </span>
-                              );
-                            })()}
                           </div>
                         </td>
                         {frontHoles.map((hNum) => {
@@ -393,11 +384,6 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                               {net !== null && useHandicaps && (
                                 <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
                                   {net}
-                                </div>
-                              )}
-                              {useQuota && strokes > 0 && (
-                                <div style={{ position: 'absolute', bottom: '1px', left: '3px', fontSize: '8px', fontWeight: '700', color: pts >= 3 ? '#4CAF50' : pts === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.5)', padding: '0 3px', borderRadius: '2px', zIndex: 10 }}>
-                                  {pts}
                                 </div>
                               )}
                             </td>
@@ -434,11 +420,6 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                               {net !== null && useHandicaps && (
                                 <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: scoreColor(net, par), background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
                                   {net}
-                                </div>
-                              )}
-                              {useQuota && strokes > 0 && (
-                                <div style={{ position: 'absolute', bottom: '1px', left: '3px', fontSize: '8px', fontWeight: '700', color: pts >= 3 ? '#4CAF50' : pts === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.5)', padding: '0 3px', borderRadius: '2px', zIndex: 10 }}>
-                                  {pts}
                                 </div>
                               )}
                             </td>

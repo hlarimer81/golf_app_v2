@@ -243,15 +243,6 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
                     {player.player_name || player.name}
                     <div style={{ fontSize: '8px', color: '#666', fontWeight: 'normal' }}>
                       {useHandicaps && `HCP: ${playerHcp}`}
-                      {useQuota && (() => {
-                        const totalPoints = getPlayerPointsUpToHole(player.id);
-                        const remaining = quotaGoal - totalPoints;
-                        return (
-                          <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#4CAF50' : '#ff9800', fontWeight: 'bold' }}>
-                            Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
-                          </span>
-                        );
-                      })()}
                       <span style={{ marginLeft: '6px', color: '#FFD700', fontWeight: 'bold' }}>
                         🎰 {skinTotals[player.id] || 0}
                       </span>

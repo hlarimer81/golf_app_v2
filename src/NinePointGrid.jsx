@@ -275,15 +275,6 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
                     {player.player_name || player.name}
                     <div style={{ fontSize: '8px', color: '#666', fontWeight: 'normal' }}>
                       {useHandicaps && `HCP: ${playerHcp}`}
-                      {useQuota && (() => {
-                        const totalPoints = getPlayerPointsUpToHole(player.id, 18, playerHcp);
-                        const remaining = quotaGoal - totalPoints;
-                        return (
-                          <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#4CAF50' : '#ff9800', fontWeight: 'bold' }}>
-                            Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
-                          </span>
-                        );
-                      })()}
                     </div>
                   </td>
                   {frontHoles.map((holeNum) => {

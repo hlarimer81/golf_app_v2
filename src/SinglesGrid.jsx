@@ -249,16 +249,6 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                       {player.player_name || player.name}
                       <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
                         HCP: {playerHcp}
-                        {useQuota && (() => {
-                          const quotaGoal = 36 - playerHcp;
-                          const totalPoints = getPlayerPointsUpToHole(player.id, 18, playerHcp);
-                          const remaining = quotaGoal - totalPoints;
-                          return (
-                            <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#00BCD4' : '#ff9800', fontWeight: 'bold' }}>
-                              Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
-                            </span>
-                          );
-                        })()}
                       </div>
                     </td>
                     {frontHoles.map((hNum) => {
@@ -286,11 +276,6 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                             style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
                           />
                           {net !== null && useHandicaps && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>{net}</div>}
-                          {useQuota && playerScores[hNum] > 0 && (
-                            <div style={{ position: 'absolute', bottom: '1px', left: '3px', fontSize: '8px', fontWeight: '700', color: calculatePoints(playerScores[hNum], hIdx, playerHcp) >= 3 ? '#00BCD4' : calculatePoints(playerScores[hNum], hIdx, playerHcp) === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.5)', padding: '0 3px', borderRadius: '2px', zIndex: 10 }}>
-                              {calculatePoints(playerScores[hNum], hIdx, 0)}
-                            </div>
-                          )}
                         </td>
                       );
                     })}
@@ -324,11 +309,6 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                             style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
                           />
                           {net !== null && useHandicaps && <div style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', fontWeight: '900', color: '#00BCD4', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>{net}</div>}
-                          {useQuota && playerScores[hNum] > 0 && (
-                            <div style={{ position: 'absolute', bottom: '1px', left: '3px', fontSize: '8px', fontWeight: '700', color: calculatePoints(playerScores[hNum], hIdx, playerHcp) >= 3 ? '#00BCD4' : calculatePoints(playerScores[hNum], hIdx, playerHcp) === 2 ? '#888' : '#ff9800', background: 'rgba(0,0,0,0.5)', padding: '0 3px', borderRadius: '2px', zIndex: 10 }}>
-                              {calculatePoints(playerScores[hNum], hIdx, 0)}
-                            </div>
-                          )}
                         </td>
                       );
                     })}

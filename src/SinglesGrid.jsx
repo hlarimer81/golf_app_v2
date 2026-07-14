@@ -131,9 +131,68 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
       return total;
     };
   
+    // Calculate player totals for leaderboard
+    const playerTotals = players.map(player => {
+      const playerScores = scores[player.id] || {};
+      const playerHcp = player.handicap ?? player.hcp ?? 0;
+
+      let grossTotal = 0;
+      let netTotal = 0;
+      let holesPlayed = 0;
+
+      holeNumbers.forEach(holeNum => {
+        const strokes = playerScores[holeNum];
+        if (strokes) {
+          grossTotal += strokes;
+          const net = getNetScore(strokes, holeNum - 1, playerHcp);
+          if (net !== null) netTotal += net;
+          holesPlayed++;
+        }
+      });
+
+      return {
+        id: player.id,
+        name: player.player_name || player.name,
+        grossTotal: holesPlayed > 0 ? grossTotal : null,
+        netTotal: holesPlayed > 0 ? netTotal : null,
+        holesPlayed
+      };
+    });
+
+    // Sort by net (if handicaps) or gross
+    const sortedPlayers = [...playerTotals].sort((a, b) => {
+      const scoreA = useHandicaps ? (a.netTotal ?? 999) : (a.grossTotal ?? 999);
+      const scoreB = useHandicaps ? (b.netTotal ?? 999) : (b.grossTotal ?? 999);
+      return scoreA - scoreB;
+    });
+
     return (
       <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
-        
+
+        {/* --- Singles Leaderboard --- */}
+        <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #2196F3' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
+            <span style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>
+              🏌️ Singles Leaderboard {useHandicaps ? '(Net)' : '(Gross)'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
+            {sortedPlayers.map((player, idx) => {
+              const score = useHandicaps ? player.netTotal : player.grossTotal;
+              return (
+                <div key={player.id} style={{ flex: 1, minWidth: '80px' }}>
+                  <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : ''}{player.name}
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: '900', color: idx === 0 ? '#FFD700' : idx === 1 ? '#C0C0C0' : idx === 2 ? '#CD7F32' : '#2196F3' }}>
+                    {score ?? '-'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* --- SCROLLABLE GRID --- */}
         <div style={{ flexGrow: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '8px', border: '1px solid #333', background: '#1a1a1a' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>

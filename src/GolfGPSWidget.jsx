@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+import AddGreenData from './components/AddGreenData';
 
 // Haversine formula → distance in meters (raw, no rounding).
 const haversineMeters = (lat1, lon1, lat2, lon2) => {
@@ -68,6 +69,8 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
   const [error, setError] = useState(null);
   const [distances, setDistances] = useState({ front: null, middle: null, back: null });
   const [targetHole, setTargetHole] = useState(1);
+  const [showAddGreen, setShowAddGreen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch real-time scores and determine the next unscored hole when opened
   useEffect(() => {
@@ -117,15 +120,22 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
       setUserLocation({ latitude, longitude, accuracy });
 
       // Use greens data from courseData
-      const green = courseData?.greens?.[targetHole - 1];
+      const green = courseData?.greens?.find(g => g.hole === targetHole);
       if (green) {
-        // Check if this is polygon format or old f/m/b format
-        if (green.polygon && Array.isArray(green.polygon)) {
-          // NEW: Calculate from polygon
+        // Check format: new front/center/back objects or old polygon or old f/m/b arrays
+        if (green.front && green.center && green.back) {
+          // NEW FORMAT: {front:{lat,lon}, center:{lat,lon}, back:{lat,lon}}
+          setDistances({
+            front: calculateDistanceInYards(latitude, longitude, green.front.lat, green.front.lon),
+            middle: calculateDistanceInYards(latitude, longitude, green.center.lat, green.center.lon),
+            back: calculateDistanceInYards(latitude, longitude, green.back.lat, green.back.lon),
+          });
+        } else if (green.polygon && Array.isArray(green.polygon)) {
+          // POLYGON FORMAT: Calculate from polygon
           const polygonDistances = calculateDistancesFromPolygon(latitude, longitude, green.polygon);
           setDistances(polygonDistances);
         } else if (green.f && green.m && green.b) {
-          // OLD: Use static front/middle/back points
+          // OLD ARRAY FORMAT: [lat, lon] arrays
           setDistances({
             front: calculateDistanceInYards(latitude, longitude, green.f?.[0], green.f?.[1]),
             middle: calculateDistanceInYards(latitude, longitude, green.m?.[0], green.m?.[1]),
@@ -150,9 +160,61 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
     });
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [isOpen, targetHole, courseData]);
+  }, [isOpen, targetHole, courseData, refreshKey]);
 
   const hasGreensData = courseData?.greens && courseData.greens.length > 0;
+  const currentGreen = courseData?.greens?.find(g => g.hole === targetHole);
+
+  const handleAddGreenComplete = async () => {
+    setShowAddGreen(false);
+    // Trigger a refresh of courseData
+    setRefreshKey(prev => prev + 1);
+    // Also trigger parent to refetch if needed
+    if (courseData?.id) {
+      const { data } = await supabase
+        .from('golf_courses')
+        .select('greens')
+        .eq('id', courseData.id)
+        .single();
+      if (data?.greens) {
+        courseData.greens = data.greens;
+      }
+    }
+  };
+
+  // Render AddGreenData modal if active
+  if (showAddGreen && courseData?.id) {
+    return (
+      <>
+        {isOpen && (
+          <div style={{
+            position: 'fixed',
+            top: '60px',
+            left: '10px',
+            right: '10px',
+            background: '#1a1a1a',
+            border: '2px solid #4CAF50',
+            borderRadius: '12px',
+            padding: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
+            zIndex: 999,
+            fontFamily: 'sans-serif',
+            opacity: 0.3
+          }}>
+            <div style={{ textAlign: 'center', color: '#888', fontSize: '12px' }}>
+              Adding green data...
+            </div>
+          </div>
+        )}
+        <AddGreenData
+          courseId={courseData.id}
+          courseName={courseData.name || courseName}
+          holeNumber={targetHole}
+          onComplete={handleAddGreenComplete}
+        />
+      </>
+    );
+  }
 
   if (!isOpen) {
     return (
@@ -212,9 +274,27 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
         </button>
       </div>
 
-      {!hasGreensData ? (
-        <div style={{ fontSize: '12px', color: '#aaa', textAlign: 'center', padding: '10px' }}>
-          ❌ No GPS coordinates available for this course.
+      {!currentGreen ? (
+        <div>
+          <div style={{ fontSize: '12px', color: '#aaa', textAlign: 'center', padding: '10px', marginBottom: '10px' }}>
+            ❌ No GPS coordinates for Hole {targetHole}.
+          </div>
+          <button
+            onClick={() => setShowAddGreen(true)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              backgroundColor: '#2196F3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            📍 Add Green GPS Data
+          </button>
         </div>
       ) : error ? (
         <div style={{ fontSize: '12px', color: '#ff9800', textAlign: 'center', padding: '10px' }}>
@@ -244,6 +324,28 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
       {userLocation && (
         <div style={{ fontSize: '8px', color: '#555', textAlign: 'right', marginTop: '6px' }}>
           GPS accuracy: ±{Math.round(userLocation.accuracy)} yds
+        </div>
+      )}
+
+      {/* Show "Add Green Data" button if distances are showing */}
+      {distances.middle && (
+        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #333' }}>
+          <button
+            onClick={() => setShowAddGreen(true)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              backgroundColor: '#2196F3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            📍 Update Green GPS Data
+          </button>
         </div>
       )}
     </div>

@@ -46,7 +46,11 @@ async function fetchGreenPolygonsFromOSM(courseName: string, location: string = 
 
   const response = await fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+      'User-Agent': 'GolfAppV2/1.0',
+      'Accept': 'application/json'
+    },
     body: 'data=' + encodeURIComponent(query)
   })
 
@@ -63,27 +67,31 @@ async function fetchGreenPolygonsFromOSM(courseName: string, location: string = 
   const greens: any[] = []
 
   for (const element of data.elements) {
-    if (element.type === 'way' && element.geometry) {
-      const holeNumber = extractHoleNumber(element.tags)
-      const polygon = element.geometry.map((coord: any) => [coord.lat, coord.lon])
+    let polygon: any[] = []
 
-      greens.push({
-        hole: holeNumber,
-        polygon: polygon,
-        tags: element.tags
-      })
+    if (element.type === 'way' && element.geometry) {
+      polygon = element.geometry.map((coord: any) => ({ lat: coord.lat, lon: coord.lon }))
     } else if (element.type === 'relation' && element.members) {
       const outerWay = element.members.find((m: any) => m.role === 'outer')
       if (outerWay && outerWay.geometry) {
-        const holeNumber = extractHoleNumber(element.tags)
-        const polygon = outerWay.geometry.map((coord: any) => [coord.lat, coord.lon])
-
-        greens.push({
-          hole: holeNumber,
-          polygon: polygon,
-          tags: element.tags
-        })
+        polygon = outerWay.geometry.map((coord: any) => ({ lat: coord.lat, lon: coord.lon }))
       }
+    }
+
+    if (polygon.length >= 3) {
+      const holeNumber = extractHoleNumber(element.tags)
+
+      // Calculate front/center/back from polygon
+      // Front: first point, Back: last point, Center: geometric center
+      const centerLat = polygon.reduce((sum, p) => sum + p.lat, 0) / polygon.length
+      const centerLon = polygon.reduce((sum, p) => sum + p.lon, 0) / polygon.length
+
+      greens.push({
+        hole: holeNumber,
+        front: { lat: polygon[0].lat, lon: polygon[0].lon },
+        center: { lat: centerLat, lon: centerLon },
+        back: { lat: polygon[polygon.length - 1].lat, lon: polygon[polygon.length - 1].lon }
+      })
     }
   }
 
@@ -344,15 +352,56 @@ serve(async (req) => {
 
       // Step 3: Fetch green polygons from OpenStreetMap
       let greens = null
+      let osmStatus = 'not_attempted'
+      let osmDetails = ''
+
       try {
-        greens = await fetchGreenPolygonsFromOSM(courseName, location)
-        console.log(`Fetched ${greens?.length || 0} greens from OSM`)
+        debugInfo.push('🗺️ Querying OpenStreetMap for green polygons...')
+        greens = await fetchGreenPolygonsFromOSM(course.course_name || courseName, location)
+
+        if (greens && greens.length > 0) {
+          osmStatus = 'success'
+          const holesWithNumbers = greens.filter(g => g.hole !== null).length
+          const holesWithoutNumbers = greens.length - holesWithNumbers
+
+          osmDetails = `Found ${greens.length} greens (${holesWithNumbers} numbered, ${holesWithoutNumbers} unnumbered)`
+          debugInfo.push(`✓ OSM: ${osmDetails}`)
+          console.log(`✓ OSM Success: ${osmDetails}`)
+        } else {
+          osmStatus = 'no_data'
+          osmDetails = 'No greens found in OpenStreetMap'
+          debugInfo.push(`⚠ OSM: ${osmDetails}`)
+          console.warn(`⚠ OSM: ${osmDetails} for "${course.course_name || courseName}"`)
+        }
       } catch (osmError: any) {
-        console.warn('OSM fetch failed, continuing without greens:', osmError.message)
+        osmStatus = 'error'
+        osmDetails = osmError.message
+        debugInfo.push(`✗ OSM fetch failed: ${osmDetails}`)
+        console.warn('✗ OSM fetch failed, continuing without greens:', osmDetails)
         // Don't fail the whole request if OSM is down
       }
 
-      // Step 4: Create golf_courses entry
+      // Step 4: Validate green data quality
+      if (greens && greens.length > 0) {
+        const expectedHoles = 18 // Could be derived from course.holes if available
+        const greenCount = greens.length
+
+        if (greenCount !== expectedHoles) {
+          debugInfo.push(`⚠ Green count mismatch: found ${greenCount}, expected ${expectedHoles}`)
+          console.warn(`⚠ Green validation: ${greenCount} greens for ${expectedHoles}-hole course`)
+        } else {
+          debugInfo.push(`✓ Green count matches hole count (${greenCount})`)
+        }
+
+        const numberedGreens = greens.filter(g => g.hole !== null).length
+        const unnumberedGreens = greenCount - numberedGreens
+
+        if (unnumberedGreens > 0) {
+          debugInfo.push(`⚠ ${unnumberedGreens} greens missing hole numbers`)
+        }
+      }
+
+      // Step 5: Create golf_courses entry
       const locationStr = course.location?.city
         ? `${course.location.city}${course.location.state ? ', ' + course.location.state : ''}`
         : location
@@ -363,17 +412,14 @@ serve(async (req) => {
           name: course.course_name || course.club_name || courseName,
           location: locationStr,
           holes: 18, // Assume 18 holes
-          greens: greens && greens.length > 0 ? greens.map(g => ({
-            hole: g.hole,
-            polygon: g.polygon
-          })) : null
+          greens: greens && greens.length > 0 ? greens : null
         })
         .select()
         .single()
 
       if (courseError) throw courseError
 
-      // Step 5: Create tee boxes from API data
+      // Step 6: Create tee boxes from API data
       const allTees = [...(course.tees?.male || []), ...(course.tees?.female || [])]
 
       debugInfo.push(`Total tees to create: ${allTees.length}`)
@@ -493,7 +539,7 @@ serve(async (req) => {
         )
       }
 
-      // Step 6: Mark request as completed with debug info
+      // Step 7: Mark request as completed with debug info
       await supabase
         .from('course_requests')
         .update({
@@ -505,11 +551,29 @@ serve(async (req) => {
         })
         .eq('id', requestRecord.id)
 
+      // Build success message with OSM status
+      let successMessage = `Added: ${newCourse.name}${newCourse.location ? ' - ' + newCourse.location : ''}. Created ${successCount || allTees.length} tee boxes.`
+
+      if (osmStatus === 'success') {
+        successMessage += ` Green polygons: ${greens?.length || 0}.`
+      } else if (osmStatus === 'no_data') {
+        successMessage += ` (No greens found in OpenStreetMap)`
+      } else if (osmStatus === 'error') {
+        successMessage += ` (Green fetch failed)`
+      }
+
+      if (newCourse.name !== courseName) {
+        successMessage += ` (Note: Found as "${newCourse.name}")`
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
           course: newCourse,
-          message: `Added: ${newCourse.name}${newCourse.location ? ' - ' + newCourse.location : ''}. Created ${successCount || allTees.length} tee boxes. ${newCourse.name !== courseName ? '(Note: Found as "' + newCourse.name + '")' : ''}`
+          osmStatus: osmStatus,
+          osmDetails: osmDetails,
+          greensFound: greens?.length || 0,
+          message: successMessage
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

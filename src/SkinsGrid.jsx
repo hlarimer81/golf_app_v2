@@ -16,7 +16,7 @@ import {
   scoreColor,
 } from './lib/golf';
 
-export default function SkinsGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, useCarryover, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function SkinsGrid({ matchId, matchName, matchCode, players, useHandicaps, useCarryover, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
   const [showSummary, setShowSummary] = useState(false);
   const [showMoney, setShowMoney] = useState(false);
   const [showWager, setShowWager] = useState(false);
@@ -106,7 +106,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
         players={players}
         scores={scores}
         useHandicaps={useHandicaps}
-        useQuota={useQuota}
+        
         courseData={courseData}
         holesCount={holesCount}
         startHole={startHole}

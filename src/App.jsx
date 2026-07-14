@@ -32,7 +32,6 @@ function App() {
   const [matchName, setMatchName] = useState('');
   const [useHandicaps, setUseHandicaps] = useState(false);
   const [scoringMode, setScoringMode] = useState(''); // '', 'gross', or 'net'
-  const [useQuota, setUseQuota] = useState(false);
   const [useCarryover, setUseCarryover] = useState(true);
   const [gameType, setGameType] = useState('');
   const [playMode, setPlayMode] = useState('');
@@ -252,7 +251,6 @@ function App() {
         course_name: selectedCourseName,
         course_id: selectedCourseId === 'Peninsula Golf Club' ? null : (selectedCourseId || null),
         tee_box_id: selectedCourseId === 'Peninsula Golf Club' ? null : (selectedTeeBoxId || null),
-        use_quota: useQuota,
         holes: holesCount,
         start_hole: startHole,
         play_off_low: playOffLow,
@@ -310,7 +308,6 @@ function App() {
     setMatchCode(matchData.match_code);
     setMatchName(matchData.match_name);
     setUseHandicaps(matchData.use_handicaps);
-    setUseQuota(matchData.use_quota || false);
     setGameType(matchData.game_type || 'stableford');
     setSelectedCourseId(matchData.course_id || 'Peninsula Golf Club');
     setSelectedTeeBoxId(matchData.tee_box_id || '');
@@ -541,7 +538,6 @@ function App() {
           matchCode={matchCode}
           players={playersWithPops}
           useHandicaps={useHandicaps}
-          useQuota={useQuota}
           useCarryover={useCarryover}
           courseData={courseData}
           holesCount={holesCount}
@@ -556,7 +552,6 @@ function App() {
             setSelectedCourseId('');
             setSelectedTeeBoxId('');
             setUseHandicaps(false);
-            setUseQuota(false);
             setGameType('');
             setPlayMode('');
             setHolesCount('');
@@ -615,7 +610,6 @@ function App() {
     setMatchCode(match.match_code);
     setMatchName(match.match_name);
     setUseHandicaps(match.use_handicaps);
-    setUseQuota(match.use_quota || false);
     setGameType(match.game_type || 'stableford');
     setSelectedCourseId(match.course_id || 'Peninsula Golf Club');
     setSelectedTeeBoxId(match.tee_box_id || '');
@@ -1056,18 +1050,6 @@ function App() {
                   </select>
                 </div>
               )}
-            </div>
-
-            {/* --- Stacked Games Selector --- */}
-            <div style={{ marginBottom: '15px' }}>
-              <select
-                value={useQuota ? 'quota' : 'stacked'}
-                onChange={e => setUseQuota(e.target.value === 'quota')}
-                style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
-              >
-                <option value="stacked">Stacked Games</option>
-                <option value="quota">Quota</option>
-              </select>
             </div>
 
             {useHandicaps && (

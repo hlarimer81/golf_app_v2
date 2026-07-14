@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 
-export default function FourBallGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function FourBallGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
   const [scores, setScores] = useState({});
   const [showSummary, setShowSummary] = useState(false);
 
@@ -239,7 +239,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
         players={players}
         scores={scores}
         useHandicaps={useHandicaps}
-        useQuota={useQuota}
+        
         courseData={courseData}
         holesCount={holesCount}
         startHole={startHole}

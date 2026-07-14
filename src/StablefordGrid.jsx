@@ -12,7 +12,7 @@ import {
 } from './lib/golf';
 import { activeTeams as getActiveTeams, getTeamPlayers as teamPlayersOf, teamColorMap } from './lib/teams';
 
-export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch, initialIsTeamPlay = true, holesCount = 18, startHole = 1 }) {
+export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, initialIsTeamPlay = true, holesCount = 18, startHole = 1 }) {
     const [showSummary, setShowSummary] = React.useState(false);
     const { scores, saveScore } = useScores(matchId);
 
@@ -44,7 +44,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         players={players}
         scores={scores}
         useHandicaps={useHandicaps}
-        useQuota={useQuota}
+        
         courseData={courseData}
         stablefordMode={isTeamPlay ? 'team' : 'singles'}
         holesCount={holesCount}
@@ -208,15 +208,6 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                             {player.player_name || player.name}
                             <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
                               HCP: {playerHcp}
-                              {useQuota && (() => {
-                                const totalPoints = getPlayerPointsUpToHole(player.id);
-                                const remaining = quotaGoal - totalPoints;
-                                return (
-                                  <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#4CAF50' : '#ff9800', fontWeight: 'bold' }}>
-                                    Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
-                                  </span>
-                                );
-                              })()}
                             </div>
                           </td>
                           {frontHoles.map(renderCell)}
@@ -295,15 +286,6 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                       {player.player_name || player.name}
                       <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
                         HCP: {playerHcp}
-                        {useQuota && (() => {
-                          const totalPoints = getPlayerPointsUpToHole(player.id);
-                          const remaining = quotaGoal - totalPoints;
-                          return (
-                            <span style={{ marginLeft: '6px', color: remaining <= 0 ? '#4CAF50' : '#ff9800', fontWeight: 'bold' }}>
-                              Q: {remaining <= 0 ? `+${Math.abs(remaining)}` : remaining}
-                            </span>
-                          );
-                        })()}
                       </div>
                     </td>
                     {frontHoles.map(renderCell)}

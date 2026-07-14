@@ -10,7 +10,7 @@ import { usePresses } from './usePresses';
 import { settleNassau, wagerHasStake } from './settlement';
 import { computeNassau, nassauSettlementSegments } from './nassauEngine';
 
-export default function NassauGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function NassauGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
     const [scores, setScores] = useState({});
     const [showSummary, setShowSummary] = useState(false);
     const [showMoney, setShowMoney] = useState(false);
@@ -118,7 +118,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
         players={players}
         scores={scores}
         useHandicaps={useHandicaps}
-        useQuota={useQuota}
+        
         courseData={courseData}
         holesCount={holesCount}
         startHole={startHole}

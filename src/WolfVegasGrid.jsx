@@ -7,7 +7,7 @@ import GolfScoreTile from './GolfScoreTile';
 // Each side forms a two-digit "Vegas number" from its two net scores (low-then-high; the
 // number flips high-then-low when the OTHER side birdies). Points swing = difference of the
 // two Vegas numbers, scaled by the Lone/Blind multiplier. Winners gain, losers lose.
-export default function WolfVegasGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function WolfVegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
   const [scores, setScores] = useState({});
   const [showSummary, setShowSummary] = useState(false);
   // decisions[holeNum] = partner playerId | 'lone' | 'blind'

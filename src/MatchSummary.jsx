@@ -7,7 +7,7 @@ export default function MatchSummary({
   players, 
   scores, 
   useHandicaps, 
-  useQuota, 
+ 
   courseData,
   stablefordMode,
   onBack,
@@ -473,18 +473,6 @@ export default function MatchSummary({
                       {gameType === 'fourball' ? 'match pts' : gameType === 'chairman' ? '👑 pts' : gameType === 'vegas' ? 'vegas pts' : 'points'}
                     </div>
                   </div>
-                  {useQuota && gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'vegas' && (
-                    <div style={{ textAlign: 'right', marginLeft: '10px' }}>
-                      <div style={{ 
-                        fontSize: '18px', 
-                        fontWeight: '700', 
-                        color: stats.quotaResult >= 0 ? '#4CAF50' : '#ff9800' 
-                      }}>
-                        {stats.quotaResult >= 0 ? '+' : ''}{stats.quotaResult}
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#666' }}>quota</div>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -516,7 +504,6 @@ export default function MatchSummary({
               {gameType === 'ninepoint' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#00BCD4' }}>9-Pts</th>
               )}
-              {useQuota && <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Quota</th>}
             </tr>
           </thead>
           <tbody>
@@ -555,21 +542,6 @@ export default function MatchSummary({
                 {gameType === 'fourball' && (
                   <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: '#4CAF50' }}>
                     {player.holesContributed}
-                  </td>
-                )}
-                {useQuota && (
-                  <td style={{
-                    padding: '12px 10px',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    color: player.quotaResult >= 0 ? '#4CAF50' : '#ff9800'
-                  }}>
-                    {player.quotaResult >= 0 ? '+' : ''}{player.quotaResult}
-                    {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'vegas' && (
-                      <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
-                        ({player.quotaPoints}/{player.quotaGoal})
-                      </div>
-                    )}
                   </td>
                 )}
               </tr>

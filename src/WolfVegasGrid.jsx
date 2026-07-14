@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
+import React, { useState } from 'react';
 import GolfScoreTile from './GolfScoreTile';
+import { useScores } from './hooks/useScores';
 
 // Wolf Vegas: exactly 4 players. Each hole one player is the "Wolf" (rotates). The Wolf
 // picks a partner (2v2), goes Lone Wolf (1v3, points doubled), or Blind Wolf (1v3, tripled).
@@ -8,7 +8,7 @@ import GolfScoreTile from './GolfScoreTile';
 // number flips high-then-low when the OTHER side birdies). Points swing = difference of the
 // two Vegas numbers, scaled by the Lone/Blind multiplier. Winners gain, losers lose.
 export default function WolfVegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
-  const [scores, setScores] = useState({});
+  const { scores, saveScore } = useScores(matchId);
   const [showSummary, setShowSummary] = useState(false);
   // decisions[holeNum] = partner playerId | 'lone' | 'blind'
   const [decisions, setDecisions] = useState({});
@@ -159,44 +159,6 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
 
   const totals = calculateTotals();
 
-  // --- Fetch & Realtime ---
-  useEffect(() => {
-    if (!matchId) return;
-    const fetchScores = async () => {
-      const { data } = await supabase.from('scores').select('*').eq('match_id', matchId);
-      const scoreMap = {};
-      data?.forEach(s => {
-        if (!scoreMap[s.player_id]) scoreMap[s.player_id] = {};
-        scoreMap[s.player_id][s.hole_number] = s.strokes;
-      });
-      setScores(scoreMap);
-    };
-    fetchScores();
-    const channel = supabase.channel('realtime-wolfvegas')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'scores', filter: `match_id=eq.${matchId}` }, fetchScores)
-      .subscribe();
-    return () => supabase.removeChannel(channel);
-  }, [matchId]);
-
-  const saveScore = async (playerId, holeNum, strokes) => {
-    const val = strokes === '' ? null : parseInt(strokes);
-    setScores(prev => ({
-      ...prev,
-      [playerId]: { ...(prev[playerId] || {}), [holeNum]: val }
-    }));
-    if (val === null) {
-      await supabase.from('scores')
-        .delete()
-        .eq('match_id', matchId)
-        .eq('player_id', playerId)
-        .eq('hole_number', holeNum);
-      return;
-    }
-    await supabase.from('scores').upsert(
-      { match_id: matchId, player_id: playerId, hole_number: holeNum, strokes: val },
-      { onConflict: 'match_id,player_id,hole_number' }
-    );
-  };
 
   const handleDecision = (holeNum, choice) => {
     setDecisions(prev => ({ ...prev, [holeNum]: choice }));

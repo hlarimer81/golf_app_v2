@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
+import React, { useState } from 'react';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
+import { useScores } from './hooks/useScores';
 
 export default function WolfGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
-    const [scores, setScores] = useState({});
+    const { scores, saveScore } = useScores(matchId);
     const [showSummary, setShowSummary] = useState(false);
     // wolfChoices[holeNum] = { wolf: playerId, partner: playerId | 'lone' | null }
     const [wolfChoices, setWolfChoices] = useState({});
@@ -112,53 +112,6 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
 
     const wolfPoints = calculateWolfPoints();
 
-  useEffect(() => {
-    if (!matchId) return;
-
-    const fetchScores = async () => {
-      const { data } = await supabase.from('scores').select('*').eq('match_id', matchId);
-      const scoreMap = {};
-      data?.forEach(s => {
-        if (!scoreMap[s.player_id]) scoreMap[s.player_id] = {};
-        scoreMap[s.player_id][s.hole_number] = s.strokes;
-      });
-      setScores(scoreMap);
-    };
-
-    fetchScores();
-
-    const channel = supabase.channel('realtime-scores')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'scores', filter: `match_id=eq.${matchId}` }, fetchScores)
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
-  }, [matchId]);
-
-  const saveScore = async (playerId, holeNum, strokes) => {
-    const val = strokes === '' ? null : parseInt(strokes);
-    setScores(prev => ({
-      ...prev,
-      [playerId]: { ...(prev[playerId] || {}), [holeNum]: val }
-    }));
-
-    if (val === null) {
-      await supabase.from('scores')
-        .delete()
-        .eq('match_id', matchId)
-        .eq('player_id', playerId)
-        .eq('hole_number', holeNum);
-      return;
-    }
-    await supabase.from('scores').upsert(
-      {
-        match_id: matchId,
-        player_id: playerId,
-        hole_number: holeNum,
-        strokes: val
-      },
-      { onConflict: 'match_id,player_id,hole_number' }
-    );
-  };
 
   const handleWolfChoice = (holeNum, partnerId) => {
     const wolfPlayer = getWolfPlayer(holeNum);

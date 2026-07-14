@@ -336,7 +336,7 @@ useEffect(() => {
 | Game Mode    | Singles | Teams | Net | Gross | Notes |
 |-------------|---------|-------|-----|-------|-------|
 | Stableford  | ✅      | ✅    | ✅  | ✅    | Point-based scoring |
-| Vegas       | ❌      | ✅    | ✅  | ❌    | 2v2 only |
+| Vegas       | ❌      | ✅    | ❌  | ✅    | 2v2 only, gross scoring |
 | Four-ball   | ❌      | ✅    | ✅  | ❌    | Best ball match play |
 | Singles     | ✅      | ❌    | ✅  | ✅    | Stroke play |
 | Skins       | ✅      | ✅    | ✅  | ✅    | Lowest score wins skin |

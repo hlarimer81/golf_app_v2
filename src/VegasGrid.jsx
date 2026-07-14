@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
+import { getPlayerTeam, activeTeams } from './lib/teams';
 
 export default function VegasGrid({ matchId, matchName, matchCode, players, useHandicaps, useQuota, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
     const [scores, setScores] = useState({});
@@ -83,10 +84,11 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
   const getVegasPoints = (holeIndex) => {
     const teams = {};
     players.forEach(p => {
-      if (!teams[p.team]) teams[p.team] = [];
+      const teamName = getPlayerTeam(p);
+      if (!teams[teamName]) teams[teamName] = [];
       const strokes = scores[p.id]?.[holeIndex + 1];
       if (strokes) {
-        teams[p.team].push(calculateNetStrokes(strokes, holeIndex, p.handicap || p.hcp));
+        teams[teamName].push(calculateNetStrokes(strokes, holeIndex, p.handicap || p.hcp));
       }
     });
     
@@ -146,7 +148,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
-          {[...new Set(players.map(p => p.team).filter(Boolean))].map(tName => {
+          {activeTeams(players).map(tName => {
             let teamTotal = 0;
             for (const holeNum of holeNumbers) {
               const h = holeNum - 1;
@@ -224,7 +226,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                   {frontHoles.map((holeNum) => {
                     const i = holeNum - 1;
                     const pts = getVegasPoints(i);
-                    const isWinningTeam = pts[player.team] > 0;
+                    const isWinningTeam = pts[getPlayerTeam(player)] > 0;
                     
                     const holeDifficulty = hcds[i];
                     const hasOneStroke = useHandicaps && playerHcp >= holeDifficulty;
@@ -248,7 +250,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                         />
                         {isWinningTeam && playerScores[holeNum] > 0 && (
                           <div style={{ position: 'absolute', bottom: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: '#E91E63', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
-                            +{pts[player.team]}
+                            +{pts[getPlayerTeam(player)]}
                           </div>
                         )}
                       </td>
@@ -262,7 +264,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                   {backHoles.map((holeNum) => {
                     const realIndex = holeNum - 1;
                     const pts = getVegasPoints(realIndex);
-                    const isWinningTeam = pts[player.team] > 0;
+                    const isWinningTeam = pts[getPlayerTeam(player)] > 0;
                     
                     const holeDifficulty = hcds[realIndex];
                     const hasOneStroke = useHandicaps && playerHcp >= holeDifficulty;
@@ -286,7 +288,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                         />
                         {isWinningTeam && playerScores[holeNum] > 0 && (
                           <div style={{ position: 'absolute', bottom: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: '#E91E63', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
-                            +{pts[player.team]}
+                            +{pts[getPlayerTeam(player)]}
                           </div>
                         )}
                       </td>

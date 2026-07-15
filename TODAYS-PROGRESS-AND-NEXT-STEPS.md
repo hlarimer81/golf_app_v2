@@ -1,6 +1,65 @@
-# Golf App Progress - July 13, 2026 (Updated Evening Session)
+# Golf App Progress - July 14, 2026 (Updated)
 
-## Latest Session - Green GPS Feature Implementation ✅
+## Latest Session - Realtime Sync + GPS Modal + Repo Cleanup ✅
+
+### 1. ✅ Fixed "Add Green GPS Data" button (was silently no-op)
+**Problem:** Tapping the button did nothing on-course during testing.
+
+**Root cause:** `courseData` memo in `App.jsx` returned `pars`/`handicaps`/`greens` but never included `id` or `name`. `GolfGPSWidget`'s modal gate `if (showAddGreen && courseData?.id)` was always false, so the click set state but rendered nothing.
+
+**Fix:** Added `id` and `name` to the `courseData` memo. One-line change.
+
+**Commit:** `554e08a`
+
+### 2. ✅ Wired proper refetch after adding green data
+**Problem:** After a successful save, the widget was mutating `courseData.greens` in place and bumping a local `refreshKey`. Worked within the widget's own session, but on any parent re-render the fresh green would vanish until the whole app was reloaded.
+
+**Fix:**
+- Pass `fetchGolfCourses` from `App.jsx` down as `onCourseRefresh` prop
+- `handleAddGreenComplete` awaits the parent refetch before closing the modal
+- Dropped the mutation hack and `refreshKey` workaround (−11 lines net)
+
+**Commit:** `e1ce75b`
+
+### 3. ✅ Fixed cross-device realtime score sync
+**Problem:** Multiple players in separate groups all committing scores to the same match, but other players' updates weren't showing up on the web app.
+
+**Root cause:** Client subscription code was already wired in every grid, but the `scores` table had `REPLICA IDENTITY DEFAULT`. On UPDATE/DELETE, Postgres logical decoding only ships the primary key + changed columns — the row-level filter `match_id=eq.<X>` couldn't match because `match_id` wasn't in the payload. First entry of a score (INSERT) worked; every edit/clear afterwards was silently dropped by the server.
+
+**Fix (SQL, applied directly):**
+```sql
+ALTER TABLE public.scores REPLICA IDENTITY FULL;
+```
+
+Immediate effect — no app changes, no deploy. Tested on-course and confirmed working.
+
+### 4. ✅ Consolidated 9 grids onto the `useScores` hook
+**Problem:** Aggregate, Chairman, FourBall, Nassau, NinePoint, Singles, Vegas, Wolf, and WolfVegas each had their own copy-pasted fetch/subscribe/optimistic-save block. Three of them (`WolfGrid`, `VegasGrid`, `NassauGrid`) shared the literal channel name `'realtime-scores'`, which is subscription-collision territory.
+
+**Fix:** All 9 now use `useScores(matchId)` — the same hook Skins and Stableford already use. Channel is keyed by `matchId`, so no collisions.
+
+**Net −415 lines** (28 added, 443 removed).
+
+**Commit:** `3033137`
+
+### 5. ✅ Reorganized root folder
+**Problem:** ~65 loose SQL migrations, one-off JS scripts, and session-report docs at the repo root.
+
+**Structure:**
+- `sql/` — one-shot migrations & diagnostic queries (24 files)
+- `scripts/` — one-off Node data checks, migrations, API tests (22 files)
+- `docs/` — active reference (game mode standards, API refs, troubleshooting, security, schema guide, codebase review)
+- `docs/archive/` — one-time session reports and superseded notes (13 files)
+
+Removed empty stray `golf_app_v2/` directory. Verified no code references were broken.
+
+**Commit:** `2423ca5`
+
+**Root now contains just:** `docs/`, `scripts/`, `sql/`, `src/`, `supabase/`, `public/`, config files, `README.md`, this progress doc.
+
+---
+
+## Previous Session (July 13 Evening) - Green GPS Feature Implementation ✅
 
 ### 9. ✅ Manual Green GPS Entry Feature - COMPLETE & DEPLOYED
 **Problem:** No GPS yardage data available for greens. OSM data too sparse to be useful.
@@ -280,9 +339,11 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 ### 🧪 Immediate - On-Course Testing
 1. ✅ **COMPLETED:** Review all game modes for leaderboards/summaries
 2. ✅ **COMPLETED:** Green GPS manual entry feature
-3. **Test green GPS feature** - Try adding green data for a hole during a round
-4. **Test game modes in production** - Play rounds with each game to verify scoring
-5. **Monitor green data adoption** - Track how many users contribute GPS data
+3. ✅ **COMPLETED (July 14):** Test green GPS feature — bug found & fixed, needs re-test on course
+4. ✅ **COMPLETED (July 14):** Cross-device realtime score sync working
+5. **Re-test green GPS on course** - Verify the modal now opens and full 3-step wizard flows
+6. **Test game modes in production** - Play rounds with each game to verify scoring
+7. **Monitor green data adoption** - Track how many users contribute GPS data
 
 ### 🎯 Next Major Feature - User Authentication & Profiles
 **Goal:** Simplify player selection and enable calculated handicaps
@@ -408,8 +469,8 @@ CREATE TABLE user_rounds (
 
 ---
 
-**Status:** All known bugs fixed! Green GPS feature deployed!  
-**Next Focus:** On-course testing, then user authentication system.  
-**Major Milestone:** System is feature-complete for core gameplay + GPS.  
+**Status:** Green GPS modal + realtime score sync fixed. Repo cleaned up.
+**Next Focus:** On-course re-test of green GPS; then user authentication system.
+**Major Milestone:** System is feature-complete for core gameplay + GPS.
 
-**Last Updated:** July 13, 2026 - Evening session (Green GPS deployment complete)
+**Last Updated:** July 14, 2026 - Realtime sync fix + useScores refactor + root reorg

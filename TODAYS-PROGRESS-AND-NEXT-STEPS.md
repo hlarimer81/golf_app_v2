@@ -346,56 +346,35 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 7. **Monitor green data adoption** - Track how many users contribute GPS data
 
 ### 🎯 Next Major Feature - User Authentication & Profiles
-**Goal:** Simplify player selection and enable calculated handicaps
+**Goal:** Enable calculated handicaps and a "recent partners" list for repeat players, without adding friction to casual/guest rounds.
 
-#### Phase 1: User Database & Authentication
-- **Create `users` table** - Store user profiles separate from per-match players
-- **One-time simple auth** - Email/password or magic link (stateless web app challenge)
-- **Session tracking** - Cookie or localStorage-based (explore options)
-- **Migrate existing players** - Move frequently used players to users table
+**Design status:** Model agreed, no scaffolding yet.
 
-#### Phase 2: Smart Player Selection
-- **Recent players dropdown** - Show only players user has played with recently
-- **Quick add from recents** - One-tap to add frequent partners
-- **Search all users** - Fallback search for new players or infrequent partners
-- **Personal player list** - Each user sees their own frequently-played-with list
+#### Auth model
+- Supabase Auth via magic link. Session persists (long-lived refresh token), so mid-round re-auth is rare; when it does happen, app-switching to email is acceptable friction.
+- **Match creator must be signed in.** The match belongs to their account.
+- **Guest mode is always the escape hatch** — non-creator players can be added as guests without an account.
 
-#### Phase 3: Calculated Handicaps
-- **Handicap tracking** - Calculate running handicap from recent rounds
-- **Manual override** - Allow users to enter official handicap
-- **Game mode choice** - Choose calculated vs manual handicap per game
-- **Handicap history** - Show trending chart of user's handicap over time
+#### Data model — two parallel populations
+- **`players` table stays untouched.** Continues to serve as the guest list and remains shared with the other app that depends on it.
+- **New `users` table** for accounts. Populated at signup, forms the global directory.
+- Match roster mixes both: some slots reference a `players` row (guest), some reference a `users` row (account holder).
+- Handicap history and "recent partners" are computed only off the `users` side. Guests are scored but nothing accumulates for them.
 
-**Technical Challenges:**
-- Stateless web app - need auth that works without persistent sessions
-- Cookie/localStorage vs proper OAuth
-- Player data migration strategy
-- Backwards compatibility with existing matches
+#### Account-only features
+- **Calculated handicap** from round history stored against `user_id`.
+- **Recent partners list** — populated by shared matches between accounts, powers a fast-add dropdown at match creation.
+- **Global directory search** by email/name to add other users to a match.
 
-**Database Schema Ideas:**
-```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY,
-  email TEXT UNIQUE,
-  name TEXT,
-  manual_handicap DECIMAL(3,1),
-  calculated_handicap DECIMAL(3,1),
-  recent_partners JSONB,  -- Array of user IDs
-  created_at TIMESTAMPTZ,
-  last_active TIMESTAMPTZ
-);
+#### Deliberate tradeoffs
+- **No claim flow at launch.** If Alice plays with Bob-as-guest 10 times before Bob signs up, that history is invisible to both once he has an account. Accepted in exchange for keeping setup fast.
+- **Schema leaves the door open for a later claim flow.** Likely a `player_email_hints(player_id, email)` sidecar table so `players` itself stays untouched — an account holder can attach an email to a guest name, enabling a future "invite / claim your rounds" flow.
 
-CREATE TABLE user_rounds (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  match_id UUID REFERENCES matches(id),
-  gross_score INTEGER,
-  net_score INTEGER,
-  course_rating DECIMAL(4,1),
-  slope INTEGER,
-  played_at TIMESTAMPTZ
-);
-```
+#### Open questions (park until implementation)
+- **How the other app uses `players`** — we have codebase access, investigate before any schema decision that touches it (e.g. can we add nullable columns without breaking their reads?).
+- **Global directory disambiguation** — "which John Smith?" UX, and the email-privacy question when searching by email.
+- **RLS strategy.** Whole app currently runs on the anon key with no row-level rules. Introducing auth without RLS = fake security; introducing RLS breaks every existing anon query. Big scope, needs its own plan.
+- **Entirely-guest matches (creator excepted)** — should fall out naturally as "contribute nothing to handicap/recents," but worth sanity-checking during implementation.
 
 ### Medium Priority (After User Auth)
 4. **Add course editing** - Allow users to edit existing course/tee box data

@@ -1,17 +1,25 @@
 import React, { useState } from 'react';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
+import { useWolfVegasState } from './useWolfVegasState';
 
-// Wolf Vegas: exactly 4 players. Each hole one player is the "Wolf" (rotates). The Wolf
-// picks a partner (2v2), goes Lone Wolf (1v3, points doubled), or Blind Wolf (1v3, tripled).
-// Each side forms a two-digit "Vegas number" from its two net scores (low-then-high; the
-// number flips high-then-low when the OTHER side birdies). Points swing = difference of the
-// two Vegas numbers, scaled by the Lone/Blind multiplier. Winners gain, losers lose.
+// Wolf Vegas: 4 or 5 players. Each hole one player is the "Wolf" (rotates; tees last). The
+// Wolf picks a partner (2v2 at 4p, 2v3 at 5p), goes Lone Wolf (1v3 / 1v4, points doubled),
+// or Blind Wolf (tripled). Each side forms a two-digit "Vegas number" from its two LOWEST
+// net scores, low-then-high (a 1-man side doubles its net, e.g. 4 -> 44); the number flips
+// high-then-low when the OPPOSING side birdies. Points swing = difference of the two Vegas
+// numbers. Awarding: equal-sized sides settle the difference once each; unequal sides settle
+// per opposing player, so each wolf-side player swings mag*(opp count) and each opponent
+// swings mag*(wolf count) — always zero-sum. The Lone/Blind multiplier and the per-hole
+// hammer (x2 per hammer, stacking) scale both sides equally. Birdie uses net strokes by
+// default, or gross when "Gross birdies" is on. Winners gain, losers lose.
 export default function WolfVegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
   const { scores, saveScore } = useScores(matchId);
   const [showSummary, setShowSummary] = useState(false);
-  // decisions[holeNum] = partner playerId | 'lone' | 'blind'
-  const [decisions, setDecisions] = useState({});
+  // Wolf decisions, hammers, and the birdie option are persisted per-match (survive refresh
+  // and sync across devices). decisions[holeNum] = partner playerId | 'lone' | 'blind';
+  // hammers[holeNum] = hammer count (each doubles: 0->x1, 1->x2...); grossBirdies default false.
+  const { decisions, hammers, grossBirdies, setDecision, adjustHammer, cycleHammer, toggleGrossBirdies } = useWolfVegasState(matchId);
 
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -59,11 +67,28 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
   };
   const grossOf = (playerId, holeNum) => scores[playerId]?.[holeNum] ?? null;
 
-  const vegasNumber = (a, b, flip) => {
-    const lo = Math.min(a, b);
-    const hi = Math.max(a, b);
+  // A side's Vegas number: its two LOWEST nets, low digit first (or high first when flipped
+  // because the opposing side birdied). A one-man side doubles its net (4 -> 44); a flip is a
+  // no-op there (44 flipped is still 44), which is why an opponent birdie never bites a Lone Wolf.
+  const sideNumber = (nets, flip) => {
+    if (nets.length === 1) return nets[0] * 11;
+    const [lo, hi] = [...nets].sort((a, b) => a - b);
     return flip ? (hi * 10 + lo) : (lo * 10 + hi);
   };
+
+  // A side birdied if its lowest stroke is at least one under par. Any member's birdie counts.
+  // Uses gross strokes when "Gross birdies" is on, else net.
+  const sideBirdie = (members, holeNum, par) => {
+    let best = Infinity;
+    for (const p of members) {
+      const s = grossBirdies ? grossOf(p.id, holeNum) : cappedNet(p.id, holeNum);
+      if (s != null && s < best) best = s;
+    }
+    return best <= par - 1;
+  };
+
+  // Per-hole hammer multiplier: each hammer doubles the hole (x1, x2, x4, x8...).
+  const hammerMult = (holeNum) => Math.pow(2, hammers[holeNum] || 0);
 
   // Settle one hole -> { pts: {playerId: signed}, wolfNum, oppNum, diff, settled }
   const settleHole = (holeNum) => {
@@ -77,69 +102,57 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
     const wolf = getWolfPlayer(holeNum);
     const par = pars[holeNum - 1];
 
-    // All 4 must be scored
+    // Every player must be scored (4 or 5 of them).
     const net = {};
-    const gross = {};
     for (const p of players) {
       const n = cappedNet(p.id, holeNum);
       if (n === null) return result;
       net[p.id] = n;
-      gross[p.id] = grossOf(p.id, holeNum);
     }
 
+    // Form the two sides.
+    let wolfSide, oppSide, mult;
     if (decision === 'lone' || decision === 'blind') {
-      const mult = decision === 'blind' ? BLIND_MULT : LONE_MULT;
-      const opps = players.filter(p => p.id !== wolf.id);
-      // Opponents' number from their two lowest nets
-      const oppNets = opps.map(p => ({ id: p.id, net: net[p.id], gross: gross[p.id] }))
-        .sort((a, b) => a.net - b.net);
-      const best1 = oppNets[0];
-      const best2 = oppNets[1];
-      // Wolf birdie flips opponents' number
-      const wolfBirdie = gross[wolf.id] <= par - 1;
-      const wolfNum = net[wolf.id] * 11;
-      const oppNum = vegasNumber(best1.net, best2.net, wolfBirdie);
-      const diff = wolfNum - oppNum;
-      const mag = Math.abs(diff);
-      const stake = mag * mult;
-      if (diff < 0) {
-        opps.forEach(p => { pts[p.id] -= stake; });
-        pts[wolf.id] += stake * 3; // collects stake from each of 3
-      } else if (diff > 0) {
-        opps.forEach(p => { pts[p.id] += stake; });
-        pts[wolf.id] -= stake * 3;
-      }
-      result.wolfNum = wolfNum;
-      result.oppNum = oppNum;
-      result.diff = mag;
-      result.settled = true;
-      return result;
+      mult = decision === 'blind' ? BLIND_MULT : LONE_MULT;
+      wolfSide = [wolf];
+      oppSide = players.filter(p => p.id !== wolf.id);
+    } else {
+      const partner = players.find(p => p.id === decision);
+      if (!partner || partner.id === wolf.id) return result;
+      mult = 1;
+      wolfSide = [wolf, partner];
+      oppSide = players.filter(p => p.id !== wolf.id && p.id !== partner.id);
     }
+    if (oppSide.length === 0) return result;
 
-    // 2v2: decision is a partner playerId
-    const partner = players.find(p => p.id === decision);
-    if (!partner || partner.id === wolf.id) return result;
-    const opps = players.filter(p => p.id !== wolf.id && p.id !== partner.id);
-    if (opps.length !== 2) return result;
-
-    const wolfLoGross = Math.min(gross[wolf.id], gross[partner.id]);
-    const oppLoGross = Math.min(gross[opps[0].id], gross[opps[1].id]);
-    const wolfBirdie = wolfLoGross <= par - 1;
-    const oppBirdie = oppLoGross <= par - 1;
+    const nw = wolfSide.length;
+    const no = oppSide.length;
 
     // A side's number flips when the OPPOSING side birdied.
-    const wolfNum = vegasNumber(net[wolf.id], net[partner.id], oppBirdie);
-    const oppNum = vegasNumber(net[opps[0].id], net[opps[1].id], wolfBirdie);
+    const wolfBirdie = sideBirdie(wolfSide, holeNum, par);
+    const oppBirdie = sideBirdie(oppSide, holeNum, par);
+    const wolfNum = sideNumber(wolfSide.map(p => net[p.id]), oppBirdie);
+    const oppNum = sideNumber(oppSide.map(p => net[p.id]), wolfBirdie);
+
     const diff = wolfNum - oppNum;
     const mag = Math.abs(diff);
 
-    if (diff < 0) {
-      pts[wolf.id] += mag; pts[partner.id] += mag;
-      pts[opps[0].id] -= mag; pts[opps[1].id] -= mag;
+    // Equal sides settle the difference once each; unequal sides settle per opposing player,
+    // so a wolf-side player swings mag*no and an opponent swings mag*nw (always zero-sum).
+    // The Lone/Blind multiplier and the per-hole hammer scale both sides equally.
+    const equal = nw === no;
+    const scale = mult * hammerMult(holeNum);
+    const wolfEach = (equal ? mag : mag * no) * scale;
+    const oppEach = (equal ? mag : mag * nw) * scale;
+
+    if (diff < 0) {            // wolf side is lower -> wolf side wins
+      wolfSide.forEach(p => { pts[p.id] += wolfEach; });
+      oppSide.forEach(p => { pts[p.id] -= oppEach; });
     } else if (diff > 0) {
-      pts[opps[0].id] += mag; pts[opps[1].id] += mag;
-      pts[wolf.id] -= mag; pts[partner.id] -= mag;
+      wolfSide.forEach(p => { pts[p.id] -= wolfEach; });
+      oppSide.forEach(p => { pts[p.id] += oppEach; });
     }
+
     result.wolfNum = wolfNum;
     result.oppNum = oppNum;
     result.diff = mag;
@@ -160,9 +173,6 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
   const totals = calculateTotals();
 
 
-  const handleDecision = (holeNum, choice) => {
-    setDecisions(prev => ({ ...prev, [holeNum]: choice }));
-  };
 
   // ============================ SUMMARY ============================
   if (showSummary) {
@@ -198,6 +208,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                 <th style={{ padding: '6px', textAlign: 'left', color: '#888' }}>Hole</th>
                 <th style={{ padding: '6px', textAlign: 'center', color: '#888' }}>Wolf</th>
                 <th style={{ padding: '6px', textAlign: 'center', color: '#888' }}>Pick</th>
+                <th style={{ padding: '6px', textAlign: 'center', color: '#888' }}>🔨</th>
                 {players.map(p => (
                   <th key={p.id} style={{ padding: '6px', textAlign: 'center', color: ACCENT }}>{firstName(p)}</th>
                 ))}
@@ -220,6 +231,11 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                     <td style={{ padding: '6px', fontWeight: 'bold' }}>{holeNum}</td>
                     <td style={{ padding: '6px', textAlign: 'center', color: '#ccc' }}>🐺 {firstName(wolf)}</td>
                     <td style={{ padding: '6px', textAlign: 'center', color: (decision === 'lone' || decision === 'blind') ? '#FFD700' : '#aaa' }}>{pickLabel}</td>
+                    <td style={{ padding: '6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <button onClick={() => adjustHammer(holeNum, -1)} style={{ width: '20px', height: '20px', fontSize: '13px', lineHeight: '1', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>−</button>
+                      <span style={{ display: 'inline-block', minWidth: '30px', fontWeight: 'bold', color: (hammers[holeNum] || 0) > 0 ? '#FFD700' : '#555' }}>×{hammerMult(holeNum)}</span>
+                      <button onClick={() => adjustHammer(holeNum, 1)} style={{ width: '20px', height: '20px', fontSize: '13px', lineHeight: '1', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>+</button>
+                    </td>
                     {players.map(p => {
                       const pts = r.settled ? r.pts[p.id] : 0;
                       return (
@@ -257,8 +273,14 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
 
       {/* Points summary */}
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '12px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '10px', borderBottom: `2px solid ${ACCENT}` }}>
-        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '8px' }}>
           <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', letterSpacing: '2px' }}>🐺 WOLF VEGAS</div>
+          <button
+            onClick={() => toggleGrossBirdies()}
+            title="Which birdies flip a side's number"
+            style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', border: `1px solid ${ACCENT}`, background: grossBirdies ? ACCENT : 'transparent', color: grossBirdies ? '#fff' : '#aaa', cursor: 'pointer' }}>
+            Birdies: {grossBirdies ? 'Gross' : 'Net'}
+          </button>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap' }}>
           {players.map(p => {
@@ -284,19 +306,28 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {others.map(op => (
-                <button key={op.id} onClick={() => handleDecision(nextHole, op.id)}
+                <button key={op.id} onClick={() => setDecision(nextHole, op.id)}
                   style={{ padding: '8px 14px', fontSize: '13px', background: '#333', color: '#aaa', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
                   {firstName(op)}
                 </button>
               ))}
-              <button onClick={() => handleDecision(nextHole, 'lone')}
+              <button onClick={() => setDecision(nextHole, 'lone')}
                 style={{ padding: '8px 14px', fontSize: '13px', background: '#FF7043', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
                 Lone 🐺 (x2)
               </button>
-              <button onClick={() => handleDecision(nextHole, 'blind')}
+              <button onClick={() => setDecision(nextHole, 'blind')}
                 style={{ padding: '8px 14px', fontSize: '13px', background: '#D84315', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
                 Blind 🐺 (x3)
               </button>
+            </div>
+            {/* Hammer control for the hole being played */}
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+              <span style={{ fontSize: '11px', color: '#888', letterSpacing: '1px' }}>🔨 HAMMER</span>
+              <button onClick={() => adjustHammer(nextHole, -1)}
+                style={{ width: '28px', height: '28px', fontSize: '16px', background: '#333', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>−</button>
+              <span style={{ fontSize: '14px', fontWeight: 'bold', color: (hammers[nextHole] || 0) > 0 ? '#FFD700' : '#888', minWidth: '32px', textAlign: 'center' }}>×{hammerMult(nextHole)}</span>
+              <button onClick={() => adjustHammer(nextHole, 1)}
+                style={{ width: '28px', height: '28px', fontSize: '16px', background: '#333', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>+</button>
             </div>
           </div>
         );
@@ -310,12 +341,14 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
               {frontHoles.map((hNum) => (
                 <th key={`f-${hNum}`} style={{ padding: '8px', minWidth: '45px', borderLeft: '1px solid #333', backgroundColor: hNum % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
                   {hNum}<br /><span style={{ fontSize: '9px', color: '#666' }}>P{pars[hNum - 1]}</span>
+                  <div onClick={() => cycleHammer(hNum)} title="Tap to hammer" style={{ fontSize: '9px', marginTop: '2px', cursor: 'pointer', fontWeight: 'bold', color: (hammers[hNum] || 0) > 0 ? '#FFD700' : '#555' }}>🔨{(hammers[hNum] || 0) > 0 ? `×${hammerMult(hNum)}` : ''}</div>
                 </th>
               ))}
               {is18 && <th style={{ padding: '8px', minWidth: '45px', borderLeft: `3px solid ${ACCENT}`, borderRight: `3px solid ${ACCENT}`, backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>OUT</th>}
               {backHoles.map((hNum) => (
                 <th key={`b-${hNum}`} style={{ padding: '8px', minWidth: '45px', borderLeft: '1px solid #333', backgroundColor: hNum % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
                   {hNum}<br /><span style={{ fontSize: '9px', color: '#666' }}>P{pars[hNum - 1]}</span>
+                  <div onClick={() => cycleHammer(hNum)} title="Tap to hammer" style={{ fontSize: '9px', marginTop: '2px', cursor: 'pointer', fontWeight: 'bold', color: (hammers[hNum] || 0) > 0 ? '#FFD700' : '#555' }}>🔨{(hammers[hNum] || 0) > 0 ? `×${hammerMult(hNum)}` : ''}</div>
                 </th>
               ))}
               {is18 && <th style={{ padding: '8px', minWidth: '45px', borderLeft: `3px solid ${ACCENT}`, backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>IN</th>}
@@ -357,6 +390,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                   <td key={holeNum} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: cellBg, position: 'relative', minWidth: '55px' }}>
                     {isWolf && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', zIndex: 10 }}>🐺</div>}
                     {isPartner && <div style={{ position: 'absolute', top: '1px', left: '3px', fontSize: '8px', zIndex: 10 }}>🤝</div>}
+                    {isWolf && (hammers[holeNum] || 0) > 0 && <div style={{ position: 'absolute', top: '1px', left: '3px', fontSize: '8px', fontWeight: 'bold', color: '#FFD700', zIndex: 10 }}>🔨×{hammerMult(holeNum)}</div>}
                     <GolfScoreTile
                       id={`score-${holeNum}-${globalIdx}`}
                       type="tel"

@@ -16,6 +16,16 @@ import RequestCourseForm from './components/RequestCourseForm';
 import ReportCourseIssue from './components/ReportCourseIssue';
 import { gameDescriptions, gameRecentLabels } from './lib/gameRegistry';
 
+// Infer play_mode for matches created before the play_mode column was added.
+// Games with a fixed mode don't need to be stored. For ambiguous games (stableford,
+// skins, chairman, nassau) default to 'team' which matches StablefordGrid's own default.
+const inferPlayMode = (storedMode, gameType) => {
+  if (storedMode) return storedMode;
+  if (['fourball', 'vegas', 'aggregate'].includes(gameType)) return 'team';
+  if (['ninepoint', 'singles', 'wolf', 'wolfvegas'].includes(gameType)) return 'singles';
+  return 'team'; // stableford / skins / chairman / nassau default
+};
+
 // Generate a random 6-character code
 const generateMatchCode = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars like 0/O, 1/I
@@ -250,6 +260,7 @@ function App() {
         use_handicaps: useHandicaps,
         match_code: code,
         game_type: gameType,
+        play_mode: playMode,
         course_name: selectedCourseName,
         course_id: selectedCourseId === 'Peninsula Golf Club' ? null : (selectedCourseId || null),
         tee_box_id: selectedCourseId === 'Peninsula Golf Club' ? null : (selectedTeeBoxId || null),
@@ -311,6 +322,7 @@ function App() {
     setMatchName(matchData.match_name);
     setUseHandicaps(matchData.use_handicaps);
     setGameType(matchData.game_type || 'stableford');
+    setPlayMode(inferPlayMode(matchData.play_mode, matchData.game_type));
     setSelectedCourseId(matchData.course_id || 'Peninsula Golf Club');
     setSelectedTeeBoxId(matchData.tee_box_id || '');
     setHolesCount(matchData.holes || 18);
@@ -613,6 +625,7 @@ function App() {
     setMatchName(match.match_name);
     setUseHandicaps(match.use_handicaps);
     setGameType(match.game_type || 'stableford');
+    setPlayMode(inferPlayMode(match.play_mode, match.game_type));
     setSelectedCourseId(match.course_id || 'Peninsula Golf Club');
     setSelectedTeeBoxId(match.tee_box_id || '');
     setFinalPlayers(playersData);

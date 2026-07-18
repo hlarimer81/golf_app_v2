@@ -72,7 +72,7 @@ export const GAMES = {
     label: 'Wolf Vegas',
     recentLabel: 'Wolf Vegas',
     banner: '#AB47BC',
-    description: '4-player Wolf combined with Vegas. The rotating Wolf picks a partner, goes Lone (x2) or Blind (x3); sides form two-digit Vegas numbers and the difference is the points swing.',
+    description: '4- or 5-player Wolf combined with Vegas. The rotating Wolf picks a partner (2v2 / 2v3), goes Lone (x2) or Blind (x3); sides form two-digit Vegas numbers from their two low nets and the difference is the points swing, with an optional per-hole hammer.',
   },
   aggregate: {
     label: '2-Ball Aggregate',

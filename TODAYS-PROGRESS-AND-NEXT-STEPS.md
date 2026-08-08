@@ -575,18 +575,75 @@ migrating rows. This is close to the model score_play landed on independently (t
 golfer / saved roster person / guest" tiers), which is some evidence it holds up.
 
 #### Account-only features
-- **Calculated handicap** from round history stored against `user_id`.
+- ~~**Calculated handicap** from round history stored against `user_id`.~~ **ALREADY BUILT
+  (2026-08-08)** and not account-gated — see the handicap section above. It keys on
+  `round_differential.canonical_name`, a text identity, so accounts are not a prerequisite. When auth
+  lands, an account claims a canonical name rather than starting a fresh history.
 - **Recent partners list** — populated by shared matches between accounts, powers a fast-add dropdown at match creation.
 - **Global directory search** by email/name to add other users to a match.
 
-#### Deliberate tradeoffs
-- **No claim flow at launch.** If Alice plays with Bob-as-guest 10 times before Bob signs up, that history is invisible to both once he has an account. Accepted in exchange for keeping setup fast.
-- **Schema leaves the door open for a later claim flow.** Likely a `player_email_hints(player_id, email)` sidecar table so `players` itself stays untouched — an account holder can attach an email to a guest name, enabling a future "invite / claim your rounds" flow.
+#### 🆕 CLAIM YOUR PLAYER — now a first-class step, and mostly already built
+
+> **The old plan here said "no claim flow at launch, that history is invisible once he has an
+> account." That tradeoff is obsolete.** The handicap work built the machinery incidentally, and it
+> is proven: 15 aliases in production, 32 rows reattributed, zero data loss.
+
+The claim flow is the same operation as the name merges already performed, with an account on one
+end instead of a canonical name:
+
+| Piece | Status |
+|---|---|
+| `player_alias (alias_name → canonical_name)` | **exists**, 15 rows in use |
+| `round_differential.canonical_name` on every banked round | **exists** |
+| `golf_resync_canonical_names()` — retroactively reattribute banked rounds | **exists**, `service_role` only |
+| Identity → account link | **to build** — one nullable column |
+
+**What claiming does:** Bob signs up, sees rounds played under `Bob`, `Bob T` and `B Thompson`,
+confirms which are his, and the same resync that merged `Ryan`→`Ryan B` reattributes them. His index
+appears immediately, computed from history that predates his account.
+
+Design notes for when it is built:
+
+- **Claim the canonical name, not each round.** `golf_canonical_name()` already collapses aliases, so
+  an account needs one link to a canonical name and every past *and future* round follows. Claiming
+  round-by-round would re-solve a problem already solved.
+- **`player_email_hints` is no longer needed.** It existed to avoid touching `players` when `players`
+  was shared with score_play. It isn't shared any more (see Latest Session §8), so the link belongs
+  on the identity itself — a nullable `account_id`, the model score_play arrived at independently.
+- **Claims need confirmation, not just assertion.** Anyone could claim `Ryan B` and inherit 32 rounds
+  including money records. Minimum bar: the round host approves, or an existing account holder
+  vouches. This is exactly the enumeration problem `friend_code` solves in score_play's design.
+- **Excluded rows stay excluded on claim.** `Matt` is excluded as unattributable; a claim is precisely
+  the evidence that would reverse it, so the claim flow should *offer* excluded rows for review rather
+  than silently absorbing or silently ignoring them.
+- **A claim must be reversible.** Aliases delete cleanly and a resync restores the prior attribution —
+  keep that property, and never rewrite `player_name`, which is the provenance of what was actually
+  typed on the day.
+
+#### Suggested order
+
+1. **Authentication itself.** Supabase Auth, magic link. Match creator signs in; guests stay
+   frictionless. Nothing below can be tested until `auth.uid()` resolves.
+2. **Identity → account link.** One nullable `account_id`, plus the claim/confirm flow above.
+3. **RLS.** See below — the big one, and deliberately last because policies need real identities to
+   be written against.
 
 #### Open questions (park until implementation)
 - ~~**How the other app uses `players`**~~ — **ANSWERED Aug 8: it doesn't.** No external reader of
   this schema exists. Any schema decision here is now unilateral.
 - **RLS strategy.** Whole app currently runs on the anon key with no row-level rules. Introducing auth without RLS = fake security; introducing RLS breaks every existing anon query. Big scope, needs its own plan. **This is the real blocker** — the largest remaining piece of the auth work.
+
+  **Two hard-won facts to carry in** (both cost real time on Aug 8):
+  - `enable-rls-golf-tables.sql` granted every write policy `TO authenticated` on an app that never
+    authenticates — so none of eight policies ever matched a request, and two shipped features were
+    silently broken for weeks. **When auth lands, revisit every `TO anon` policy added since**;
+    several exist purely because there was no authenticated role to grant to.
+  - **Supabase auto-grants EXECUTE on every new function to `anon`**, so a `SECURITY DEFINER`
+    function is public by default and `REVOKE ... FROM PUBLIC` is a no-op against it. Revoke from
+    `anon, authenticated` **by name**.
+- **A blocked write can be silent.** UPDATE/DELETE refused by a policy's `USING` match zero rows and
+  do **not** raise; INSERT refused by `WITH CHECK` raises `42501`. Every write must check its
+  affected-row count. Three sites in `src/` still don't (see Latest Session §4).
 - **Global directory disambiguation** — "which John Smith?" UX, and the email-privacy question when searching by email.
 - **Entirely-guest matches (creator excepted)** — should fall out naturally as "contribute nothing to handicap/recents," but worth sanity-checking during implementation.
 
@@ -709,9 +766,18 @@ adopt, but the reasoning transfers and it is already on disk.
 ---
 
 **Status:** Standalone. score_play split accepted; this app owns its schema outright.
-Green GPS working end to end. Handicap system live, backfilled and wired.
-**Next Focus:** Play a round to exercise Finish Round → banking on real data; then revisit the auth
-data model now that the `players` constraint is lifted, with RLS as the main scope.
+Green GPS working end to end. Handicap system complete — 18-hole and 9-hole, backfilled, wired to
+Finish Round, with a nightly pg_cron backstop.
+
+**Next Focus — in this order:**
+1. **Play a round** to exercise Finish Round → banking on real data. The only step needing a course.
+2. **Authentication.** Supabase Auth magic link; creator signs in, guests stay frictionless.
+3. **Claim your player.** Link an account to a canonical name so a new signup inherits their existing
+   handicap history. Mostly already built — `player_alias` and `golf_resync_canonical_names()` are
+   the same machinery that merged 15 names on Aug 8. Needs an `account_id` link and a confirmation
+   step so nobody can claim someone else's 32 rounds.
+4. **RLS.** The real blocker and the largest piece; deliberately last, because policies need real
+   identities to be written against.
 **Major Milestone:** System is feature-complete for core gameplay + GPS.
 
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire

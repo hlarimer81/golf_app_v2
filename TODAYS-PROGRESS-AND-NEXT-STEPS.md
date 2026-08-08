@@ -615,10 +615,18 @@ rediscovered as gaps.
   unattributable; `Matt F` merged into `Matt Flum`; `Matt H` and `Matt Adams` stand alone. Excluded
   rather than deleted — the scores are real, they just cannot be pinned to a person, and the call
   reverses with an UPDATE.
-- **Remaining alias calls, still open:** the roster duplicates, chiefly `Jordan B` (hcp 15) vs
-  `Jordan Burgie` (hcp 7) — 8 strokes apart, so one of those numbers is wrong regardless of the
-  merge — plus `Hampton`/`Justin Hampton`, `Iiams`/`Chris Iiams`, `Hunzy`/`Andy Hunziker`,
-  `Pyle`/`Ben Pyle`. Commented out in `sql/handicap-aliases-proposed.sql` rather than guessed at.
+- ~~**Roster duplicates**~~ — **RESOLVED 2026-08-08.** All five merged via
+  `sql/handicap-merge-roster-duplicates.sql`: Jordan B→Jordan Burgie (set to hcp 15, the two rows
+  had disagreed by 8 strokes), Hampton→Justin Hampton, Iiams→Chris Iiams, Hunzy→Andy Hunziker,
+  Pyle→Ben Pyle. Roster 42 → 37, aliases now 15, and **zero remaining name pairs where one contains
+  the other.**
+
+  Note this took TWO operations, because aliases and the picker are different problems: `player_alias`
+  fixes *attribution* (which person a round's scores belong to), while the duplicate `players` row had
+  to be deleted to fix the *picker* — App.jsx reads `globalPlayers` straight from
+  `players WHERE match_id IS NULL`, so an alias alone leaves both names on screen at setup. Only
+  roster rows were deleted; rows recording a seat in an actual round carry a `match_id` and were
+  untouched, guarded by an abort check that no score referenced them.
 
 ### Medium Priority (After User Auth)
 4. **Add course editing** - Allow users to edit existing course/tee box data

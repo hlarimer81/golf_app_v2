@@ -595,22 +595,30 @@ tiers, RLS policy design, and a list of gotchas found by attacking their own sch
 writes, `FOR ALL` policies applying to SELECT, per-row vs per-query predicate cost). Not a schema to
 adopt, but the reasoning transfers and it is already on disk.
 
-### 🧮 Handicaps — deliberately deferred, with reasons
+### 🧮 Handicaps — deferred items now COMPLETE (2026-08-08)
 
-Assessed with evidence on 2026-08-08 and **judged not worth doing yet.** Recorded so they are not
-rediscovered as gaps.
+- ~~**9-hole rounds don't count**~~ — **DONE.** `sql/handicap-nine-hole.sql`. WHS pairing: two
+  9-hole differentials sum into one 18-hole differential, paired chronologically **at read time**
+  in `golf_handicap_index()` rather than written as synthetic rows (which would have no `match_id`
+  and need re-pairing on every correction). An unpaired trailing nine is ignored, as WHS specifies.
+  29 banked from 14 matches.
 
-- **9-hole rounds don't count.** 29 qualifying player-rounds across 21 players — ~1.4 each, too thin
-  to move anyone's index, and WHS 9-hole pairing (two nines combined into one differential) is real
-  work. The one argument for it: 13 players sit at 1–2 banked rounds, just under the 3-round
-  minimum, so a few would gain an index at all. Revisit if nines become common.
-- **The scheduled backstop isn't scheduled.** `golf_sweep_unbanked()` exists, is correctly locked to
-  `service_role`, and can be run by hand through psql. pg_cron is **not** installed; a Supabase
-  scheduled edge function is the likely route.
-- ⚠️ **THE DEPENDENCY THAT MATTERS: never schedule `delete_old_matches()` without scheduling the
-  sweep first.** A round nobody pressed Finish on is unbanked, and the delete would take it with no
-  trace. Both are dormant today, which is consistent. Turning on one without the other is the
-  failure mode.
+  **The trap it existed to avoid:** 9-hole matches store scores on holes **10–18**, not 1–9. The
+  original code summed the whole 18-element `course_pars` array, which would have given par 72 for a
+  nine and a differential ~36 strokes wrong. Par is now derived from the holes actually scored,
+  correct for 1–9, 10–18, or any shotgun range.
+
+  Effect: Ryan B 9.1→9.3, Nick G 7.0→7.3, and Arick L gained an index. Modest today — only 3 of 21
+  players with a nine had two — but nines now accumulate and pair themselves going forward.
+
+- ~~**The scheduled backstop isn't scheduled**~~ — **DONE.** `sql/handicap-schedule.sql`. pg_cron
+  turned out to be available (1.6.4) and is now installed; job `golf-sweep-unbanked` runs
+  `0 8 * * *` (≈2–3am Central). Banking is idempotent, so a nightly pass can never double-count.
+
+- ⚠️ **THE DEPENDENCY STILL MATTERS, and is now satisfied in the right order.** The sweep is
+  scheduled; `delete_old_matches()` remains **dormant** and is deliberately NOT scheduled by that
+  file. If it is ever turned on, it must stay *after* the sweep — a round nobody finished is
+  unbanked, and the delete would take it with no trace and no error.
 - ~~**The two-Matts ambiguity**~~ — **RESOLVED 2026-08-08 by Harold.** `Matt` (5 rounds) excluded as
   unattributable; `Matt F` merged into `Matt Flum`; `Matt H` and `Matt Adams` stand alone. Excluded
   rather than deleted — the scores are real, they just cannot be pinned to a person, and the call

@@ -62,22 +62,27 @@ export default function AddGreenData({ courseId, courseName, holeNumber, onCompl
     }
 
     const pointType = steps[step - 1];
-    setGreenData(prev => ({
-      ...prev,
+    const captured = {
+      ...greenData,
       [pointType]: {
         lat: currentLocation.lat,
         lon: currentLocation.lon
       }
-    }));
+    };
+    setGreenData(captured);
 
     if (step < 3) {
       setStep(step + 1);
     } else {
-      saveGreenData();
+      // Pass `captured` rather than letting saveGreenData read greenData from state. setGreenData
+      // is asynchronous, so on this final step the state has NOT updated yet and the closure still
+      // holds back: null - which is exactly how every green captured before this fix was stored
+      // with a null back edge.
+      saveGreenData(captured);
     }
   };
 
-  const saveGreenData = async () => {
+  const saveGreenData = async (data) => {
     setStep(4);
 
     try {
@@ -99,9 +104,9 @@ export default function AddGreenData({ courseId, courseName, holeNumber, onCompl
 
       const newGreenEntry = {
         hole: holeNumber,
-        front: greenData.front,
-        center: greenData.center,
-        back: greenData.back,
+        front: data.front,
+        center: data.center,
+        back: data.back,
         added_by: 'user', // Could track user ID here
         added_at: new Date().toISOString()
       };

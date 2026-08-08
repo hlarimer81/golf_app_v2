@@ -122,12 +122,23 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
       const green = courseData?.greens?.find(g => g.hole === targetHole);
       if (green) {
         // Check format: new front/center/back objects or old polygon or old f/m/b arrays
-        if (green.front && green.center && green.back) {
-          // NEW FORMAT: {front:{lat,lon}, center:{lat,lon}, back:{lat,lon}}
+        //
+        // ANY of the three is enough. Requiring all three meant a green missing one point showed
+        // NO distances at all - it fell through every branch to nulls and sat on "Tracking green
+        // coordinates..." forever. Partial greens are normal: a capture can be interrupted, and
+        // every green captured before the stale-state fix in AddGreenData.jsx has a null back.
+        if (green.front || green.center || green.back) {
+          // NEW FORMAT: {front:{lat,lon}, center:{lat,lon}, back:{lat,lon}}, any subset present
           setDistances({
-            front: calculateDistanceInYards(latitude, longitude, green.front.lat, green.front.lon),
-            middle: calculateDistanceInYards(latitude, longitude, green.center.lat, green.center.lon),
-            back: calculateDistanceInYards(latitude, longitude, green.back.lat, green.back.lon),
+            front: green.front
+              ? calculateDistanceInYards(latitude, longitude, green.front.lat, green.front.lon)
+              : null,
+            middle: green.center
+              ? calculateDistanceInYards(latitude, longitude, green.center.lat, green.center.lon)
+              : null,
+            back: green.back
+              ? calculateDistanceInYards(latitude, longitude, green.back.lat, green.back.lon)
+              : null,
           });
         } else if (green.polygon && Array.isArray(green.polygon)) {
           // POLYGON FORMAT: Calculate from polygon
@@ -289,7 +300,9 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
         <div style={{ fontSize: '12px', color: '#ff9800', textAlign: 'center', padding: '10px' }}>
           ⚠️ GPS Error: {error}. Check iPhone settings.
         </div>
-      ) : !distances.middle ? (
+      ) : (distances.front == null && distances.middle == null && distances.back == null) ? (
+        // Only when we have NOTHING. Gating on `middle` alone kept a front-and-back green stuck
+        // here with two perfectly good numbers to show.
         <div style={{ fontSize: '12px', color: '#aaa', textAlign: 'center', padding: '10px' }}>
           🛰️ Tracking green coordinates...
         </div>
@@ -297,15 +310,15 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
           <div>
             <div style={{ fontSize: '9px', color: '#888', fontWeight: 'bold' }}>FRONT</div>
-            <div style={{ fontSize: '20px', fontWeight: '900', color: '#ff9800' }}>{distances.front} <span style={{ fontSize: '11px', fontWeight: 'normal' }}>yd</span></div>
+            <div style={{ fontSize: '20px', fontWeight: '900', color: distances.front == null ? '#555' : '#ff9800' }}>{distances.front ?? '–'} {distances.front != null && <span style={{ fontSize: '11px', fontWeight: 'normal' }}>yd</span>}</div>
           </div>
           <div style={{ borderLeft: '1px solid #333', borderRight: '1px solid #333', padding: '0 20px' }}>
             <div style={{ fontSize: '9px', color: '#888', fontWeight: 'bold' }}>MIDDLE</div>
-            <div style={{ fontSize: '26px', fontWeight: '900', color: '#4CAF50' }}>{distances.middle} <span style={{ fontSize: '14px', fontWeight: 'normal' }}>yd</span></div>
+            <div style={{ fontSize: '26px', fontWeight: '900', color: distances.middle == null ? '#555' : '#4CAF50' }}>{distances.middle ?? '–'} {distances.middle != null && <span style={{ fontSize: '14px', fontWeight: 'normal' }}>yd</span>}</div>
           </div>
           <div>
             <div style={{ fontSize: '9px', color: '#888', fontWeight: 'bold' }}>BACK</div>
-            <div style={{ fontSize: '20px', fontWeight: '900', color: '#2196F3' }}>{distances.back} <span style={{ fontSize: '11px', fontWeight: 'normal' }}>yd</span></div>
+            <div style={{ fontSize: '20px', fontWeight: '900', color: distances.back == null ? '#555' : '#2196F3' }}>{distances.back ?? '–'} {distances.back != null && <span style={{ fontSize: '11px', fontWeight: 'normal' }}>yd</span>}</div>
           </div>
         </div>
       )}
@@ -316,8 +329,9 @@ export default function GolfGPSWidget({ courseData, matchId, players, courseName
         </div>
       )}
 
-      {/* Show "Add Green Data" button if distances are showing */}
-      {distances.middle && (
+      {/* Show "Add Green Data" button if any distance is showing. Keyed off `middle` alone, a
+          partially-captured green hid the very button needed to finish capturing it. */}
+      {(distances.front != null || distances.middle != null || distances.back != null) && (
         <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #333' }}>
           <button
             onClick={() => setShowAddGreen(true)}

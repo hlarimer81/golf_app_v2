@@ -1,6 +1,139 @@
-# Golf App Progress - July 14, 2026 (Updated)
+# Golf App Progress - August 8, 2026 (Updated)
 
-## Latest Session - Realtime Sync + GPS Modal + Repo Cleanup ✅
+## Latest Session (Aug 8) - score_play split, and what it unblocks ✅
+
+No code changed. This session established where this app stands relative to `score_play`, and the
+answer reshapes the auth plan below.
+
+### 1. ✅ score_play has hard-forked this app — split accepted
+
+`~/Documents/Personal_Software/score_play` contains `web/`, which arrived as a git subtree of this
+repo, byte-identical to `860fffb` (Jul 17). Ryan Bryngelson then ported it to a redesigned schema
+between Jul 31 and Aug 4 — auth, a new data layer, and the C scoring engine compiled to WASM.
+
+**Decision: this repo continues standalone. score_play is a separate project.** No merge, no sync
+convention.
+
+Divergence at the split: 39 files touched, +3,376 / −2,798, ~36% of the tree byte-identical. Their
+additions are almost entirely the data layer (`src/lib/`, `src/auth/`, `src/engine/`). The five
+bespoke game grids (Nassau, Skins, Wolf, Wolf Vegas, Stableford) and the legacy JS scoring engine
+(`settlement.js`, `nassauEngine.js`, `lib/golf.js`) are still this repo's code, unchanged.
+
+### 2. ✅ The databases are fully separate
+
+| | Supabase project |
+|---|---|
+| **this app** | `lvwdffsibhqzgbqixfdi` — legacy flat schema (`matches` / `players` / `scores` / `golf_courses` / `tee_boxes`) |
+| score_play prod | `jnflakqaptrgnfbqslld` |
+| score_play dev | `mxhutmpewzfxpkbyneqi` |
+
+Their schema is singular snake_case (`event` / `play_group` / `participant` / `score` / `golfer` /
+`course` / `tee`). **Schema changes here cannot affect them.**
+
+Consequence accepted: this app and the Tab5 / e-paper displays can no longer be used in the same
+round. The displays speak the new schema only.
+
+### 3. ⚠️ One live coupling survives — firmware OTA is hosted here
+
+`score_play/tools/release/merge.py` defaults its firmware download base URL to
+**this project's public `firmware` storage bucket**, and every product build (`p4/`, `epd/`, `gps/`,
+`c6/`) invokes it with no override. Devices fetch the manifest from score_play's prod project, then
+download the `.bin` from here.
+
+**Do not delete, pause, or lock down this Supabase project** — every deployed unit would lose OTA.
+Schema changes are harmless; project lifecycle is not. Fix is Ryan's: repoint `DEFAULT_BASE_URL` and
+re-publish. Needs an email.
+
+### 4. 🐛 Green GPS wizard has NEVER saved — silent RLS refusal, fixed
+
+Chased the on-course green test. It didn't save, and neither has any other: **no wizard-written
+green exists in the database.** Only Veenker has green data (18 holes), and none of it carries the
+`added_by: 'user'` / `added_at` stamp `AddGreenData.jsx` always writes — it is all converted
+polygon data from the earlier f/c/b migration.
+
+**Root cause: `golf_courses` has RLS enabled but no anon UPDATE policy.** Confirmed by no-op PATCH
+probes with the anon key:
+
+| Table | no-op anon UPDATE | |
+|---|---|---|
+| `golf_courses` | 0 rows, HTTP 200 | **blocked** |
+| `courses` (legacy) | 1 row | allowed |
+| `matches` | 1 row | allowed |
+
+An UPDATE refused by a policy's `USING` clause **matches zero rows and does not raise.**
+`AddGreenData.jsx` checked only `updateError`, which stayed null, so the wizard showed a success
+screen having written nothing.
+
+**The July 14 refetch fix is what exposed this.** Before it, the in-place `courseData.greens`
+mutation made the green appear to persist for the session; after it, the refetch pulls back
+unchanged data and the green vanishes immediately.
+
+**THE REAL ROOT CAUSE, found while creating a test course:** `sql/enable-rls-golf-tables.sql`
+granted every write policy on `golf_courses` and `tee_boxes` **`TO authenticated`**. This app has no
+authentication — `supabaseClient.js` uses the anon key and there is not one `supabase.auth.*` call
+in `src/`. So every request the app has ever made arrives as `anon`, and **not one of those eight
+policies has ever matched a single call.** Confirmed by reading `pg_policies` directly.
+
+Two shipped features were broken the whole time, with different symptoms, because INSERT and UPDATE
+fail differently under RLS:
+
+| Feature | Operation | Symptom |
+|---|---|---|
+| Add Green GPS Data | `UPDATE golf_courses` | **silent** — 0 rows, HTTP 200, no error, false success |
+| Manual Course Entry | `INSERT golf_courses` / `tee_boxes` | **loud** — raises `42501` |
+
+**Fixed and verified against the live database (Aug 8):**
+- `sql/add-golf-courses-update-policy.sql` — **applied.**
+- `sql/fix-anon-write-policies-courses.sql` — **applied.** Grants anon INSERT + UPDATE on both
+  tables; deliberately withholds DELETE (the app never deletes a course, and the anon key ships in
+  the client bundle).
+- `src/components/AddGreenData.jsx` — `.select('id')` on the update, and a thrown error when zero
+  rows come back. A 2xx with no rows is a failure, not a success.
+
+Verified from the **anon** role, not as `postgres` (which bypasses RLS and would pass vacuously):
+app's exact `fetchGolfCourses()` query returns the course usable · anon INSERT into `golf_courses`
+PASS · anon INSERT into `tee_boxes` PASS · anon DELETE still blocked PASS. Probe rows removed.
+
+Earlier round-trip proof of the green path on Deer Run, mirroring `saveGreenData()` exactly:
+read → append → update with `.select('id')` → **1 row** → independent read-back found the green →
+restored to null. No probe data remains anywhere.
+
+**Test course created for on-course GPS testing:** `ZZ TEST - GPS Wizard (delete me)`, 18 holes,
+par 72, one "Test" tee set, `greens = NULL` so every hole offers the Add Green button. `ZZ` prefix
+sorts it to the bottom of the picker. Created by `sql/create-test-gps-course.sql`, which carries its
+own cleanup `DELETE` (commented) at the foot. **Note `golf_courses` has no lat/lon columns** —
+`location` is a display label only, all geography lives in `greens`, so the course becomes "at your
+location" the moment you capture a green there.
+
+**Tooling:** psql now available at `/opt/homebrew/opt/libpq/bin/psql` (keg-only libpq). Session
+pooler on port 5432 — NOT the transaction pooler on 6543, which does not handle `DO` blocks.
+Password lives in `.env.local` (gitignored by `*.local`), deliberately separate from `.env`, whose
+`VITE_`-prefixed vars get baked into the client bundle.
+
+**Still open — same class, elsewhere.** Three of the six write sites in `src/` discard their result
+entirely (`usePresses.js:23,31` use `.then(() => {})`, `useWolfVegasState.js:58` checks only
+`error`). Worth the same treatment.
+
+### 5. 🐛 `usePresses.js` writes to a column that does not exist
+
+`matches` has `press_mode`, `wager`, `wolf_partners`, `wolf_vegas`, `wv_hammers` — but **no
+`presses` column.** Both call sites write `{ presses: next }` and swallow the resulting `42703`
+with `.then(() => {})`. Consistent with the known "Nassau presses need DB persistence" backlog item
+below, but the code currently pretends to save. Not fixed — needs the schema decision first.
+
+### 6. 🔓 The `players` constraint is gone — auth plan needs revisiting
+
+The auth design below was built around *"`players` stays untouched, it's shared with the other app."*
+**That is no longer true.** Nothing else reads `players`: score_play's web app queries
+`golfer`/`participant`, and `golf_sync.c` — the only firmware client that ever spoke this schema —
+was deleted outright.
+
+The parallel `users` table was a compatibility concession to a constraint that no longer exists. See
+Next Steps.
+
+---
+
+## Previous Session (July 14) - Realtime Sync + GPS Modal + Repo Cleanup ✅
 
 ### 1. ✅ Fixed "Add Green GPS Data" button (was silently no-op)
 **Problem:** Tapping the button did nothing on-course during testing.
@@ -341,7 +474,10 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 2. ✅ **COMPLETED:** Green GPS manual entry feature
 3. ✅ **COMPLETED (July 14):** Test green GPS feature — bug found & fixed, needs re-test on course
 4. ✅ **COMPLETED (July 14):** Cross-device realtime score sync working
-5. **Re-test green GPS on course** - Verify the modal now opens and full 3-step wizard flows
+5. **Re-test green GPS on course** - Verify the modal now opens and full 3-step wizard flows.
+   **Unblocked (Aug 8):** the missing UPDATE policy is applied and the write path is verified
+   end to end against the live database. The wizard will now either save or throw a real error;
+   it can no longer fail quietly. This is the one item that needs a real round to close.
 6. **Test game modes in production** - Play rounds with each game to verify scoring
 7. **Monitor green data adoption** - Track how many users contribute GPS data
 
@@ -356,10 +492,21 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 - **Guest mode is always the escape hatch** — non-creator players can be added as guests without an account.
 
 #### Data model — two parallel populations
-- **`players` table stays untouched.** Continues to serve as the guest list and remains shared with the other app that depends on it.
+> ⚠️ **REVISIT BEFORE BUILDING (Aug 8).** This design assumed `players` was shared with another app
+> and had to stay untouched. It isn't, and it doesn't — see Latest Session §4. The parallel `users`
+> table was a workaround for a constraint that no longer exists. Reshaping `players` directly is now
+> on the table and is probably the simpler model.
+
+- ~~**`players` table stays untouched.** Continues to serve as the guest list and remains shared with the other app that depends on it.~~ **Obsolete — nothing else reads `players`.**
 - **New `users` table** for accounts. Populated at signup, forms the global directory.
 - Match roster mixes both: some slots reference a `players` row (guest), some reference a `users` row (account holder).
 - Handicap history and "recent partners" are computed only off the `users` side. Guests are scored but nothing accumulates for them.
+
+**Alternative now open:** one `players` table with a nullable `account_id` — non-null means an
+account holder whose stats accumulate, null means a guest. Collapses two populations into one and
+deletes the claim-flow problem, since promoting a guest becomes setting a column rather than
+migrating rows. This is close to the model score_play landed on independently (their "first-class
+golfer / saved roster person / guest" tiers), which is some evidence it holds up.
 
 #### Account-only features
 - **Calculated handicap** from round history stored against `user_id`.
@@ -371,10 +518,16 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 - **Schema leaves the door open for a later claim flow.** Likely a `player_email_hints(player_id, email)` sidecar table so `players` itself stays untouched — an account holder can attach an email to a guest name, enabling a future "invite / claim your rounds" flow.
 
 #### Open questions (park until implementation)
-- **How the other app uses `players`** — we have codebase access, investigate before any schema decision that touches it (e.g. can we add nullable columns without breaking their reads?).
+- ~~**How the other app uses `players`**~~ — **ANSWERED Aug 8: it doesn't.** No external reader of
+  this schema exists. Any schema decision here is now unilateral.
+- **RLS strategy.** Whole app currently runs on the anon key with no row-level rules. Introducing auth without RLS = fake security; introducing RLS breaks every existing anon query. Big scope, needs its own plan. **This is the real blocker** — the largest remaining piece of the auth work.
 - **Global directory disambiguation** — "which John Smith?" UX, and the email-privacy question when searching by email.
-- **RLS strategy.** Whole app currently runs on the anon key with no row-level rules. Introducing auth without RLS = fake security; introducing RLS breaks every existing anon query. Big scope, needs its own plan.
 - **Entirely-guest matches (creator excepted)** — should fall out naturally as "contribute nothing to handicap/recents," but worth sanity-checking during implementation.
+
+**Free reading:** `score_play/doc/db_design.md` works this exact problem end to end — player identity
+tiers, RLS policy design, and a list of gotchas found by attacking their own schema (silent blocked
+writes, `FOR ALL` policies applying to SELECT, per-row vs per-query predicate cost). Not a schema to
+adopt, but the reasoning transfers and it is already on disk.
 
 ### Medium Priority (After User Auth)
 4. **Add course editing** - Allow users to edit existing course/tee box data
@@ -448,8 +601,12 @@ Some games (Wolf, Wolf Vegas, Aggregate) have complex scoring that benefits from
 
 ---
 
-**Status:** Green GPS modal + realtime score sync fixed. Repo cleaned up.
-**Next Focus:** On-course re-test of green GPS; then user authentication system.
+**Status:** Standalone. score_play split accepted; this app owns its schema outright.
+**Next Focus:** On-course re-test of green GPS; then revisit the auth data model now that the
+`players` constraint is lifted, with RLS as the main scope.
 **Major Milestone:** System is feature-complete for core gameplay + GPS.
 
-**Last Updated:** July 14, 2026 - Realtime sync fix + useScores refactor + root reorg
+**Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
+the project. See Latest Session §3.
+
+**Last Updated:** August 8, 2026 - score_play split established; auth plan unblocked

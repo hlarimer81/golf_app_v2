@@ -115,13 +115,24 @@ export default function AddGreenData({ courseId, courseName, holeNumber, onCompl
         greens.sort((a, b) => a.hole - b.hole);
       }
 
-      // Save to database
-      const { error: updateError } = await supabase
+      // Save to database.
+      // .select() is required, not decoration: a write refused by RLS matches zero rows and does
+      // NOT raise, so updateError stays null and we would report success having saved nothing.
+      const { data: updated, error: updateError } = await supabase
         .from('golf_courses')
         .update({ greens: greens })
-        .eq('id', courseId);
+        .eq('id', courseId)
+        .select('id');
 
       if (updateError) throw updateError;
+
+      // Zero rows back means the write was silently refused, not that nothing needed changing.
+      if (!updated?.length) {
+        throw new Error(
+          'the database refused the write (0 rows updated). golf_courses is likely missing an '
+          + 'UPDATE policy - see sql/add-golf-courses-update-policy.sql'
+        );
+      }
 
       // Success!
       if (onComplete) onComplete(newGreenEntry);

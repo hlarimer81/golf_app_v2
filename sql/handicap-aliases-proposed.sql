@@ -49,22 +49,39 @@ ON CONFLICT (alias_name) DO NOTHING;
 
 
 -- ---------------------------------------------------------------------------------------------
--- AMBIGUOUS - DELIBERATELY NOT PROPOSED. There are at least two Matts.
+-- THE MATTS - RESOLVED BY HAROLD, 2026-08-08.
 --
---   Matt        Apr10-May02  5 rounds
---   Matt H      May16-Jul18  10 rounds   (roster, hcp 10)
---   Matt F      May08         1 round
---   Matt Flum   Jun05         1 round
---   Matt Adams  roster only, hcp 0
+--   Matt        Apr10-May02  5 rounds    -> EXCLUDE. Cannot be attributed to a person.
+--   Matt H      May16-Jul18  10 rounds   -> stands alone (roster, hcp 10)
+--   Matt F      May08         1 round    -> merge into Matt Flum
+--   Matt Flum   Jun05         1 round    -> canonical
+--   Matt Adams  roster only              -> stands alone
 --
--- "Matt F" and "Matt Flum" are very likely one person. Which of them "Matt" is cannot be told
--- from the data - the dates do not separate them the way the others do. Guessing here would
--- silently merge two people's scores into one index, so it is left for you.
+-- "Matt" is excluded rather than deleted, and that distinction is the point: its 5 rounds are real
+-- scores that genuinely happened, they simply cannot be attributed to a person. Marking them keeps
+-- the evidence and the reason, and reverses with an UPDATE if the identity is ever established.
+-- Deleting them would destroy real data to resolve a naming problem.
+--
+-- Matt F + Matt Flum is 2 rounds, still under the 3-round minimum, so this produces no index yet.
+-- That is correct, not a failure.
 -- ---------------------------------------------------------------------------------------------
--- INSERT INTO player_alias (alias_name, canonical_name) VALUES
---     ('Matt F', 'Matt Flum'),
---     ('Matt',   '???')
--- ON CONFLICT (alias_name) DO NOTHING;
+INSERT INTO player_alias (alias_name, canonical_name) VALUES
+    ('Matt F', 'Matt Flum')
+ON CONFLICT (alias_name) DO NOTHING;
+
+INSERT INTO handicap_excluded_name (name, reason) VALUES
+    ('Matt', 'ambiguous - at least two Matts play, cannot attribute these rounds')
+ON CONFLICT (name) DO NOTHING;
+
+-- Apply the exclusion to rows banked before it existed. Banking evaluates exclusions at write
+-- time, so this is not retroactive on its own.
+UPDATE round_differential d
+   SET excluded = true,
+       exclusion_reason = (SELECT e.reason FROM handicap_excluded_name e
+                            WHERE lower(e.name) = lower(d.player_name))
+ WHERE NOT d.excluded
+   AND EXISTS (SELECT 1 FROM handicap_excluded_name e
+                WHERE lower(e.name) = lower(d.player_name));
 
 
 -- ---------------------------------------------------------------------------------------------

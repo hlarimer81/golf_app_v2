@@ -611,10 +611,14 @@ rediscovered as gaps.
   sweep first.** A round nobody pressed Finish on is unbanked, and the delete would take it with no
   trace. Both are dormant today, which is consistent. Turning on one without the other is the
   failure mode.
-- **Remaining alias calls, left for Harold:** the two-Matts ambiguity (`Matt` / `Matt H` / `Matt F` /
-  `Matt Flum` / `Matt Adams` — dates do not separate them), and the roster duplicates, chiefly
-  `Jordan B` (hcp 15) vs `Jordan Burgie` (hcp 7), 8 strokes apart. Commented out in
-  `sql/handicap-aliases-proposed.sql` rather than guessed at.
+- ~~**The two-Matts ambiguity**~~ — **RESOLVED 2026-08-08 by Harold.** `Matt` (5 rounds) excluded as
+  unattributable; `Matt F` merged into `Matt Flum`; `Matt H` and `Matt Adams` stand alone. Excluded
+  rather than deleted — the scores are real, they just cannot be pinned to a person, and the call
+  reverses with an UPDATE.
+- **Remaining alias calls, still open:** the roster duplicates, chiefly `Jordan B` (hcp 15) vs
+  `Jordan Burgie` (hcp 7) — 8 strokes apart, so one of those numbers is wrong regardless of the
+  merge — plus `Hampton`/`Justin Hampton`, `Iiams`/`Chris Iiams`, `Hunzy`/`Andy Hunziker`,
+  `Pyle`/`Ben Pyle`. Commented out in `sql/handicap-aliases-proposed.sql` rather than guessed at.
 
 ### Medium Priority (After User Auth)
 4. **Add course editing** - Allow users to edit existing course/tee box data

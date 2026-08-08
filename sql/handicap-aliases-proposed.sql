@@ -86,6 +86,11 @@ BEGIN
     RETURN n;
 END $$;
 
+-- Supabase grants EXECUTE on every new function to anon by default (see sql/handicap-grants.sql),
+-- so revoke by name. This one rewrites identity on banked rounds - maintenance, not client API.
+REVOKE EXECUTE ON FUNCTION golf_resync_canonical_names() FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION golf_resync_canonical_names() TO service_role;
+
 SELECT golf_resync_canonical_names() AS rows_reassigned;
 
 SELECT canonical_name, handicap_index, rounds_used, rounds_available, estimated_count

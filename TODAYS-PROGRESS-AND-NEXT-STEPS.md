@@ -121,7 +121,73 @@ entirely (`usePresses.js:23,31` use `.then(() => {})`, `useWolfVegasState.js:58`
 with `.then(() => {})`. Consistent with the known "Nassau presses need DB persistence" backlog item
 below, but the code currently pretends to save. Not fixed — needs the schema decision first.
 
-### 6. 🔓 The `players` constraint is gone — auth plan needs revisiting
+### 6. ✅ HANDICAP SYSTEM — built, backfilled, wired (commit `c5f8a86`)
+
+**The constraint that shaped it:** `delete_old_matches()` drops scores, players, teams and matches
+older than 30 days. Computing handicaps *on read* from round history would make every index shift
+silently as rounds aged out — no error, no trace, and money is played off these numbers.
+
+**So the durable unit is `round_differential`** — one row per player per round, banked at
+completion, carrying **no foreign key to `matches`**. CASCADE would destroy the history; SET NULL
+would erase provenance and break the key preventing double-banking. The round is disposable; the
+differential is the record.
+
+That answers "on completion or on a schedule?" — **on completion**, because that is when the round
+is guaranteed to still exist. A sweep is the backstop, not the primary path.
+
+**The math:** net-double-bogey capping, `(113/slope) × (AGS − rating)`, average of the lowest N of
+the last 20 per the WHS reduction table, 3-round minimum. Capping uses the handicap the player
+actually played off that day, not their current index — sidestepping the chicken-and-egg where an
+index needs an adjusted score needs a course handicap needs an index.
+
+**~90% of rounds have no rating or slope**, so that is the normal case, not a footnote. They fall
+back to slope 113 / rating = par (strokes over par) and are flagged `method='estimated'`.
+
+**Validation — computed vs hand-entered handicaps the system never saw:**
+
+| Player | Computed | Hand-entered | Rounds |
+|---|---|---|---|
+| H Larimer | 22.6 | 20 | 20 |
+| Ryan B | 9.1 | 11 | 20 |
+| Nick G | 7.0 | 10 | 20 |
+| Roger E | 15.2 | 16 | 18 |
+| M Boeve | 20.5 | 22 | 14 |
+| Matt H | 8.3 | 10 | 10 |
+| Barry C | 17.9 | 19 | 7 |
+| Karl M | 13.0 | 18 | 4 |
+| Mindy B | 21.0 | 20 | 3 |
+
+**Wiring:** Finish Round now writes `status='completed'` and banks differentials in all 11 grids —
+it previously called `setShowSummary(true)` and nothing else, which is why all 282 matches sat at
+`status='setup'`. Round setup defaults each player's handicap to their computed course handicap for
+the selected tee, falls back to the roster number below 3 rounds, and captions where the number came
+from and whether it has been overridden. The dropdown stays editable.
+
+**Aliases applied** (`sql/handicap-aliases-proposed.sql`): 9 merges, 31 rows reassigned, **17
+phantom golfers down to 12.** Evidence was non-overlapping date ranges — every short name ran
+Apr 10–May 02, every long name started May 08+, i.e. the roster naming convention changed in early
+May. Simulated and rolled back before applying. Note Ryan B and Nick G did **not** change: their
+duplicate rounds are older than their most recent 20, and WHS only looks at the last 20.
+
+**Bad data marked, not discarded** — a refused row leaves no trace of why and cannot be revisited.
+3 excluded: two Lake Creek rounds producing a −11.0 index (9-hole course whose par array is the nine
+duplicated to 18) and one belonging to `BVRMC Scramble`, a team entry sitting in `players` as a
+person.
+
+### 7. 🔐 Supabase makes every function anon-executable by default
+
+Granting `golf_sweep_unbanked()` to `service_role` only did **not** restrict it — it still ran as
+anon. `REVOKE ... FROM PUBLIC` changed nothing either. The ACL showed why: `anon=X/postgres`, an
+explicit grant, because Supabase ships
+`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role`.
+
+**Every function you create here is executable by anon the moment it exists, so a SECURITY DEFINER
+function is public by default and the usual REVOKE-FROM-PUBLIC idiom is a no-op.** It must be
+revoked from `anon, authenticated` **by name**. Found by testing, not by reading.
+
+Applies to any function added from here on — carry it into the auth/RLS work.
+
+### 8. 🔓 The `players` constraint is gone — auth plan needs revisiting
 
 The auth design below was built around *"`players` stays untouched, it's shared with the other app."*
 **That is no longer true.** Nothing else reads `players`: score_play's web app queries
@@ -529,6 +595,27 @@ tiers, RLS policy design, and a list of gotchas found by attacking their own sch
 writes, `FOR ALL` policies applying to SELECT, per-row vs per-query predicate cost). Not a schema to
 adopt, but the reasoning transfers and it is already on disk.
 
+### 🧮 Handicaps — deliberately deferred, with reasons
+
+Assessed with evidence on 2026-08-08 and **judged not worth doing yet.** Recorded so they are not
+rediscovered as gaps.
+
+- **9-hole rounds don't count.** 29 qualifying player-rounds across 21 players — ~1.4 each, too thin
+  to move anyone's index, and WHS 9-hole pairing (two nines combined into one differential) is real
+  work. The one argument for it: 13 players sit at 1–2 banked rounds, just under the 3-round
+  minimum, so a few would gain an index at all. Revisit if nines become common.
+- **The scheduled backstop isn't scheduled.** `golf_sweep_unbanked()` exists, is correctly locked to
+  `service_role`, and can be run by hand through psql. pg_cron is **not** installed; a Supabase
+  scheduled edge function is the likely route.
+- ⚠️ **THE DEPENDENCY THAT MATTERS: never schedule `delete_old_matches()` without scheduling the
+  sweep first.** A round nobody pressed Finish on is unbanked, and the delete would take it with no
+  trace. Both are dormant today, which is consistent. Turning on one without the other is the
+  failure mode.
+- **Remaining alias calls, left for Harold:** the two-Matts ambiguity (`Matt` / `Matt H` / `Matt F` /
+  `Matt Flum` / `Matt Adams` — dates do not separate them), and the roster duplicates, chiefly
+  `Jordan B` (hcp 15) vs `Jordan Burgie` (hcp 7), 8 strokes apart. Commented out in
+  `sql/handicap-aliases-proposed.sql` rather than guessed at.
+
 ### Medium Priority (After User Auth)
 4. **Add course editing** - Allow users to edit existing course/tee box data
 5. **Course search/filter** - When course list gets long, add search box
@@ -602,8 +689,9 @@ adopt, but the reasoning transfers and it is already on disk.
 ---
 
 **Status:** Standalone. score_play split accepted; this app owns its schema outright.
-**Next Focus:** On-course re-test of green GPS; then revisit the auth data model now that the
-`players` constraint is lifted, with RLS as the main scope.
+Green GPS working end to end. Handicap system live, backfilled and wired.
+**Next Focus:** Play a round to exercise Finish Round → banking on real data; then revisit the auth
+data model now that the `players` constraint is lifted, with RLS as the main scope.
 **Major Milestone:** System is feature-complete for core gameplay + GPS.
 
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { finishRound } from './lib/handicap';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
@@ -353,7 +354,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
       </div>
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '10px', background: 'linear-gradient(transparent, #121212 30%)', zIndex: 200 }}>
-        <button onClick={() => setShowSummary(true)} style={{ padding: '15px', backgroundColor: '#607D8B', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
+        <button onClick={() => { finishRound(matchId); setShowSummary(true); }} style={{ padding: '15px', backgroundColor: '#607D8B', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
       </div>
       <div style={{ height: '70px', flexShrink: 0 }} />
     </div>

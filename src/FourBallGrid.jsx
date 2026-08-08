@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { finishRound } from './lib/handicap';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
@@ -405,7 +406,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
         zIndex: 200
       }}>
         <button
-          onClick={() => setShowSummary(true)}
+          onClick={() => { finishRound(matchId); setShowSummary(true); }}
           style={{
             padding: '15px',
             backgroundColor: '#4CAF50',

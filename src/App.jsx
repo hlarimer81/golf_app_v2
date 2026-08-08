@@ -15,6 +15,7 @@ import GolfGPSWidget from './GolfGPSWidget';
 import RequestCourseForm from './components/RequestCourseForm';
 import ReportCourseIssue from './components/ReportCourseIssue';
 import { gameDescriptions, gameRecentLabels } from './lib/gameRegistry';
+import { fetchHandicapIndexes, courseHandicap, describeIndex } from './lib/handicap';
 
 // Infer play_mode for matches created before the play_mode column was added.
 // Games with a fixed mode don't need to be stored. For ambiguous games (stableford,
@@ -81,12 +82,28 @@ function App() {
   const [golfCourses, setGolfCourses] = useState([]);
   const [teeBoxes, setTeeBoxes] = useState([]);
   const [dbCourses, setDbCourses] = useState([]); // Keep for Peninsula compatibility
+  const [handicapIndexes, setHandicapIndexes] = useState({});
 
   useEffect(() => {
     fetchGlobalPlayers();
     fetchGolfCourses();
     fetchDbCourses(); // Keep for Peninsula
+    fetchHandicapIndexes().then(setHandicapIndexes);
   }, []);
+
+  // Course handicap suggested for a player, from their computed index and the selected tee.
+  // Returns null when they have fewer than three banked rounds, which is a real answer - the
+  // caller falls back to the roster's hand-entered number rather than inventing a scratch player.
+  const suggestedHandicap = (playerName) => {
+    const entry = handicapIndexes[playerName];
+    if (!entry || entry.handicap_index == null) return null;
+    const course = golfCourses.find(c => c.id === selectedCourseId);
+    const teeBox = course?.tee_boxes?.find(tb => tb.id === selectedTeeBoxId);
+    const par = teeBox?.par?.reduce((a, b) => a + b, 0) ?? null;
+    return courseHandicap(entry.handicap_index, {
+      slope: teeBox?.slope, rating: teeBox?.rating, par,
+    });
+  };
 
   const fetchGolfCourses = async () => {
     const { data, error } = await supabase
@@ -1192,9 +1209,13 @@ function App() {
                       updatePlayer(i, { isGuest: true, name: '', hcp: 0 });
                     } else {
                       const globalP = globalPlayers.find(gp => gp.player_name === selectedName);
-                      updatePlayer(i, { 
-                        name: selectedName, 
-                        hcp: globalP ? globalP.handicap : p.hcp 
+                      // Prefer the computed index over the roster's hand-entered number. The
+                      // dropdown beside this stays editable, so this is a default and not a
+                      // decision - overriding it for one round is the documented flow.
+                      const computed = suggestedHandicap(selectedName);
+                      updatePlayer(i, {
+                        name: selectedName,
+                        hcp: computed ?? (globalP ? globalP.handicap : p.hcp)
                       });
                     }
                   }}
@@ -1230,8 +1251,27 @@ function App() {
                   <option key={num} value={num}>{num}</option>
                 ))}
               </select>
-              <button 
-                type="button" 
+              {/* Where the number came from, and whether it has been overridden. Shown because a
+                  computed index and a typed-in guess look identical in a dropdown, and an index
+                  built from rounds with no course rating is not a WHS index. */}
+              {(() => {
+                const entry = handicapIndexes[p.name];
+                if (!entry) return null;
+                const suggested = suggestedHandicap(p.name);
+                const desc = describeIndex(entry);
+                if (suggested == null) {
+                  return <span style={{ fontSize: '9px', color: '#888', flexBasis: '100%' }}>{desc.label}</span>;
+                }
+                const overridden = Number(p.hcp) !== suggested;
+                return (
+                  <span style={{ fontSize: '9px', color: overridden ? '#ff9800' : '#888', flexBasis: '100%' }}>
+                    {overridden ? `overridden - computed ${suggested}` : `computed ${suggested}`}
+                    {desc.estimated ? ' (est.)' : ''} · index {entry.handicap_index} from {entry.rounds_available} rounds
+                  </span>
+                );
+              })()}
+              <button
+                type="button"
                 onClick={() => {
                   const newPlayers = [...players];
                   newPlayers.splice(i, 1);

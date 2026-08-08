@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { finishRound } from './lib/handicap';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import MoneyModal from './MoneyModal';
@@ -322,7 +323,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
       </div>
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '10px', background: 'linear-gradient(transparent, #121212 30%)', zIndex: 200 }}>
-        <button onClick={() => setShowSummary(true)} style={{ padding: '15px', backgroundColor: '#0D47A1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
+        <button onClick={() => { finishRound(matchId); setShowSummary(true); }} style={{ padding: '15px', backgroundColor: '#0D47A1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
       </div>
       <div style={{ height: '70px', flexShrink: 0 }} />
 

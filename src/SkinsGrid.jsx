@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { finishRound } from './lib/handicap';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import MoneyModal from './MoneyModal';
@@ -281,7 +282,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
         zIndex: 200
       }}>
         <button
-          onClick={() => setShowSummary(true)}
+          onClick={() => { finishRound(matchId); setShowSummary(true); }}
           style={{
             padding: '15px',
             backgroundColor: '#FFD700',

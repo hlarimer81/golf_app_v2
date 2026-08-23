@@ -63,6 +63,31 @@ export async function fetchHandicapIndexes() {
 }
 
 //--------------------------------------------------------------------------------------------------
+// Every banked round for one player, newest first.
+//
+// Reads round_differential directly rather than joining back to matches, because matches older
+// than 30 days are destroyed by delete_old_matches() while the differentials survive. A player
+// page built on matches would quietly lose most of its history; this one cannot.
+//
+// Excluded rows are fetched, not filtered out. The page shows them greyed with their reason -
+// hiding them would leave a player wondering where a round went, which is exactly what the
+// excluded/exclusion_reason columns exist to prevent.
+//--------------------------------------------------------------------------------------------------
+export async function fetchPlayerRounds(canonicalName) {
+    if (!canonicalName) return { rounds: [], error: 'no player' };
+
+    const { data, error } = await supabase
+        .from('round_differential')
+        .select('id, played_on, course_name, holes, gross, adjusted_gross, par_total, ' +
+                'course_rating, slope, differential, method, excluded, exclusion_reason')
+        .eq('canonical_name', canonicalName)
+        .order('played_on', { ascending: false });
+
+    if (error) return { rounds: [], error: error.message };
+    return { rounds: data ?? [], error: null };
+}
+
+//--------------------------------------------------------------------------------------------------
 // Course Handicap = Index x (Slope / 113) + (Course Rating - Par).
 //
 // Computed here rather than by RPC because the round-setup screen calls it once per player on every

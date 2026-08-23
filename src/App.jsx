@@ -16,6 +16,8 @@ import RequestCourseForm from './components/RequestCourseForm';
 import ReportCourseIssue from './components/ReportCourseIssue';
 import { gameDescriptions, gameRecentLabels } from './lib/gameRegistry';
 import { fetchHandicapIndexes, courseHandicap, describeIndex } from './lib/handicap';
+import PlayerDirectory from './components/PlayerDirectory';
+import PlayerPage from './components/PlayerPage';
 
 // Infer play_mode for matches created before the play_mode column was added.
 // Games with a fixed mode don't need to be stored. For ambiguous games (stableford,
@@ -83,6 +85,12 @@ function App() {
   const [teeBoxes, setTeeBoxes] = useState([]);
   const [dbCourses, setDbCourses] = useState([]); // Keep for Peninsula compatibility
   const [handicapIndexes, setHandicapIndexes] = useState({});
+
+  // Player pages. Two flags rather than one route because the directory and a player are separate
+  // screens and Back has to land on the right one: a player's Back returns to the directory,
+  // the directory's Back returns home.
+  const [showPlayers, setShowPlayers] = useState(false);
+  const [playerPageName, setPlayerPageName] = useState(null);
 
   useEffect(() => {
     fetchGlobalPlayers();
@@ -673,6 +681,22 @@ function App() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  // --- Player pages ---
+  // Checked before the directory so selecting a player replaces it rather than stacking on it.
+  if (playerPageName) {
+    return (
+      <PlayerPage
+        key={playerPageName}
+        canonicalName={playerPageName}
+        onBack={() => setPlayerPageName(null)}
+      />
+    );
+  }
+
+  if (showPlayers) {
+    return <PlayerDirectory onSelect={setPlayerPageName} onBack={() => setShowPlayers(false)} />;
+  }
+
   // --- Join Match Form ---
   if (showJoinForm) {
     return (
@@ -1156,6 +1180,23 @@ function App() {
               Previous Rounds
             </button>
           </div>
+          <button
+            onClick={() => setShowPlayers(true)}
+            style={{
+              width: '100%',
+              padding: '15px',
+              marginTop: '10px',
+              backgroundColor: '#1b365d',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              fontSize: '16px',
+              cursor: 'pointer'
+            }}
+          >
+            Players &amp; Handicaps
+          </button>
         </>
       ) : (
         <div>

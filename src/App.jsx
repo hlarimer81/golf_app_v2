@@ -100,8 +100,11 @@ function App() {
     const course = golfCourses.find(c => c.id === selectedCourseId);
     const teeBox = course?.tee_boxes?.find(tb => tb.id === selectedTeeBoxId);
     const par = teeBox?.par?.reduce((a, b) => a + b, 0) ?? null;
+    // Any estimated round in the window makes the index par-relative, so the rating adjustment
+    // must not be applied on top of it. See courseHandicap() in lib/handicap.js.
     return courseHandicap(entry.handicap_index, {
       slope: teeBox?.slope, rating: teeBox?.rating, par,
+      parRelative: (entry.estimated_count ?? 0) > 0,
     });
   };
 
@@ -258,6 +261,12 @@ function App() {
     return course?.name || '';
   }, [selectedCourseId, golfCourses]);
 
+  // An 18-element numeric array is the only shape golf_bank_round() can index by hole_number.
+  // Anything else is left unwritten so the column default stands rather than a half-built array
+  // being banked as though it were the real course.
+  const isHoleArray = (a) =>
+    Array.isArray(a) && a.length === 18 && a.every(n => Number.isFinite(Number(n)));
+
   const createMatch = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -284,7 +293,14 @@ function App() {
         holes: holesCount,
         start_hole: startHole,
         play_off_low: playOffLow,
-        handicap_allowance_pct: hcpAllowance
+        handicap_allowance_pct: hcpAllowance,
+        // Persist what the round is actually being scored against. Omitting these left the row on
+        // the column defaults - par [4,4,3,...] summing to 72, and stroke index 1..18 - and
+        // golf_bank_round() reads the MATCH, not the tee. Every differential banked before this
+        // was scored against par 72 whatever the course really was, and capped at net double bogey
+        // using hole number as difficulty, which pushed adjusted scores (and so indexes) low.
+        ...(isHoleArray(courseData.pars) ? { course_pars: courseData.pars.map(Number) } : {}),
+        ...(isHoleArray(courseData.handicaps) ? { hole_indices: courseData.handicaps.map(Number) } : {})
       }])
       .select();
 

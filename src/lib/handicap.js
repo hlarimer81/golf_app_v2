@@ -66,16 +66,27 @@ export async function fetchHandicapIndexes() {
 // Course Handicap = Index x (Slope / 113) + (Course Rating - Par).
 //
 // Computed here rather than by RPC because the round-setup screen calls it once per player on every
-// tee change, and a round trip per keystroke is not worth it. Mirrors golf_course_handicap() in
-// sql/handicap-system.sql - if you change one, change the other.
+// tee change, and a round trip per keystroke is not worth it. golf_course_handicap() in
+// sql/handicap-system.sql is the same formula WITHOUT the parRelative branch below; it is granted
+// to clients but has no caller, so the divergence is currently harmless. Give it the same branch
+// before using it for anything.
 //
 // With no slope or rating this degrades to the index itself, which is the correct neutral: the
 // course is assumed to be of standard difficulty because nothing says otherwise.
+//
+// parRelative EXISTS BECAUSE MOST OF THIS DATABASE'S INDEXES ARE NOT WHS INDEXES.
+//
+// The (Rating - Par) term converts an index expressed relative to COURSE RATING into strokes
+// relative to PAR. An 'estimated' differential is (adjusted gross - par) with slope assumed 113,
+// so an index containing any of them is ALREADY relative to par and the term subtracts a second
+// time. At Okoboji View (rating 67.2, par 71) that double-subtraction handed every player about
+// four strokes fewer than they play to. Pass parRelative when estimated_count > 0; the slope
+// scaling still applies, because that part is a difficulty ratio and is valid either way.
 //--------------------------------------------------------------------------------------------------
-export function courseHandicap(index, { slope, rating, par } = {}) {
+export function courseHandicap(index, { slope, rating, par, parRelative = false } = {}) {
     if (index == null) return null;
     const s = slope || 113;
-    const adjustment = (rating != null && par != null) ? (rating - par) : 0;
+    const adjustment = (!parRelative && rating != null && par != null) ? (rating - par) : 0;
     return Math.round(index * (s / 113) + adjustment);
 }
 

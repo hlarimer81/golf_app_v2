@@ -1,0 +1,179 @@
+{
+  "scripts/add_courses.js": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/check-tables.js": {
+    "no-undef": {
+      "count": 5
+    },
+    "no-unused-vars": {
+      "count": 2
+    }
+  },
+  "scripts/check_players.js": {
+    "no-undef": {
+      "count": 2
+    },
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "scripts/dump_schema.js": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/example-app-integration.jsx": {
+    "react-hooks/immutability": {
+      "count": 2
+    }
+  },
+  "scripts/extract-green-coordinates.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "scripts/inspect-current-courses.js": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/inspect_courses_schema.js": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/migrate-step-by-step.js": {
+    "no-undef": {
+      "count": 4
+    }
+  },
+  "scripts/osm-green-fetcher.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "scripts/query-courses-with-env.js": {
+    "no-undef": {
+      "count": 7
+    }
+  },
+  "scripts/query_courses.js": {
+    "no-undef": {
+      "count": 2
+    },
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "scripts/run-complete-migration.js": {
+    "no-undef": {
+      "count": 9
+    },
+    "no-unused-vars": {
+      "count": 2
+    }
+  },
+  "scripts/run-migration-simple.js": {
+    "no-undef": {
+      "count": 7
+    }
+  },
+  "scripts/run-migration.js": {
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "scripts/test-chairman.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "scripts/test-golf-api.js": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/update_players.js": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/verify-migration.js": {
+    "no-undef": {
+      "count": 7
+    }
+  },
+  "src/AggregateGrid.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/App.jsx": {
+    "no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/ChairmanGrid.jsx": {
+    "no-unused-vars": {
+      "count": 3
+    }
+  },
+  "src/FourBallGrid.jsx": {
+    "no-unused-vars": {
+      "count": 5
+    }
+  },
+  "src/GolfGPSWidget.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/NinePointGrid.jsx": {
+    "no-unused-vars": {
+      "count": 3
+    }
+  },
+  "src/SinglesGrid.jsx": {
+    "no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/SkinsGrid.jsx": {
+    "no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/StablefordGrid.jsx": {
+    "no-unused-vars": {
+      "count": 3
+    }
+  },
+  "src/WagerConfig.jsx": {
+    "react-hooks/static-components": {
+      "count": 7
+    }
+  },
+  "src/WolfGrid.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/components/AddGreenData.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/components/ManualCourseEntry.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/settlement.js": {
+    "no-unused-vars": {
+      "count": 2
+    }
+  }
+}

@@ -1,0 +1,225 @@
+name: Coordinator
+
+# Triages the open backlog once a day: de-duplicates, decides what is worth building, and starts
+# development on the best few by labelling them ready-for-dev.
+#
+# The model decides; this workflow acts. Claude reads the issues and writes a decisions file — it
+# never runs gh and never touches code. A shell step applies those decisions and enforces the cap
+# on how many issues may ship in one run. A cap inside a prompt is a request; a cap in shell is a
+# limit. That matters here, because a labelled issue becomes a PR that merges itself into
+# production without anyone looking at it.
+#
+# AGENT_TOKEN, not GITHUB_TOKEN: a label applied with GITHUB_TOKEN does not trigger other
+# workflows, so the dev agent would never wake up.
+
+on:
+  schedule:
+    - cron: '0 13 * * *' # 08:00 Central
+  workflow_dispatch:
+    inputs:
+      max_to_ship:
+        description: 'How many issues may be labelled ready-for-dev this run'
+        required: false
+        default: '2'
+      dry_run:
+        description: 'Triage and report, but change nothing'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    env:
+      GH_TOKEN: ${{ secrets.AGENT_TOKEN }}
+      MAX_TO_SHIP: ${{ inputs.max_to_ship || '2' }}
+      DRY_RUN: ${{ inputs.dry_run || 'false' }}
+      DECISIONS: ${{ runner.temp }}/triage.json
+      BACKLOG: ${{ runner.temp }}/issues.json
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Make sure the triage labels exist
+        run: |
+          ensure() { gh label create "$1" --color "$2" --description "$3" --force >/dev/null; }
+          ensure ready-for-dev  0e8a16 "Triaged and approved — the dev agent builds this"
+          ensure needs-human    d93f0b "Needs a person: touches the database, secrets, or a real round"
+          ensure needs-info     fbca04 "Too vague to build as written"
+          ensure triaged        c5def5 "The coordinator has looked at this"
+
+      - name: Fetch the open backlog
+        id: backlog
+        run: |
+          gh issue list --state open --limit 100 \
+            --json number,title,body,labels,createdAt,author,comments \
+            > "$BACKLOG"
+
+          COUNT=$(jq 'length' "$BACKLOG")
+          UNTRIAGED=$(jq '[.[] | select([.labels[].name] | index("triaged") | not)] | length' "$BACKLOG")
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "untriaged=$UNTRIAGED" >> "$GITHUB_OUTPUT"
+          echo "$COUNT open issues, $UNTRIAGED not yet triaged"
+
+      - uses: actions/setup-node@v4
+        if: steps.backlog.outputs.untriaged != '0'
+        with:
+          node-version: 24
+
+      - name: Decide what to do with each issue
+        if: steps.backlog.outputs.untriaged != '0'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.AGENT_TOKEN }}
+          display_report: true
+          prompt: |
+            You are the project coordinator for 4Play, a golf scoring app. Read CLAUDE.md first —
+            it describes the app, the hard rules, and how work flows through this repo.
+
+            The open backlog is in ${{ runner.temp }}/issues.json. Read it.
+
+            Decide what to do with every issue that does NOT already carry the "triaged" label.
+            Write your decisions to ${{ runner.temp }}/triage.json in exactly this shape:
+
+            {
+              "summary": "two or three sentences on the state of the backlog",
+              "decisions": [
+                { "number": 12, "action": "ship", "priority": 1, "reason": "why this is worth building now" },
+                { "number": 9,  "action": "clarify", "reason": "internal note", "comment": "the question to post on the issue" },
+                { "number": 7,  "action": "duplicate", "duplicate_of": 3, "reason": "why" },
+                { "number": 5,  "action": "needs-human", "reason": "why a person has to do this" },
+                { "number": 4,  "action": "skip", "reason": "why nothing should happen yet" }
+              ]
+            }
+
+            The actions mean:
+
+            - **ship** — clear enough to build, worth building, and safe for an agent. This starts
+              development AND the resulting pull request merges itself into production once CI
+              passes, with nobody reviewing it. Only choose this when you would be comfortable with
+              the change going live unseen. Set priority 1 for the most valuable; only the top few
+              actually ship each run.
+            - **clarify** — the idea may be good but the issue does not say enough to build from.
+              Write the specific question you need answered in "comment".
+            - **duplicate** — another open issue already covers it. Give its number.
+            - **needs-human** — anything touching the database or migrations (sql/, supabase/),
+              secrets, the firmware storage bucket, authentication, or anything needing a real round
+              on a course. Also anything where being wrong costs money: scoring, settlement or
+              handicap maths that you cannot see how to verify with a test.
+            - **skip** — nothing to do: already has an open pull request, already labelled
+              ready-for-dev, or it is a question rather than a request.
+
+            How to judge what is worth shipping:
+
+            - The app is used one-handed on a phone, outdoors, mid-round. Friction there matters
+              more than features nobody asked for.
+            - Prefer small, verifiable changes over large ones. A change an agent can prove with a
+              test is worth more than a bigger change it cannot.
+            - Several golfers reporting the same friction is strong evidence. One person's feature
+              idea is weak evidence.
+            - Money rides on the scoring. Be conservative near it.
+
+            Write only the JSON file. Do not run git or gh, do not edit code, and do not comment on
+            issues yourself — the workflow does that from your decisions file.
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 40
+            --allowedTools "Read,Write,Glob,Grep,LS,TodoWrite,Bash"
+            --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit"
+
+      - name: Apply the decisions
+        if: steps.backlog.outputs.untriaged != '0'
+        run: |
+          if [ ! -f "$DECISIONS" ]; then
+            echo "::error::The coordinator produced no decisions file — see the Claude Code Report above"
+            exit 1
+          fi
+          if ! jq -e . "$DECISIONS" >/dev/null 2>&1; then
+            echo "::error::The decisions file is not valid JSON"
+            cat "$DECISIONS"
+            exit 1
+          fi
+
+          SUMMARY=$(jq -r '.summary // "(no summary)"' "$DECISIONS")
+          {
+            echo "### Coordinator"
+            echo
+            echo "$SUMMARY"
+            echo
+            echo "| Issue | Action | Reason |"
+            echo "|---|---|---|"
+            jq -r '.decisions[] | "| #\(.number) | \(.action) | \(.reason // "") |"' "$DECISIONS"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "dry run — no labels applied, no comments posted"
+            exit 0
+          fi
+
+          shipped=0
+          while read -r row; do
+            num=$(jq -r '.number' <<<"$row")
+            action=$(jq -r '.action' <<<"$row")
+            reason=$(jq -r '.reason // ""' <<<"$row")
+
+            case "$action" in
+              ship)
+                if [ "$shipped" -ge "$MAX_TO_SHIP" ]; then
+                  echo "#$num: approved but over this run's limit of $MAX_TO_SHIP — leaving for next time"
+                  gh issue comment "$num" --body "Triaged as ready to build, but this run's limit of $MAX_TO_SHIP was already reached. It will be picked up next time." || true
+                  gh issue edit "$num" --add-label triaged || true
+                  continue
+                fi
+                gh issue comment "$num" --body "$(printf 'Starting development on this.\n\n%s' "$reason")" || true
+                gh issue edit "$num" --add-label triaged --add-label ready-for-dev
+                shipped=$((shipped + 1))
+                echo "#$num: shipped"
+                ;;
+              clarify)
+                q=$(jq -r '.comment // .reason' <<<"$row")
+                gh issue comment "$num" --body "$q" || true
+                gh issue edit "$num" --add-label triaged --add-label needs-info
+                echo "#$num: asked for detail"
+                ;;
+              duplicate)
+                dup=$(jq -r '.duplicate_of // empty' <<<"$row")
+                gh issue comment "$num" --body "Looks like a duplicate of #$dup. Leaving both open for a person to decide." || true
+                gh issue edit "$num" --add-label triaged --add-label duplicate
+                echo "#$num: duplicate of #$dup"
+                ;;
+              needs-human)
+                gh issue comment "$num" --body "$(printf 'This one needs a person.\n\n%s' "$reason")" || true
+                gh issue edit "$num" --add-label triaged --add-label needs-human
+                echo "#$num: needs a human"
+                ;;
+              skip)
+                gh issue edit "$num" --add-label triaged || true
+                echo "#$num: skipped — $reason"
+                ;;
+              *)
+                echo "::warning::#$num has an unrecognised action '$action' — ignoring"
+                ;;
+            esac
+          done < <(jq -c '.decisions | sort_by(.priority // 99)[]' "$DECISIONS")
+
+          echo "shipped $shipped of at most $MAX_TO_SHIP this run" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Nothing to do
+        if: steps.backlog.outputs.untriaged == '0'
+        run: |
+          echo "### Coordinator" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "No untriaged issues in a backlog of ${{ steps.backlog.outputs.count }}." >> "$GITHUB_STEP_SUMMARY"

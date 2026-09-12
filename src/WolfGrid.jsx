@@ -125,11 +125,6 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
     }));
   };
 
-  // Check if the current hole has all scores entered (to show partner picker)
-  const holeHasScores = (holeNum) => {
-    return players.every(p => scores[p.id]?.[holeNum] != null);
-  };
-
   if (showSummary) {
     return (
       <MatchSummary

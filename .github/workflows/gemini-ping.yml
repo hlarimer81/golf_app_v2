@@ -1,0 +1,102 @@
+name: Gemini ping
+
+# Manual check that the Gemini reviewer can actually answer and post.
+#
+# The reviewer ran 89 seconds on PR #2 and posted nothing, which is ambiguous: either it had
+# nothing to say about a ten-line deletion, or it cannot post at all. This separates the two.
+# The job prints Gemini's reply itself (from the action's `summary` output) AND asks Gemini to
+# post that reply as a comment through the GitHub MCP server:
+#
+#   reply in the summary + comment on the issue -> everything works
+#   reply in the summary, no comment             -> model fine, MCP posting broken
+#   no reply at all                              -> key or action broken
+#
+# Run it from the Actions tab: "Gemini ping" -> Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      question:
+        description: 'Question to ask Gemini'
+        required: true
+        default: 'In one sentence, what does this repository do?'
+      target:
+        description: 'Issue or PR number to comment on'
+        required: true
+        default: '1'
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Ask Gemini
+        id: gemini
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          settings: |
+            {
+              "model": { "maxSessionTurns": 5 },
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server:v0.27.0"],
+                  "includeTools": ["add_issue_comment", "issue_read", "pull_request_read"],
+                  "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
+                }
+              },
+              "tools": { "core": [] }
+            }
+          prompt: |
+            Answer this question in two sentences or fewer:
+
+            ${{ inputs.question }}
+
+            Then post your answer as a comment on ${{ github.repository }} number ${{ inputs.target }},
+            using the add_issue_comment tool. Begin the comment with "Gemini ping:".
+
+            If the add_issue_comment tool is unavailable or the call fails, say so explicitly in
+            your final answer, including the error.
+
+      - name: Report what came back
+        if: always()
+        run: |
+          {
+            echo "### Gemini ping"
+            echo
+            echo "**Reply:**"
+            echo
+            echo "${REPLY:-(empty)}"
+            echo
+            echo "**Errors:**"
+            echo
+            echo "${ERRORS:-(none)}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "${REPLY// /}" ]; then
+            echo "::error::Gemini returned no reply — the API key or the action is the problem, not MCP posting"
+            exit 1
+          fi
+          echo "Gemini replied. Check issue/PR #${{ inputs.target }} for the comment: if the reply is here but no comment appeared, MCP posting is the broken part."
+        env:
+          REPLY: ${{ steps.gemini.outputs.summary }}
+          ERRORS: ${{ steps.gemini.outputs.error }}

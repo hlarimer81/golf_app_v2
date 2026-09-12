@@ -53,6 +53,20 @@ These protect a live database that real players and deployed hardware depend on.
 - **Styling** is inline `style={{}}` objects today. Match the surrounding code unless the PR is
   specifically a styling refactor.
 
+## Staging
+
+`4play_staging` is a separate Supabase project with production's schema, permissions, realtime
+setup and nightly cron, holding only fake data from `scripts/staging-seed.sql`:
+
+- **Courses:** Staging Pines (rated Blue/White/Red tees) and Staging Meadows (unrated, so its rounds
+  bank as `estimated`, like most real rounds).
+- **Roster:** 12 fictional golfers, handicaps 1–28. Ten have eight banked rounds each; Nate Newbie
+  has one (below the 3-round minimum) and Gary Guest has none.
+- **Round in progress:** join code `LIVE01`, nine holes scored.
+
+Staging is disposable, and a human resets it with `bash scripts/staging-setup.sh --seed-only`. Don't
+rely on data you created there surviving.
+
 ## Lint
 
 The codebase had ~100 lint errors when CI was introduced. They are recorded in

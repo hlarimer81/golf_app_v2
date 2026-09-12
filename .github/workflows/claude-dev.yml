@@ -43,6 +43,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.AGENT_TOKEN }}
+          # Print what Claude actually did into the job summary. Without this, a run that finishes
+          # green but changes nothing gives you no way to see why short of reading raw logs.
+          display_report: true
           prompt: |
             REPO: ${{ github.repository }}
             ISSUE NUMBER: ${{ github.event.issue.number }}
@@ -69,7 +72,17 @@ jobs:
 
             The PR is a proposal for a human to review, not a finished decision. If you were unsure
             about an approach, say so in the PR body rather than presenting a guess as settled.
+
+            Never finish silently. If a command you need is refused by the tool permissions, or you
+            cannot complete the task for any other reason, post a comment on issue
+            #${{ github.event.issue.number }} naming the exact command or permission you needed.
+            A run that ends with no branch, no PR and no comment is a failure.
+          # Prefix patterns (name:*), not exact commands. The first version listed
+          # Bash(npm run lint) and Bash(npx playwright:*), which match those literal strings only —
+          # so `npm run lint --silent` and `npx eslint . --prune-suppressions` were both denied, and
+          # the run ended with 16 permission denials and nothing committed. This mirrors the
+          # allowlist in anthropics/claude-code-action's own ci-failure-auto-fix example.
           claude_args: |
             --model claude-sonnet-5
             --max-turns 60
-            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(npm ci),Bash(npm run lint),Bash(npm run build),Bash(npm run test:e2e),Bash(npx playwright:*),Bash(git:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*),Bash(gh pr view:*)"
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,TodoWrite,Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(git:*),Bash(gh:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(wc:*)"

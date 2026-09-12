@@ -88,6 +88,28 @@ export async function fetchPlayerRounds(canonicalName) {
 }
 
 //--------------------------------------------------------------------------------------------------
+// Who appeared in which round, for ranking the player picker.
+//
+// Two columns and nothing else: this is read on the round-setup screen, where the cost of a fat
+// query is a player standing on the first tee waiting for a list to appear.
+//
+// round_differential rather than matches, for the same reason fetchPlayerRounds() uses it -
+// delete_old_matches() destroys matches after 30 days and these rows survive. Ranking the picker
+// from matches would forget a regular foursome over a winter.
+//
+// Excluded rows are included deliberately: a round excluded from a handicap for having an
+// implausible differential was still a round those people played together.
+//--------------------------------------------------------------------------------------------------
+export async function fetchRoundParticipation() {
+    const { data, error } = await supabase
+        .from('round_differential')
+        .select('canonical_name, match_id');
+
+    if (error || !data) return [];
+    return data;
+}
+
+//--------------------------------------------------------------------------------------------------
 // Course Handicap = Index x (Slope / 113) + (Course Rating - Par).
 //
 // Computed here rather than by RPC because the round-setup screen calls it once per player on every

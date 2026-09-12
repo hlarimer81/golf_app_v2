@@ -26,9 +26,22 @@ export const tables = {
   players: [
     { id: 'player-pat', player_name: 'Pat Par', handicap: 12, match_id: null, team_id: null },
     { id: 'player-bo', player_name: 'Bo Birdie', handicap: 4, match_id: null, team_id: null },
+    { id: 'player-sandy', player_name: 'Sandy Trap', handicap: 21, match_id: null, team_id: null },
+    { id: 'player-gil', player_name: 'Gil Green', handicap: 16, match_id: null, team_id: null },
   ],
   handicap_summary: [
     { canonical_name: 'Pat Par', handicap_index: 12.4, rounds_used: 8, rounds_available: 20, estimated_count: 0, method: 'rated' },
+  ],
+  // Who played with whom, for the player picker's ordering. Pat and Bo are regulars who play
+  // together; Sandy has one round and Gil has none, so the picker has a real order to produce
+  // rather than an alphabetical fallback.
+  round_differential: [
+    { canonical_name: 'Pat Par', match_id: 'm1' },
+    { canonical_name: 'Bo Birdie', match_id: 'm1' },
+    { canonical_name: 'Pat Par', match_id: 'm2' },
+    { canonical_name: 'Bo Birdie', match_id: 'm2' },
+    { canonical_name: 'Pat Par', match_id: 'm3' },
+    { canonical_name: 'Sandy Trap', match_id: 'm3' },
   ],
   courses: [],
   matches: [],
@@ -38,14 +51,32 @@ export const tables = {
 // page threw an uncaught error, even if every assertion passed.
 export const test = base.extend({
   page: async ({ page, context }, use) => {
+    let inserted = 0;
+
     await context.route('**/*', (route) => {
       const url = new URL(route.request().url());
       if (url.hostname === 'localhost') return route.continue();
-      if (url.origin === SUPABASE_URL && url.pathname.startsWith('/rest/v1/')) {
-        const table = url.pathname.slice('/rest/v1/'.length);
-        return route.fulfill({ json: tables[table] ?? [] });
+      if (url.origin !== SUPABASE_URL || !url.pathname.startsWith('/rest/v1/')) return route.abort();
+
+      const table = url.pathname.slice('/rest/v1/'.length);
+
+      // A write has to hand back what it wrote. createMatch() does .insert().select() and then
+      // reads data[0].id — with a static [] that is undefined, and the page throws before the
+      // round-setup screen ever renders. Echo the body back with an id, the way PostgREST does.
+      if (route.request().method() === 'POST') {
+        let body = [];
+        try {
+          const parsed = JSON.parse(route.request().postData() || '[]');
+          body = Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          body = [];
+        }
+        return route.fulfill({
+          json: body.map((row, i) => ({ id: `inserted-${table}-${++inserted}-${i}`, ...row })),
+        });
       }
-      return route.abort();
+
+      return route.fulfill({ json: tables[table] ?? [] });
     });
 
     const pageErrors = [];

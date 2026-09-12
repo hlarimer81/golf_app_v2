@@ -15,9 +15,10 @@ import GolfGPSWidget from './GolfGPSWidget';
 import RequestCourseForm from './components/RequestCourseForm';
 import ReportCourseIssue from './components/ReportCourseIssue';
 import { gameDescriptions, gameRecentLabels } from './lib/gameRegistry';
-import { fetchHandicapIndexes, courseHandicap, describeIndex } from './lib/handicap';
+import { fetchHandicapIndexes, fetchRoundParticipation, courseHandicap, describeIndex } from './lib/handicap';
 import PlayerDirectory from './components/PlayerDirectory';
 import PlayerPage from './components/PlayerPage';
+import PlayerPicker from './components/PlayerPicker';
 
 // Infer play_mode for matches created before the play_mode column was added.
 // Games with a fixed mode don't need to be stored. For ambiguous games (stableford,
@@ -85,6 +86,9 @@ function App() {
   const [teeBoxes, setTeeBoxes] = useState([]);
   const [dbCourses, setDbCourses] = useState([]); // Keep for Peninsula compatibility
   const [handicapIndexes, setHandicapIndexes] = useState({});
+  // Who played with whom, for ordering the player picker. Empty is a fine starting state: the
+  // picker falls back to listing the roster alphabetically until this arrives.
+  const [participation, setParticipation] = useState([]);
 
   // Player pages. Two flags rather than one route because the directory and a player are separate
   // screens and Back has to land on the right one: a player's Back returns to the directory,
@@ -97,6 +101,7 @@ function App() {
     fetchGolfCourses();
     fetchDbCourses(); // Keep for Peninsula
     fetchHandicapIndexes().then(setHandicapIndexes);
+    fetchRoundParticipation().then(setParticipation);
   }, []);
 
   // Course handicap suggested for a player, from their computed index and the selected tee.
@@ -1258,34 +1263,24 @@ function App() {
                   </button>
                 </div>
               ) : (
-                <select
+                <PlayerPicker
                   value={p.name}
-                  onChange={e => {
-                    const selectedName = e.target.value;
-                    if (selectedName === '__GUEST__') {
-                      updatePlayer(i, { isGuest: true, name: '', hcp: 0 });
-                    } else {
-                      const globalP = globalPlayers.find(gp => gp.player_name === selectedName);
-                      // Prefer the computed index over the roster's hand-entered number. The
-                      // dropdown beside this stays editable, so this is a default and not a
-                      // decision - overriding it for one round is the documented flow.
-                      const computed = suggestedHandicap(selectedName);
-                      updatePlayer(i, {
-                        name: selectedName,
-                        hcp: computed ?? (globalP ? globalP.handicap : p.hcp)
-                      });
-                    }
+                  roster={globalPlayers}
+                  participation={participation}
+                  chosenNames={players.filter((_, pi) => pi !== i).map(pl => pl.name)}
+                  onGuest={() => updatePlayer(i, { isGuest: true, name: '', hcp: 0 })}
+                  onPick={(selectedName) => {
+                    const globalP = globalPlayers.find(gp => gp.player_name === selectedName);
+                    // Prefer the computed index over the roster's hand-entered number. The
+                    // dropdown beside this stays editable, so this is a default and not a
+                    // decision - overriding it for one round is the documented flow.
+                    const computed = suggestedHandicap(selectedName);
+                    updatePlayer(i, {
+                      name: selectedName,
+                      hcp: computed ?? (globalP ? globalP.handicap : p.hcp)
+                    });
                   }}
-                  style={{ flex: 2, padding: '8px' }}
-                >
-                  <option value="">-- Select Player --</option>
-                  {globalPlayers
-                    .filter(gp => !players.some((pl, pi) => pi !== i && pl.name === gp.player_name))
-                    .map(gp => (
-                      <option key={gp.id} value={gp.player_name}>{gp.player_name}</option>
-                    ))}
-                  <option value="__GUEST__">+ Add Guest Player</option>
-                </select>
+                />
               )}
               {gameType !== 'singles' && playMode !== 'singles' && (
                 <select value={p.team} onChange={e => handlePlayerChange(i, 'team', e.target.value)} style={{ flex: 1 }}>

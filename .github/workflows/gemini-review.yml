@@ -39,6 +39,16 @@ jobs:
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # The extension's prompt reads these as "Additional User Instructions".
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          ADDITIONAL_CONTEXT: >-
+            Always submit the review, even when you find nothing wrong. A pull request with no
+            problems gets a summary saying so in one line. Never finish without posting: silence is
+            indistinguishable from a broken reviewer, and a reviewer nobody can tell is working is
+            worth nothing. This project is a golf scoring app whose users enter scores one-handed on
+            a phone in bright sun, so weigh phone-width layout and tap targets accordingly, and read
+            CLAUDE.md for the rules the code is meant to follow.
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           github_pr_number: ${{ github.event.pull_request.number }}
@@ -49,7 +59,7 @@ jobs:
                 "github": {
                   "command": "docker",
                   "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server:v0.27.0"],
-                  "includeTools": ["add_comment_to_pending_review", "pull_request_read", "pull_request_review_write"],
+                  "includeTools": ["create_pending_pull_request_review", "add_comment_to_pending_review", "submit_pending_pull_request_review", "pull_request_read", "pull_request_review_write", "add_issue_comment"],
                   "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
                 }
               },

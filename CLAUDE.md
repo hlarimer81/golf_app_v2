@@ -55,13 +55,28 @@ These protect a live database that real players and deployed hardware depend on.
 
 ## How agent work flows through this repo
 
-- A human labels an issue **`ready-for-dev`**. That triggers `.github/workflows/claude-dev.yml`,
-  which implements it on a `claude/issue-<n>` branch and opens a PR. It never pushes to main.
+- **Golfer testers file issues freely**, with no label. Filing an issue starts nothing.
+- **The coordinator triages**: de-duplicates, prioritizes, and labels what's worth building
+  **`ready-for-dev`**. That label is the trigger.
+- `.github/workflows/claude-dev.yml` implements the issue on a `claude/issue-<n>` branch and opens a
+  PR. It never pushes to main.
 - Every PR gets two automatic passes: **CI** (lint, build, smoke tests) and a **Gemini review**
-  (`.github/workflows/gemini-review.yml`) posting inline comments from a different model.
-- **Harold merges.** A PR is a proposal; an agent never merges its own work.
+  (`.github/workflows/gemini-review.yml`), which posts a verdict and findings as a comment.
+- **The PR merges itself once CI passes**, and Vercel deploys `main` to production. Harold reviews
+  after the fact, not before. This is a deliberate choice (2026-09-12) — the loop runs from filed
+  issue to live app with no human in it.
+
+**What that means for how you work.** CI is the only thing standing between your PR and real golfers
+mid-round. The smoke tests are five shallow checks; they will not catch a wrong Nassau settlement or
+a miscomputed index.
+
+- If you change scoring, handicap, or settlement logic, **add tests that would fail without your
+  change**. "It builds" is not evidence.
+- Say plainly at the top of the PR body when a change touches money or handicaps, so the after-the-
+  fact review starts in the right place.
 - If an issue is too vague to implement, or asks for something the hard rules forbid, comment on the
-  issue saying what you need and stop. Don't guess and don't work around a rule.
+  issue saying what you need and stop. Don't guess and don't work around a rule. Nobody is going to
+  catch a guess before it ships.
 
 ## Staging
 

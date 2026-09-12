@@ -34,6 +34,7 @@ jobs:
           persist-credentials: false
 
       - name: Review the pull request
+        id: gemini
         uses: google-github-actions/run-gemini-cli@v0
         env:
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
@@ -68,3 +69,29 @@ jobs:
           extensions: |
             ["https://github.com/gemini-cli-extensions/code-review"]
           prompt: '/pr-code-review'
+
+      # Three runs finished green having posted nothing, and the only evidence was inside the run
+      # log. The action exposes the model's reply and its errors as outputs; print both, and treat
+      # an empty reply as a failure. A reviewer nobody can tell is working is worth nothing.
+      - name: Report what the reviewer said
+        if: always()
+        run: |
+          {
+            echo "### Gemini review"
+            echo
+            echo "**Reply:**"
+            echo
+            echo "${REPLY:-(empty)}"
+            echo
+            echo "**Errors:**"
+            echo
+            echo "${ERRORS:-(none)}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "${REPLY// /}" ]; then
+            echo "::error::Gemini returned no reply — the reviewer is not working, whatever the step status says"
+            exit 1
+          fi
+        env:
+          REPLY: ${{ steps.gemini.outputs.summary }}
+          ERRORS: ${{ steps.gemini.outputs.error }}

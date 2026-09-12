@@ -102,15 +102,26 @@ jobs:
 
       - name: Commit, push and open the pull request
         run: |
+          # Log the working tree first, so this step explains itself even if a later command dies.
+          # bash -e aborts on the first failure, so a failing `gh issue comment` would otherwise
+          # take the diagnostic with it and leave a red job with no stated reason.
+          echo "::group::working tree"
+          git status --short || true
+          git --no-pager diff --stat || true
+          echo "::endgroup::"
+
           if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "The dev agent ran but left no file changes. Run: $RUN_URL"
             echo "::error::Claude produced no file changes — see the Claude Code Report in this run's summary"
+            gh issue comment "$ISSUE_NUMBER" --body "The dev agent ran but left no file changes. Run: $RUN_URL" \
+              || echo "::warning::could not post the issue comment either"
             exit 1
           fi
 
           git add -A
           git commit -m "$(printf '%s\n\n%s' "$ISSUE_TITLE" "Closes #$ISSUE_NUMBER")"
+          echo "::group::pushing $BRANCH"
           git push -u origin "$BRANCH"
+          echo "::endgroup::"
 
           gh pr create \
             --base main \

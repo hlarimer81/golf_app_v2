@@ -156,11 +156,6 @@
       "count": 7
     }
   },
-  "src/WolfGrid.jsx": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "src/components/AddGreenData.jsx": {
     "no-unused-vars": {
       "count": 1

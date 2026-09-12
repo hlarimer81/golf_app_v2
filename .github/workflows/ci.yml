@@ -30,6 +30,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The scoring, settlement and handicap maths. Since agent PRs merge themselves once this
+      # workflow is green, these are the only thing standing between a wrong payout and a real
+      # round.
+      - name: Unit tests
+        run: npm test
+
       # No Supabase secrets here on purpose: the build must succeed without them, and nothing in
       # CI should be able to reach the production database.
       - name: Build

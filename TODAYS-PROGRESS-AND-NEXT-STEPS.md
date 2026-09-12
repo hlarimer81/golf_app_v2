@@ -1,6 +1,101 @@
-# Golf App Progress - August 8, 2026 (Updated)
+# Golf App Progress - September 11, 2026 (Updated)
 
-## Latest Session (Aug 8) - score_play split, and what it unblocks ✅
+## Latest Session (Sep 11) - an agent team that writes code, and the CI to contain it ✅
+
+No app code changed beyond one trivial cleanup. This session built the machinery for agents to
+develop this app, and proved it end to end on a real issue.
+
+### 1. ✅ The loop works: label an issue, get a reviewed PR
+
+**Label a GitHub issue `ready-for-dev`** → `.github/workflows/claude-dev.yml` implements it on a
+`claude/issue-<n>` branch → CI and a Gemini review run on the PR → **Harold merges**, and Vercel
+deploys `main` to production. Proven on issue #1 (unused `holeHasScores` in `WolfGrid.jsx`), merged
+as PR #2.
+
+**The trigger is the label event, and it does not care who applied it.** The human gate is a
+convention, not a mechanism — an agent using `AGENT_TOKEN` to label its own issue would start
+development with nobody in the loop. This matters the moment golfer-testers can file issues.
+
+### 2. ✅ Foundation: CI, smoke tests, a lint baseline, and a rulebook
+
+| Piece | Notes |
+|---|---|
+| `.github/workflows/ci.yml` | lint → build → Playwright smoke tests, on every PR and push to main. No Supabase secrets: CI cannot reach any database. |
+| `e2e/` | 5 smoke tests × desktop and phone widths. Builds against a fake Supabase host, answers REST calls from `e2e/fixtures.js`, and **aborts every other off-machine request** — a test cannot reach production. |
+| `eslint-suppressions.json` | The 103 pre-existing lint errors, recorded. `npm run lint` now fails only on **new** violations. Fix them with `npx eslint . --prune-suppressions`. |
+| `CLAUDE.md` | The rulebook agents read first: commands, hard rules, and the conventions this log paid for. |
+
+### 3. ✅ Staging Supabase — `4play_staging` (`zchvwblqdmuwinxzsshr`)
+
+Production's schema, 38 policies, and **anon grants verified identical to production across all 14
+granted tables**. Realtime on `scores` and `matches`; the same nightly `golf-sweep-unbanked` cron.
+
+Rebuild it with `bash scripts/staging-setup.sh <prod-schema.sql>`; reload just the data with
+`--seed-only`. The script refuses to run against production, and `scripts/staging-seed.sql` refuses
+to run anywhere `staging_meta.marker` is absent, so neither can touch the real database.
+
+**The fake data** is 2 courses (one rated, one not, so both `whs` and `estimated` rounds exist), 12
+fictional golfers, 20 completed rounds, and a joinable round in progress (code `LIVE01`). Scores come
+from a hash rather than `random()`, so a reseed reproduces them exactly.
+
+**A handicap lesson fell out of seeding it.** At four rounds per player, WHS takes the single best
+one, and with ±2 strokes of per-hole noise a 9-handicap computed to **−1.0**. Eight rounds (best two
+averaged) with tighter noise lands every golfer within a stroke or two of their roster handicap. Any
+future test data needs the same care, or it will look plausible and be nonsense.
+
+**Vercel:** Preview env vars → staging, Production → production. PR previews are safe to click.
+
+### 4. ⚠️ Five failures, all silent-by-default, all now loud
+
+Getting the dev agent working took four runs. Every failure reported success:
+
+1. **The label was `ready-for-dev.`** — with a trailing period, copied out of an instruction
+   sentence. The job's `if:` compares exactly, so it was skipped.
+2. **Tool patterns too narrow.** `Bash(npm run lint)` matches that literal string only, and
+   `Bash(npx playwright:*)` was the sole `npx` entry — so the issue's own instruction,
+   `npx eslint . --prune-suppressions`, was refused. 16 denials, nothing committed, green run.
+3. **Claude driving git.** Replaced: the workflow now creates the branch, Claude edits files only
+   (`git push`/`git commit`/`gh pr create` are in `disallowedTools`), and a shell step commits,
+   pushes and opens the PR. A step that fails turns the job red.
+4. **`AGENT_TOKEN` stored with a trailing newline.** git refuses to parse a credential URL
+   containing one: `fatal: credential url cannot be parsed`, exit 128 — *after* the commit
+   succeeded. The workflow now trims CR/LF from the token and rebuilds the remote regardless.
+5. **The Gemini reviewer had two of the three tools it needs.** Its prompt publishes via
+   `create_pending_pull_request_review` → `add_comment_to_pending_review` →
+   `submit_pending_pull_request_review`; only the middle one was enabled. It analysed diffs for 89
+   seconds and dropped the result on the floor, three runs running.
+
+**The pattern worth carrying forward:** every one of these produced a green check. Both agent
+workflows now print what the model actually did and fail when it did nothing — `display_report: true`
+on the dev agent, and a report step on the reviewer that fails on an empty reply.
+
+### 5. 🔑 Operational facts
+
+- **`main` is protected** by ruleset `Protect Main`: PRs only, `build-and-test` required, force-push
+  and deletion blocked, **Repository admin bypasses** — so Harold still pushes directly, agents cannot.
+- **Secrets:** `AGENT_TOKEN` (fine-grained PAT, 90 days), `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`.
+  The PAT is what makes agent PRs trigger CI and the review; a PR opened with `GITHUB_TOKEN` triggers
+  nothing. It also means agent PRs are authored by Harold — a GitHub App would fix that later.
+- **A workflow fix does not apply to PRs whose branch predates it.** For same-repo PRs, GitHub runs
+  the workflow file from the *PR's branch*. Two reviewer "failures" were really the branch carrying
+  the old file. Merge `main` into the branch to test a workflow change.
+- **Cost:** $0.29–$0.39 per dev-agent run on Sonnet at this task size.
+- **The unauthenticated GitHub API is 60 requests/hour** and this session exhausted it repeatedly
+  polling runs. Watching agents at any volume needs a read-only PAT.
+
+### 6. Next steps for the agent team
+
+1. **Decide the Phase 3 gate:** do golfer-testers file issues straight into the backlog, or does a
+   coordinator triage first? Recommendation: **one** tester filing directly, then judge the volume.
+   The review burden is now the bottleneck, not the code.
+2. **Calibrate the reviewer.** It commented heavily on a ten-line deletion. Whether that is thorough
+   or noisy decides how `ADDITIONAL_CONTEXT` in `gemini-review.yml` should be tightened.
+3. **Read-only PAT** in `.env.local` for polling GitHub.
+4. **Still unbuilt:** the designer, the coordinator, and three more golfer-testers.
+
+**Unchanged by any of this:** the app's own roadmap below — auth, claim-your-player, then RLS.
+
+## Previous Session (Aug 8) - score_play split, and what it unblocks ✅
 
 No code changed. This session established where this app stands relative to `score_play`, and the
 answer reshapes the auth plan below.
@@ -770,6 +865,11 @@ Green GPS working end to end. Handicap system complete — 18-hole and 9-hole, b
 Finish Round, with a nightly pg_cron backstop.
 
 **Next Focus — in this order:**
+
+*Agent team (new, Sep 11): decide the Phase 3 gate, calibrate the Gemini reviewer, add a read-only
+PAT for polling. See the latest session at the top of this file. The app roadmap below is unchanged
+by it — the agents are how the work gets done, not what the work is.*
+
 1. **Play a round** to exercise Finish Round → banking on real data. The only step needing a course.
 2. **Authentication.** Supabase Auth magic link; creator signs in, guests stay frictionless.
 3. **Claim your player.** Link an account to a canonical name so a new signup inherits their existing
@@ -783,4 +883,4 @@ Finish Round, with a nightly pg_cron backstop.
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** August 8, 2026 - score_play split established; auth plan unblocked
+**Last Updated:** September 11, 2026 - agent development pipeline built and proven end to end

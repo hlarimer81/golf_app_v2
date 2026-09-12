@@ -1,8 +1,14 @@
 name: Gemini review
 
 # Second opinion on every PR, from a different model than the one that wrote the code.
-# Adapted from google-github-actions/run-gemini-cli's own pr-review example, which posts its
-# review through the GitHub MCP server rather than by shelling out to gh.
+#
+# The model reviews; the workflow posts. Four runs went green while posting nothing, because the
+# review was published through the GitHub MCP server and every failure there is invisible from
+# outside. Now the diff goes in as text, Gemini's reply comes back as a step output, and a shell
+# step comments with gh. An empty reply fails the job — the same rule the dev agent follows.
+#
+# The cost is per-line inline comments, which the MCP path promised and never delivered. One
+# summary comment that actually appears is worth more.
 
 on:
   pull_request:
@@ -22,76 +28,87 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      issues: write
       pull-requests: write
-      id-token: write
+
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
 
-      - name: Review the pull request
+      - name: Collect the diff
+        id: diff
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref }}"
+          git fetch -q origin "${{ github.event.pull_request.base.ref }}"
+          {
+            echo 'diff<<GEMINI_DIFF_EOF'
+            git diff "$BASE...HEAD" -- . ':(exclude)package-lock.json' | head -c 120000
+            echo
+            echo 'GEMINI_DIFF_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+          echo "changed files:"
+          git diff --stat "$BASE...HEAD"
+
+      - name: Review the diff
         id: gemini
         uses: google-github-actions/run-gemini-cli@v0
         env:
-          GEMINI_CLI_TRUST_WORKSPACE: 'true'
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # The extension's prompt reads these as "Additional User Instructions".
-          REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          ADDITIONAL_CONTEXT: >-
-            Always submit the review, even when you find nothing wrong. A pull request with no
-            problems gets a summary saying so in one line. Never finish without posting: silence is
-            indistinguishable from a broken reviewer, and a reviewer nobody can tell is working is
-            worth nothing. This project is a golf scoring app whose users enter scores one-handed on
-            a phone in bright sun, so weigh phone-width layout and tap targets accordingly, and read
-            CLAUDE.md for the rules the code is meant to follow.
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          github_pr_number: ${{ github.event.pull_request.number }}
           settings: |
             {
-              "model": { "maxSessionTurns": 25 },
-              "mcpServers": {
-                "github": {
-                  "command": "docker",
-                  "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server:v0.27.0"],
-                  "includeTools": ["create_pending_pull_request_review", "add_comment_to_pending_review", "submit_pending_pull_request_review", "pull_request_read", "pull_request_review_write", "add_issue_comment"],
-                  "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
-                }
-              },
+              "model": { "maxSessionTurns": 3 },
               "tools": { "core": [] }
             }
-          extensions: |
-            ["https://github.com/gemini-cli-extensions/code-review"]
-          prompt: '/pr-code-review'
+          prompt: |
+            You are reviewing a pull request for 4Play, a golf scoring web app (React + Vite +
+            Supabase). Its users enter scores one-handed on a phone, outdoors in bright sun, while
+            playing — so phone-width layout, tap target size and contrast matter as much as
+            correctness. Money is settled off these scores, so scoring and handicap maths deserve
+            real scrutiny.
 
-      # Three runs finished green having posted nothing, and the only evidence was inside the run
-      # log. The action exposes the model's reply and its errors as outputs; print both, and treat
-      # an empty reply as a failure. A reviewer nobody can tell is working is worth nothing.
-      - name: Report what the reviewer said
+            Review the diff below. Comment only on what the diff actually changes.
+
+            Answer in GitHub markdown, under 300 words, in this shape:
+
+            **Verdict:** one line — approve, approve with nits, or needs changes.
+
+            **Findings:** a short bullet per issue, most serious first, each naming the file and
+            saying what breaks and when. If you find nothing wrong, write "No concerns." and say so
+            plainly rather than inventing work.
+
+            Do not restate what the diff does — the author knows. Be specific or be brief.
+
+            ```diff
+            ${{ steps.diff.outputs.diff }}
+            ```
+
+      - name: Post the review
         if: always()
         run: |
           {
             echo "### Gemini review"
             echo
-            echo "**Reply:**"
-            echo
             echo "${REPLY:-(empty)}"
             echo
-            echo "**Errors:**"
-            echo
-            echo "${ERRORS:-(none)}"
+            echo "**Errors:** ${ERRORS:-(none)}"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ -z "${REPLY// /}" ]; then
             echo "::error::Gemini returned no reply — the reviewer is not working, whatever the step status says"
             exit 1
           fi
+
+          printf '%s\n\n---\n*Reviewed by Gemini. [Run](%s/%s/actions/runs/%s)*\n' \
+            "$REPLY" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            | gh pr comment "$PR_NUMBER" --body-file -
         env:
           REPLY: ${{ steps.gemini.outputs.summary }}
           ERRORS: ${{ steps.gemini.outputs.error }}

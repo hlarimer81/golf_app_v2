@@ -103,7 +103,7 @@ export async function fetchPlayerRounds(canonicalName) {
 export async function fetchRoundParticipation() {
     const { data, error } = await supabase
         .from('round_differential')
-        .select('canonical_name, match_id');
+        .select('canonical_name, match_id, played_on');
 
     if (error || !data) return [];
     return data;

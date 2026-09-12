@@ -35,13 +35,15 @@ export const tables = {
   // Who played with whom, for the player picker's ordering. Pat and Bo are regulars who play
   // together; Sandy has one round and Gil has none, so the picker has a real order to produce
   // rather than an alphabetical fallback.
+  // Dated, because the picker weights recent rounds more heavily. Pat and Bo played together
+  // recently; Sandy's round is old enough to be faded by the time it is ranked.
   round_differential: [
-    { canonical_name: 'Pat Par', match_id: 'm1' },
-    { canonical_name: 'Bo Birdie', match_id: 'm1' },
-    { canonical_name: 'Pat Par', match_id: 'm2' },
-    { canonical_name: 'Bo Birdie', match_id: 'm2' },
-    { canonical_name: 'Pat Par', match_id: 'm3' },
-    { canonical_name: 'Sandy Trap', match_id: 'm3' },
+    { canonical_name: 'Pat Par', match_id: 'm1', played_on: '2026-08-02' },
+    { canonical_name: 'Bo Birdie', match_id: 'm1', played_on: '2026-08-02' },
+    { canonical_name: 'Pat Par', match_id: 'm2', played_on: '2026-08-16' },
+    { canonical_name: 'Bo Birdie', match_id: 'm2', played_on: '2026-08-16' },
+    { canonical_name: 'Pat Par', match_id: 'm3', played_on: '2023-05-14' },
+    { canonical_name: 'Sandy Trap', match_id: 'm3', played_on: '2023-05-14' },
   ],
   courses: [],
   matches: [],

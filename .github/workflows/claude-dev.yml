@@ -102,6 +102,16 @@ jobs:
 
       - name: Commit, push and open the pull request
         run: |
+          # A secret pasted with a trailing newline breaks everything downstream: the Claude action
+          # bakes the token into the remote URL, and git refuses to parse a credential URL
+          # containing a newline ("fatal: credential url cannot be parsed", exit 128) — after the
+          # commit has already succeeded. gh fails the same way. Trim it and rebuild the remote so
+          # a stray newline in the stored secret can never break the push again.
+          TOKEN="$(printf '%s' "$AGENT_TOKEN_RAW" | tr -d '\r\n')"
+          echo "::add-mask::$TOKEN"
+          export GH_TOKEN="$TOKEN"
+          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
           # Log the working tree first, so this step explains itself even if a later command dies.
           # bash -e aborts on the first failure, so a failing `gh issue comment` would otherwise
           # take the diagnostic with it and leave a red job with no stated reason.
@@ -130,3 +140,4 @@ jobs:
             --body "$(printf 'Implements #%s.\n\nWritten by the dev agent. What it changed and how it verified the work is in the [run summary](%s).\n\nThis is a proposal for review, not a finished decision.\n\nCloses #%s' "$ISSUE_NUMBER" "$RUN_URL" "$ISSUE_NUMBER")"
         env:
           ISSUE_TITLE: ${{ github.event.issue.title }}
+          AGENT_TOKEN_RAW: ${{ secrets.AGENT_TOKEN }}

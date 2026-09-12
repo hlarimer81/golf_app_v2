@@ -1,0 +1,75 @@
+name: Claude dev
+
+# Implements an issue when a human labels it 'ready-for-dev', then opens a PR for review.
+#
+# Uses AGENT_TOKEN (a fine-grained PAT) rather than GITHUB_TOKEN, because a PR opened with
+# GITHUB_TOKEN does not trigger other workflows — CI and the Gemini review would never run on it.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  implement:
+    if: github.event.label.name == 'ready-for-dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AGENT_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Implement the issue
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.AGENT_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+
+            Implement the change this issue asks for, then open a pull request.
+
+            Read CLAUDE.md first and follow it. Its hard rules are absolute: never use production
+            credentials, never run SQL against any database, never read or edit .env files, and never
+            push to main.
+
+            Steps:
+            1. Read the issue with: gh issue view ${{ github.event.issue.number }} --comments
+            2. If the issue is too vague to implement, or asks for something the hard rules forbid,
+               post a comment on the issue saying exactly what you need and stop. Do not guess.
+            3. Create a branch named claude/issue-${{ github.event.issue.number }}.
+            4. Make the smallest change that resolves the issue. Match the style of the code around
+               it. Do not reformat unrelated code or bump dependencies.
+            5. Verify your work: npm run lint, npm run build, and npm run test:e2e must all pass.
+               Fix what you broke. If a pre-existing failure blocks you, say so in the PR body.
+            6. If you changed or added a user-facing flow, add or extend a smoke test in e2e/.
+            7. Commit, push the branch, and open a PR with: gh pr create
+               The PR body must say what changed, why, how you verified it, and "Closes
+               #${{ github.event.issue.number }}".
+
+            The PR is a proposal for a human to review, not a finished decision. If you were unsure
+            about an approach, say so in the PR body rather than presenting a guess as settled.
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 60
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(npm ci),Bash(npm run lint),Bash(npm run build),Bash(npm run test:e2e),Bash(npx playwright:*),Bash(git:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*),Bash(gh pr view:*)"

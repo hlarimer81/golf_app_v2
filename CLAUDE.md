@@ -53,6 +53,16 @@ These protect a live database that real players and deployed hardware depend on.
 - **Styling** is inline `style={{}}` objects today. Match the surrounding code unless the PR is
   specifically a styling refactor.
 
+## How agent work flows through this repo
+
+- A human labels an issue **`ready-for-dev`**. That triggers `.github/workflows/claude-dev.yml`,
+  which implements it on a `claude/issue-<n>` branch and opens a PR. It never pushes to main.
+- Every PR gets two automatic passes: **CI** (lint, build, smoke tests) and a **Gemini review**
+  (`.github/workflows/gemini-review.yml`) posting inline comments from a different model.
+- **Harold merges.** A PR is a proposal; an agent never merges its own work.
+- If an issue is too vague to implement, or asks for something the hard rules forbid, comment on the
+  issue saying what you need and stop. Don't guess and don't work around a rule.
+
 ## Staging
 
 `4play_staging` is a separate Supabase project with production's schema, permissions, realtime

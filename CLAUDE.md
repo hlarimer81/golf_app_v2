@@ -56,8 +56,19 @@ These protect a live database that real players and deployed hardware depend on.
 ## How agent work flows through this repo
 
 - **Golfer testers file issues freely**, with no label. Filing an issue starts nothing.
-- **The coordinator triages**: de-duplicates, prioritizes, and labels what's worth building
-  **`ready-for-dev`**. That label is the trigger.
+- **The coordinator triages** (`.github/workflows/coordinator.yml`, daily): de-duplicates,
+  prioritizes, and labels what's worth building **`ready-for-dev`**. That label is the trigger.
+  It ships at most a couple of issues per run — approved work over the limit waits for the next
+  one rather than queueing five unreviewed changes at production.
+
+  | Label | Meaning |
+  |---|---|
+  | *(none)* | Filed but not looked at. Starts nothing. |
+  | `triaged` | The coordinator has read it. |
+  | `ready-for-dev` | Approved — the dev agent builds it, and the PR merges itself. |
+  | `needs-info` | Too vague to build as written; a question is waiting on the issue. |
+  | `needs-human` | Touches the database, migrations, secrets, auth, the firmware bucket, or maths that can't be verified with a test. Harold does these. |
+  | `duplicate` | Covered by another open issue. |
 - `.github/workflows/claude-dev.yml` implements the issue on a `claude/issue-<n>` branch and opens a
   PR. It never pushes to main.
 - Every PR gets two automatic passes: **CI** (lint, build, smoke tests) and a **Gemini review**

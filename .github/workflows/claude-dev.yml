@@ -57,6 +57,7 @@ jobs:
           git checkout -b "$BRANCH"
 
       - name: Implement the issue
+        id: claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -91,14 +92,40 @@ jobs:
             Finish by printing a short summary of what you changed and how you verified it. That
             summary becomes the pull request body.
 
+            If what the issue refers to does not exist — a player name, a screen, a field you
+            cannot find anywhere in the code — stop early. Say what you looked for, where you
+            looked, and what you would need in order to proceed, as a comment on the issue. Do not
+            keep searching. An exhaustive hunt for something that is not there burns the whole run
+            and produces nothing, which is worse than asking.
+
             Never finish silently. If a command you need is refused by the tool permissions, or you
             cannot complete the task for any other reason, post a comment on the issue naming the
             exact command or permission you needed.
+          # max-turns was 60, set when the only test case was a one-line lint fix. A styling change
+          # spanning several files took 117 turns, and the action fails the step once the ceiling is
+          # passed — so six minutes of correct work and $1.44 were discarded at the finish line,
+          # with the commit step skipped and nothing left behind. Keep this comment out of the block
+          # below: claude_args is a literal scalar, so a # line inside it reaches the CLI as an
+          # argument rather than being stripped.
           claude_args: |
             --model claude-sonnet-5
-            --max-turns 60
+            --max-turns 150
             --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,TodoWrite,Bash"
             --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(gh pr create:*),Bash(gh pr merge:*)"
+
+      # A failed agent step skips everything after it, including the comment the prompt asks for —
+      # so a dead run left no trace anywhere except a log archive someone had to download. Now the
+      # issue itself says the run died.
+      - name: Say so on the issue if the agent failed
+        if: always() && steps.claude.outcome == 'failure'
+        env:
+          AGENT_TOKEN_RAW: ${{ secrets.AGENT_TOKEN }}
+        run: |
+          TOKEN="$(printf '%s' "$AGENT_TOKEN_RAW" | tr -d '\r\n')"
+          echo "::add-mask::$TOKEN"
+          export GH_TOKEN="$TOKEN"
+          gh issue comment "$ISSUE_NUMBER" --body "$(printf 'The dev agent failed on this issue and left nothing behind — no branch, no pull request.\n\nRun: %s\n\nThe issue is still open. Remove and re-apply the ready-for-dev label to try again once the cause is understood.' "$RUN_URL")" \
+            || echo "::warning::could not comment on the issue either"
 
       - name: Commit, push and open the pull request
         run: |

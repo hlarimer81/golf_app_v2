@@ -11,6 +11,11 @@ name: Coordinator
 #
 # AGENT_TOKEN, not GITHUB_TOKEN: a label applied with GITHUB_TOKEN does not trigger other
 # workflows, so the dev agent would never wake up.
+#
+# Paths come from $RUNNER_TEMP inside the shell, not from ${{ runner.temp }} in a job-level env
+# block — the runner context does not exist until a runner is assigned, and referencing it there
+# makes GitHub fail to parse the file. A workflow it cannot parse still appears in the API, listed
+# by filename instead of name, which is how this was spotted.
 
 on:
   schedule:
@@ -41,10 +46,6 @@ jobs:
 
     env:
       GH_TOKEN: ${{ secrets.AGENT_TOKEN }}
-      MAX_TO_SHIP: ${{ inputs.max_to_ship || '2' }}
-      DRY_RUN: ${{ inputs.dry_run || 'false' }}
-      DECISIONS: ${{ runner.temp }}/triage.json
-      BACKLOG: ${{ runner.temp }}/issues.json
 
     steps:
       - name: Checkout repository
@@ -65,10 +66,10 @@ jobs:
         run: |
           gh issue list --state open --limit 100 \
             --json number,title,body,labels,createdAt,author,comments \
-            > "$BACKLOG"
+            > "$RUNNER_TEMP/issues.json"
 
-          COUNT=$(jq 'length' "$BACKLOG")
-          UNTRIAGED=$(jq '[.[] | select([.labels[].name] | index("triaged") | not)] | length' "$BACKLOG")
+          COUNT=$(jq 'length' "$RUNNER_TEMP/issues.json")
+          UNTRIAGED=$(jq '[.[] | select([.labels[].name] | index("triaged") | not)] | length' "$RUNNER_TEMP/issues.json")
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           echo "untriaged=$UNTRIAGED" >> "$GITHUB_OUTPUT"
           echo "$COUNT open issues, $UNTRIAGED not yet triaged"
@@ -128,6 +129,10 @@ jobs:
               more than features nobody asked for.
             - Prefer small, verifiable changes over large ones. A change an agent can prove with a
               test is worth more than a bigger change it cannot.
+            - A new game mode is not a small change: it needs a Grid component, a registry entry, a
+              settlement path and a summary screen. If the game also needs information the app does
+              not currently record — anything beyond strokes per hole — then it needs somewhere to
+              store that, which means a migration, which means a person.
             - Several golfers reporting the same friction is strong evidence. One person's feature
               idea is weak evidence.
             - Money rides on the scoring. Be conservative near it.
@@ -142,7 +147,12 @@ jobs:
 
       - name: Apply the decisions
         if: steps.backlog.outputs.untriaged != '0'
+        env:
+          MAX_TO_SHIP: ${{ inputs.max_to_ship || '2' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: |
+          DECISIONS="$RUNNER_TEMP/triage.json"
+
           if [ ! -f "$DECISIONS" ]; then
             echo "::error::The coordinator produced no decisions file — see the Claude Code Report above"
             exit 1
@@ -220,6 +230,8 @@ jobs:
       - name: Nothing to do
         if: steps.backlog.outputs.untriaged == '0'
         run: |
-          echo "### Coordinator" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "No untriaged issues in a backlog of ${{ steps.backlog.outputs.count }}." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Coordinator"
+            echo
+            echo "No untriaged issues in a backlog of ${{ steps.backlog.outputs.count }}."
+          } >> "$GITHUB_STEP_SUMMARY"

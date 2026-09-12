@@ -2,6 +2,12 @@ name: Claude dev
 
 # Implements an issue when a human labels it 'ready-for-dev', then opens a PR for review.
 #
+# The git work is done by shell steps, not by Claude. Two earlier runs finished green having
+# produced nothing — no branch, no commit, no PR, no comment — because Claude drove git and gh
+# through Bash and kept hitting tool-permission denials (16, then 10) that the action reports only
+# as a count. Claude now edits files and nothing else; the steps around it create the branch and
+# open the PR, and a step that fails turns the job red instead of green.
+#
 # Uses AGENT_TOKEN (a fine-grained PAT) rather than GITHUB_TOKEN, because a PR opened with
 # GITHUB_TOKEN does not trigger other workflows — CI and the Gemini review would never run on it.
 
@@ -23,6 +29,12 @@ jobs:
       issues: write
       id-token: write
 
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      BRANCH: claude/issue-${{ github.event.issue.number }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      GH_TOKEN: ${{ secrets.AGENT_TOKEN }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,51 +50,72 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Create the working branch
+        run: |
+          git config user.name "claude-dev[bot]"
+          git config user.email "claude-dev[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+
       - name: Implement the issue
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.AGENT_TOKEN }}
-          # Print what Claude actually did into the job summary. Without this, a run that finishes
-          # green but changes nothing gives you no way to see why short of reading raw logs.
+          # Puts a summary of what Claude did in the job summary. Without it, a run that changes
+          # nothing gives you only a denial count and no way to see why.
           display_report: true
           prompt: |
             REPO: ${{ github.repository }}
             ISSUE NUMBER: ${{ github.event.issue.number }}
 
-            Implement the change this issue asks for, then open a pull request.
+            Implement the change this issue asks for. Edit files only.
+
+            Do NOT run git, do NOT commit, do NOT push, and do NOT open a pull request. The workflow
+            does all of that for you after you finish. Your job is to leave correct edits in the
+            working tree.
 
             Read CLAUDE.md first and follow it. Its hard rules are absolute: never use production
-            credentials, never run SQL against any database, never read or edit .env files, and never
-            push to main.
+            credentials, never run SQL against any database, and never read or edit .env files.
 
             Steps:
-            1. Read the issue with: gh issue view ${{ github.event.issue.number }} --comments
+            1. Read the issue: gh issue view ${{ github.event.issue.number }} --comments
             2. If the issue is too vague to implement, or asks for something the hard rules forbid,
-               post a comment on the issue saying exactly what you need and stop. Do not guess.
-            3. Create a branch named claude/issue-${{ github.event.issue.number }}.
-            4. Make the smallest change that resolves the issue. Match the style of the code around
+               post a comment on the issue saying exactly what you need, and stop. Do not guess.
+            3. Make the smallest change that resolves the issue. Match the style of the code around
                it. Do not reformat unrelated code or bump dependencies.
-            5. Verify your work: npm run lint, npm run build, and npm run test:e2e must all pass.
-               Fix what you broke. If a pre-existing failure blocks you, say so in the PR body.
-            6. If you changed or added a user-facing flow, add or extend a smoke test in e2e/.
-            7. Commit, push the branch, and open a PR with: gh pr create
-               The PR body must say what changed, why, how you verified it, and "Closes
-               #${{ github.event.issue.number }}".
+            4. Verify your work: npm run lint, npm run build, and npm run test:e2e must all pass.
+               Fix what you broke. If a pre-existing failure blocks you, say so in a comment on the
+               issue.
+            5. If you changed or added a user-facing flow, add or extend a smoke test in e2e/.
 
-            The PR is a proposal for a human to review, not a finished decision. If you were unsure
-            about an approach, say so in the PR body rather than presenting a guess as settled.
+            Finish by printing a short summary of what you changed and how you verified it. That
+            summary becomes the pull request body.
 
             Never finish silently. If a command you need is refused by the tool permissions, or you
-            cannot complete the task for any other reason, post a comment on issue
-            #${{ github.event.issue.number }} naming the exact command or permission you needed.
-            A run that ends with no branch, no PR and no comment is a failure.
-          # Prefix patterns (name:*), not exact commands. The first version listed
-          # Bash(npm run lint) and Bash(npx playwright:*), which match those literal strings only —
-          # so `npm run lint --silent` and `npx eslint . --prune-suppressions` were both denied, and
-          # the run ended with 16 permission denials and nothing committed. This mirrors the
-          # allowlist in anthropics/claude-code-action's own ci-failure-auto-fix example.
+            cannot complete the task for any other reason, post a comment on the issue naming the
+            exact command or permission you needed.
           claude_args: |
             --model claude-sonnet-5
             --max-turns 60
-            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,TodoWrite,Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(git:*),Bash(gh:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(wc:*)"
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,TodoWrite,Bash"
+            --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(gh pr create:*),Bash(gh pr merge:*)"
+
+      - name: Commit, push and open the pull request
+        run: |
+          if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "The dev agent ran but left no file changes. Run: $RUN_URL"
+            echo "::error::Claude produced no file changes — see the Claude Code Report in this run's summary"
+            exit 1
+          fi
+
+          git add -A
+          git commit -m "$(printf '%s\n\n%s' "$ISSUE_TITLE" "Closes #$ISSUE_NUMBER")"
+          git push -u origin "$BRANCH"
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "$ISSUE_TITLE" \
+            --body "$(printf 'Implements #%s.\n\nWritten by the dev agent. What it changed and how it verified the work is in the [run summary](%s).\n\nThis is a proposal for review, not a finished decision.\n\nCloses #%s' "$ISSUE_NUMBER" "$RUN_URL" "$ISSUE_NUMBER")"
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}

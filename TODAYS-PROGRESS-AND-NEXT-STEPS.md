@@ -41,10 +41,18 @@ untouched since they were written on Sep 11.
 Its one live consumer is **Vercel preview deploys**, whose env vars point at staging. Those matter
 less than they did — PRs now merge themselves once CI is green, so previews are rarely opened.
 
-The call is Harold's. The setup script rebuilds it from a schema export in one command, so deleting
-it is cheap to undo; the cost of keeping it is a second project to hold awake. What would make it
-earn its keep is a job that actually exercises it — a nightly smoke run against staging would catch
-RLS and grant regressions that the mocked CI cannot see by construction.
+**Decided Sep 21: let it pause.** Its secrets are deliberately not in the keepalive, so it goes
+idle and Supabase pauses it in about a week. Unpausing is a button, and `scripts/staging-setup.sh`
+rebuilds it from a schema export if it is ever cleaned up entirely — so this is cheap to undo and
+does not need revisiting.
+
+**The one visible consequence:** Vercel preview deploys point at staging, so an opened preview will
+fail to load data until staging is unpaused. Previews are rarely opened now that PRs merge
+themselves, but a preview that looks broken is probably just a paused database.
+
+What would make staging worth holding awake is a job that actually exercises it — a nightly smoke
+run against staging would catch RLS and grant regressions that the mocked CI cannot see by
+construction. Until that exists, it is a second project to keep warm for nothing.
 
 ## Previous Session (Sep 11) - an agent team that writes code, and the CI to contain it ✅
 

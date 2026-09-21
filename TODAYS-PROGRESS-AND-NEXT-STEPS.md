@@ -1,6 +1,52 @@
-# Golf App Progress - September 11, 2026 (Updated)
+# Golf App Progress - September 21, 2026 (Updated)
 
-## Latest Session (Sep 11) - an agent team that writes code, and the CI to contain it ✅
+## Latest Session (Sep 21) - keeping the Supabase projects awake through the off-season ✅
+
+Supabase started warning that the projects will be paused for inactivity. Golf season ends; the
+database does not get to.
+
+### 1. ✅ `.github/workflows/keepalive.yml` — a daily read that proves it landed
+
+Free-tier projects pause after **7 days with no API traffic**, and the off-season is 7 days with no
+API traffic. Pausing production takes the app down *and* stops serving firmware OTA updates out of
+the storage bucket, which score_play's hardware depends on — the coupling documented in the Aug 8
+session below.
+
+The workflow runs daily at 06:00 Central (offset from the coordinator's 08:00) and does one anon-key
+REST select of a single row from `golf_courses` per project — the same request the app makes on
+load. **Reads only:** no writes, no SQL, no service-role key, nothing near the firmware bucket.
+
+- **The nightly `golf-sweep-unbanked` pg_cron job does not count as activity.** It runs inside the
+  database; Supabase measures requests arriving at the project. That is why the warnings came
+  despite it, and why the keepalive has to knock from outside.
+- **It fails loudly on any non-200.** A keepalive that quietly 401s for a week is worse than none —
+  it pauses the project while reporting green, which is the failure mode section 4 below cost four
+  runs to learn.
+- **Staging is skipped, not failed, when its secrets are absent**, so retiring `4play_staging` needs
+  no change to the file.
+- **Secrets to add** (Settings → Secrets and variables → Actions): `SUPABASE_PROD_URL`,
+  `SUPABASE_PROD_ANON_KEY`, and optionally `SUPABASE_STAGING_URL`, `SUPABASE_STAGING_ANON_KEY`. The
+  anon key is already public in the deployed client bundle; secrets are for tidiness, not secrecy.
+- **The hazard to watch:** GitHub disables scheduled workflows after ~60 days of repository
+  inactivity — precisely the off-season this exists for. It emails first and re-enabling is one
+  click, but an off-season with no commits and no issues is how the keepalive itself goes quiet.
+
+### 2. ⚠️ `4play_staging` has no automated consumer
+
+Reviewed on Sep 21. Nothing in the repo points at it: CI builds against the fake host
+`supabase.test` and aborts every off-machine request, no workflow carries Supabase secrets, and the
+only files mentioning staging are `scripts/staging-setup.sh` and `scripts/staging-seed.sql`, both
+untouched since they were written on Sep 11.
+
+Its one live consumer is **Vercel preview deploys**, whose env vars point at staging. Those matter
+less than they did — PRs now merge themselves once CI is green, so previews are rarely opened.
+
+The call is Harold's. The setup script rebuilds it from a schema export in one command, so deleting
+it is cheap to undo; the cost of keeping it is a second project to hold awake. What would make it
+earn its keep is a job that actually exercises it — a nightly smoke run against staging would catch
+RLS and grant regressions that the mocked CI cannot see by construction.
+
+## Previous Session (Sep 11) - an agent team that writes code, and the CI to contain it ✅
 
 No app code changed beyond one trivial cleanup. This session built the machinery for agents to
 develop this app, and proved it end to end on a real issue.

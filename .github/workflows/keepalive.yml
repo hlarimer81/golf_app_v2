@@ -1,0 +1,107 @@
+name: Supabase keepalive
+
+# Free-tier Supabase projects are paused after 7 days with no API traffic, and the off-season is
+# 7 days with no API traffic. A paused production project takes the app down AND stops serving
+# firmware OTA updates out of the storage bucket, which score_play's hardware depends on — so this
+# runs every day, all year, whether anyone is playing golf or not.
+#
+# It only READS: one anon-key REST select of a single row, the same request the app makes on load.
+# No writes, no SQL, no service-role key, nothing touching the firmware bucket. The anon key is
+# already public in the deployed client bundle; it lives in Actions secrets here for tidiness, not
+# because reading it is dangerous.
+#
+# Why a read is enough: Supabase measures activity by requests reaching the project. The nightly
+# pg_cron sweep runs *inside* the database and does not count, which is why the inactivity warnings
+# arrive despite it.
+#
+# The job fails loudly on any non-200. A keepalive that quietly 401s for a week is worse than none
+# at all — it pauses the project while reporting green, which is the failure mode this repo has
+# already been bitten by five times.
+#
+# Secrets (repo settings -> Secrets and variables -> Actions):
+#   SUPABASE_PROD_URL       https://lvwdffsibhqzgbqixfdi.supabase.co
+#   SUPABASE_PROD_ANON_KEY
+#   SUPABASE_STAGING_URL    optional — staging is skipped, not failed, when these are absent,
+#   SUPABASE_STAGING_ANON_KEY   so retiring 4play_staging needs no change to this file.
+
+on:
+  schedule:
+    - cron: '0 11 * * *' # 06:00 Central, daily — offset from the coordinator's 08:00
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Ping each project
+        env:
+          PROD_URL: ${{ secrets.SUPABASE_PROD_URL }}
+          PROD_KEY: ${{ secrets.SUPABASE_PROD_ANON_KEY }}
+          STAGING_URL: ${{ secrets.SUPABASE_STAGING_URL }}
+          STAGING_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          # Any table anon may select. golf_courses exists and has rows in both projects.
+          TABLE: golf_courses
+        run: |
+          set -uo pipefail
+          failed=0
+
+          echo "### Supabase keepalive" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          ping() {
+            local label=$1 url=$2 key=$3 required=$4
+            local body code
+
+            if [ -z "$url" ] || [ -z "$key" ]; then
+              if [ "$required" = required ]; then
+                echo "::error::$label: its URL / anon key secrets are not set"
+                echo "- ❌ **$label** — secrets missing" >> "$GITHUB_STEP_SUMMARY"
+                failed=1
+              else
+                echo "$label: no secrets set, skipping"
+                echo "- ⏭️ **$label** — no secrets set, skipped" >> "$GITHUB_STEP_SUMMARY"
+              fi
+              return
+            fi
+
+            body=$(mktemp)
+            # --retry rides out a transient blip; a genuinely paused project still fails all 3.
+            code=$(curl -sS -o "$body" -w '%{http_code}' \
+              --max-time 20 --retry 3 --retry-delay 10 --retry-all-errors \
+              -H "apikey: $key" -H "Authorization: Bearer $key" \
+              "${url%/}/rest/v1/${TABLE}?select=id&limit=1" || echo 000)
+            # Each failed attempt writes its own 000, so keep the last code only.
+            code=$(printf '%s' "$code" | tail -c 3)
+
+            # 200 with a JSON array is the only pass. 401/404 mean the key or table is wrong and
+            # the project is drifting toward a pause with nobody watching.
+            if [ "$code" = 200 ] && head -c 1 "$body" | grep -q '\['; then
+              echo "$label: HTTP $code, $(wc -c < "$body" | tr -d ' ') bytes"
+              echo "- ✅ **$label** — HTTP $code" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::$label: expected HTTP 200 and a JSON array, got HTTP $code"
+              echo "::error::$label: response was $(head -c 300 "$body" | tr '\n' ' ')"
+              echo "- ❌ **$label** — HTTP $code" >> "$GITHUB_STEP_SUMMARY"
+              failed=1
+            fi
+            rm -f "$body"
+          }
+
+          ping production "$PROD_URL" "$PROD_KEY" required
+          ping staging "$STAGING_URL" "$STAGING_KEY" optional
+
+          if [ "$failed" -ne 0 ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "A project that cannot be reached is a project on its way to being paused." \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

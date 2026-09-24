@@ -261,3 +261,9 @@ ORDER BY gc.name, tb.rating DESC NULLS LAST;
 --   4. Add more tee boxes as needed using the pattern above
 --   5. Old 'courses' table remains untouched for your other app
 -- ===========================================================================
+
+-- Data API grants. Supabase stops auto-granting new public tables to anon/authenticated on
+-- 2026-10-30; without these a fresh project, preview branch or `supabase db reset` gets tables the
+-- API answers with 42501. Matches what the app does: read + INSERT + UPDATE, never DELETE.
+GRANT SELECT, INSERT, UPDATE ON public.golf_courses, public.tee_boxes TO anon, authenticated;
+GRANT ALL                    ON public.golf_courses, public.tee_boxes TO service_role;

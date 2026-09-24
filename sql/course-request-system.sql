@@ -66,6 +66,15 @@ CREATE POLICY "Anyone can view course issues"
   USING (true);
 
 
+-- Data API grants. Supabase stops auto-granting new public tables to anon/authenticated on
+-- 2026-10-30; without these a fresh project, preview branch or `supabase db reset` gets tables the
+-- API answers with 42501. A GRANT is not a POLICY: these only open the door the policies above
+-- already describe (insert + read). course_requests is written by the request-course edge function
+-- with the service role, which needs its own grant even though it bypasses RLS.
+GRANT SELECT, INSERT ON public.course_requests, public.course_issues TO anon, authenticated;
+GRANT ALL            ON public.course_requests, public.course_issues TO service_role;
+
+
 -- 4. Notification function for new issues (optional - sends email to admin)
 -- ===========================================================================
 CREATE OR REPLACE FUNCTION notify_admin_new_issue()

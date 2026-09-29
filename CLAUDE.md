@@ -30,7 +30,7 @@ These protect a live database that real players and deployed hardware depend on.
   updates from it. Never propose deleting, pausing or locking down the Supabase project.
 - **Interactive sessions with Harold commit straight to `main`** (since 2026-09-29). Direct pushes
   skip CI and the Gemini review, and Vercel deploys `main` at once, so run `npm run lint`, `npm test`,
-  `npm run build` and `npm run test:e2e` locally and push only when all three pass. Keep each
+  `npm run build` and `npm run test:e2e` locally and push only when all four pass. Keep each
   commit to one change.
 - **The automated dev agent still works on a branch and opens a PR.** It never pushes to `main`.
   With no human watching it, CI is its only check.

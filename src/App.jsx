@@ -20,7 +20,9 @@ import PlayerDirectory from './components/PlayerDirectory';
 import PlayerPage from './components/PlayerPage';
 import PlayerPicker from './components/PlayerPicker';
 import SignIn from './components/SignIn';
+import ClaimPlayer from './components/ClaimPlayer';
 import { useAuth } from './hooks/useAuth';
+import { usePlayerClaim } from './hooks/usePlayerClaim';
 
 // Infer play_mode for matches created before the play_mode column was added.
 // Games with a fixed mode don't need to be stored. For ambiguous games (stableford,
@@ -99,6 +101,8 @@ function App() {
   const [playerPageName, setPlayerPageName] = useState(null);
   const [showSignIn, setShowSignIn] = useState(false);
   const { user, ready: authReady, sendCode, verifyCode, signOut } = useAuth();
+  const [showClaim, setShowClaim] = useState(false);
+  const { claims, myClaim, refresh: refreshClaims } = usePlayerClaim(user);
 
   useEffect(() => {
     fetchGlobalPlayers();
@@ -706,6 +710,18 @@ function App() {
     return <PlayerDirectory onSelect={setPlayerPageName} onBack={() => setShowPlayers(false)} />;
   }
 
+  if (showClaim && user) {
+    return (
+      <ClaimPlayer
+        accountId={user.id}
+        claims={claims}
+        myClaim={myClaim}
+        onChanged={refreshClaims}
+        onBack={() => setShowClaim(false)}
+      />
+    );
+  }
+
   if (showSignIn) {
     return (
       <SignIn
@@ -1224,8 +1240,44 @@ function App() {
             <div style={{ marginTop: '14px', textAlign: 'center', fontSize: '14px', color: 'var(--text-h)' }}>
               {user ? (
                 <>
-                  Signed in as <strong>{user.email}</strong>
-                  {' · '}
+                  <div>
+                    {myClaim?.status === 'confirmed' ? (
+                      <button
+                        onClick={() => setPlayerPageName(myClaim.canonical_name)}
+                        style={{ background: 'none', border: 'none', color: '#17a2b8', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', padding: '8px' }}
+                      >
+                        My rounds: {myClaim.canonical_name}
+                      </button>
+                    ) : myClaim?.status === 'pending' ? (
+                      <button
+                        onClick={() => setShowClaim(true)}
+                        style={{ background: 'none', border: 'none', color: '#b8860b', cursor: 'pointer', fontSize: '14px', padding: '8px' }}
+                      >
+                        Claim on {myClaim.canonical_name} awaiting approval
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setShowClaim(true)}
+                        style={{ background: 'none', border: 'none', color: '#17a2b8', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', padding: '8px' }}
+                      >
+                        Which player are you?
+                      </button>
+                    )}
+                  </div>
+                  {/* Email on its own line: at phone width it leaves no room for the links, and
+                      a wrapped "·" left dangling at the end of a line looks broken. */}
+                  <div>Signed in as <strong>{user.email}</strong></div>
+                  {myClaim && (
+                    <>
+                      <button
+                        onClick={() => setShowClaim(true)}
+                        style={{ background: 'none', border: 'none', color: '#17a2b8', cursor: 'pointer', fontSize: '14px', padding: '8px 4px' }}
+                      >
+                        Change player
+                      </button>
+                      {' · '}
+                    </>
+                  )}
                   <button
                     onClick={signOut}
                     style={{ background: 'none', border: 'none', color: '#17a2b8', cursor: 'pointer', fontSize: '14px', padding: '8px 4px' }}

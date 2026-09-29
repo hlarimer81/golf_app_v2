@@ -31,6 +31,12 @@ export const tables = {
   ],
   handicap_summary: [
     { canonical_name: 'Pat Par', handicap_index: 12.4, rounds_used: 8, rounds_available: 20, estimated_count: 0, method: 'rated' },
+    { canonical_name: 'Bo Birdie', handicap_index: 4.1, rounds_used: 8, rounds_available: 12, estimated_count: 0, method: 'rated' },
+  ],
+  // Account-to-player claims. Bo Birdie is already held by another account, so claiming him
+  // exercises the pending path. Mutable per test: see claimsState() below.
+  player_account: [
+    { account_id: 'account-bo', canonical_name: 'Bo Birdie', status: 'confirmed' },
   ],
   // Who played with whom, for the player picker's ordering. Pat and Bo are regulars who play
   // together; Sandy has one round and Gil has none, so the picker has a real order to produce
@@ -83,11 +89,53 @@ function fulfillAuth(route, endpoint) {
   return route.abort();
 }
 
+// player_account and golf_claim_player(), with state that lasts for one test. Mirrors the rules in
+// sql/auth-claim-player.sql: signed-in only, names must have rounds, first claim on a name is
+// confirmed and a claim on a name another account holds is pending, re-claiming your own name
+// changes nothing, and a DELETE removes only the caller's own row.
+function claimsState() {
+  const claims = structuredClone(tables.player_account);
+  const accountOf = (request) =>
+    request.headers()['authorization'] === 'Bearer e2e-access-token' ? AUTH_USER.id : null;
+
+  return (route, table) => {
+    const request = route.request();
+    const method = request.method();
+    const account = accountOf(request);
+
+    if (table === 'rpc/golf_claim_player') {
+      if (!account) return route.fulfill({ status: 401, json: { code: '42501', message: 'Sign in to claim a player' } });
+      const name = JSON.parse(request.postData() || '{}').p_name;
+      if (!tables.handicap_summary.some((r) => r.canonical_name === name)) {
+        return route.fulfill({ status: 404, json: { code: 'P0002', message: `No rounds found for ${name}` } });
+      }
+      const mine = claims.find((c) => c.account_id === account);
+      if (mine?.canonical_name === name) return route.fulfill({ json: mine.status });
+      const status = claims.some((c) => c.canonical_name === name && c.status === 'confirmed' && c.account_id !== account)
+        ? 'pending'
+        : 'confirmed';
+      if (mine) Object.assign(mine, { canonical_name: name, status });
+      else claims.push({ account_id: account, canonical_name: name, status });
+      return route.fulfill({ json: status });
+    }
+
+    if (method === 'DELETE') {
+      const target = new URL(request.url()).searchParams.get('account_id')?.replace(/^eq\./, '');
+      const removed = account && target === account ? claims.filter((c) => c.account_id === account) : [];
+      removed.forEach((r) => claims.splice(claims.indexOf(r), 1));
+      return route.fulfill({ json: removed.map(({ account_id }) => ({ account_id })) });
+    }
+
+    return route.fulfill({ json: claims });
+  };
+}
+
 // Use this `test` instead of Playwright's: it installs the mock and fails any test during which the
 // page threw an uncaught error, even if every assertion passed.
 export const test = base.extend({
   page: async ({ page, context }, use) => {
     let inserted = 0;
+    const handleClaims = claimsState();
 
     await context.route('**/*', (route) => {
       const url = new URL(route.request().url());
@@ -97,6 +145,7 @@ export const test = base.extend({
       if (!url.pathname.startsWith('/rest/v1/')) return route.abort();
 
       const table = url.pathname.slice('/rest/v1/'.length);
+      if (table === 'player_account' || table === 'rpc/golf_claim_player') return handleClaims(route, table);
 
       // A write has to hand back what it wrote. createMatch() does .insert().select() and then
       // reads data[0].id — with a static [] that is undefined, and the page throws before the

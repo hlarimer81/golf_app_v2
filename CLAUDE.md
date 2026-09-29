@@ -22,7 +22,7 @@ CI (`.github/workflows/ci.yml`) runs lint, build and the smoke tests on every PR
 These protect a live database that real players and deployed hardware depend on.
 
 - **Never use production credentials.** Production is Supabase project `lvwdffsibhqzgbqixfdi`. Agents
-  work against the staging project or mocks only. Never read, print, copy or edit `.env`,
+  work against mocks only. Never read, print, copy or edit `.env`,
   `.env.local`, or any secret.
 - **Never run SQL against any database.** You may *write* a migration file in `sql/`; a human
   reviews and applies it. The same goes for `supabase functions deploy`.
@@ -94,19 +94,17 @@ a miscomputed index.
   issue saying what you need and stop. Don't guess and don't work around a rule. Nobody is going to
   catch a guess before it ships.
 
-## Staging
+## No staging step
 
-`4play_staging` is a separate Supabase project with production's schema, permissions, realtime
-setup and nightly cron, holding only fake data from `scripts/staging-seed.sql`:
+Since 2026-09-29, changes go straight to production. The app has no active players right now, so a
+staging pass isn't worth the extra step. Harold applies migrations to production by hand.
 
-- **Courses:** Staging Pines (rated Blue/White/Red tees) and Staging Meadows (unrated, so its rounds
-  bank as `estimated`, like most real rounds).
-- **Roster:** 12 fictional golfers, handicaps 1–28. Ten have eight banked rounds each; Nate Newbie
-  has one (below the 3-round minimum) and Gary Guest has none.
-- **Round in progress:** join code `LIVE01`, nine holes scored.
-
-Staging is disposable, and a human resets it with `bash scripts/staging-setup.sh --seed-only`. Don't
-rely on data you created there surviving.
+- **Write every migration to run once, directly on production.** Nobody rehearses it on staging
+  first. Make it safe to re-run (`IF NOT EXISTS`, `CREATE OR REPLACE`) and end it with verify queries
+  that show it worked.
+- Don't list "apply to staging" as a step in a PR or a plan.
+- `4play_staging` and `scripts/staging-*` still exist but are out of the workflow, and staging is
+  allowed to pause. Don't rely on it being up or holding any particular data.
 
 ## Lint
 

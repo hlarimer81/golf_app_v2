@@ -40,6 +40,11 @@ These protect a live database that real players and deployed hardware depend on.
 - **New SQL functions: revoke EXECUTE from `anon, authenticated` by name.** Supabase grants it to
   anon by default, so `REVOKE ... FROM PUBLIC` does nothing and a `SECURITY DEFINER` function is
   public the moment it exists.
+- **New tables and views: put explicit `GRANT`s in the same migration file.** From 2026-10-30
+  Supabase no longer auto-grants new `public` tables to `anon`/`authenticated`, so a table without
+  grants is unreachable from the Data API (42501). Grant only what the code does — usually
+  `SELECT`/`INSERT`/`UPDATE`, rarely `DELETE` — and `ALL` to `service_role` if an edge function
+  touches it. A GRANT is not a policy: keep the RLS policies too. Existing tables are unaffected.
 - **Team data:** always use `getPlayerTeam`, `activeTeams`, `getTeamPlayers` from `src/lib/teams.js`.
   The team lives in different fields depending on where the row came from.
 - **Scores:** use the `useScores(matchId)` hook (`src/hooks/useScores.js`) for fetch, realtime and

@@ -49,3 +49,10 @@ COMMENT ON COLUMN golf_courses.greens IS 'GPS coordinates for green positions (f
 COMMENT ON COLUMN tee_boxes.rating IS 'USGA course rating - used in handicap calculation';
 COMMENT ON COLUMN tee_boxes.slope IS 'USGA slope rating (55-155) - used in handicap calculation';
 COMMENT ON COLUMN tee_boxes.stroke_index IS 'Handicap stroke allocation per hole (1-18)';
+
+-- Data API grants. Supabase stops auto-granting new public tables to anon/authenticated on
+-- 2026-10-30; without these a fresh project, preview branch or `supabase db reset` gets tables the
+-- API answers with 42501. Matches what the app does: read + INSERT + UPDATE (ManualCourseEntry,
+-- AddGreenData), never DELETE. The RLS policies still decide which rows.
+GRANT SELECT, INSERT, UPDATE ON public.golf_courses, public.tee_boxes TO anon, authenticated;
+GRANT ALL                    ON public.golf_courses, public.tee_boxes TO service_role;

@@ -13,10 +13,11 @@
 -- past AND future round follow automatically. Linking to a players row instead would re-solve a
 -- problem player_alias already solved, and players rows are per-round anyway.
 --
--- WHY A TABLE AND NOT A COLUMN ON players: one person can hold several accounts - a phone and an
--- iPad are two sessions, and a cleared browser is a third. A single column can only hold one, so
--- the second device would silently steal the first one's claim. Many account_ids, one canonical
--- name.
+-- WHY A TABLE AND NOT A COLUMN ON players: players rows are per-round, so there is no one row to
+-- put the column on. Devices are not the reason - a phone and an iPad signed in with the same
+-- email share one auth.users id and so one row here. Several rows per canonical name happen only
+-- when one person signs in with two different emails, which the table allows. Many account_ids,
+-- one canonical name.
 --
 -- ------------------------------------------------------------------------------------------------
 -- RLS IS ON, AND EACH ACCOUNT CAN WRITE ONLY ITS OWN ROW.

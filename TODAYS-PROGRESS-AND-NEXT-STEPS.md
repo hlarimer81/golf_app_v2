@@ -49,6 +49,42 @@ confirmation step closes that.
 
 Then sign in on the phone from the home-screen app. Next build: the claim screen.
 
+### 5. ⏸️ Claim screen — built and tested, waiting on a migration. **START HERE.**
+
+"Which player are you?" on the home screen, once signed in: pick your name from the directory list
+and your rounds and index follow the account. **Touches handicaps.**
+
+- **Rule:** the first account to claim a name is confirmed at once. A claim on a name another
+  account already holds is **pending** until approved by hand. A stranger who signs up first can
+  still take a name; the real owner's claim then goes pending, which is how it would come to light.
+- **Enforced in the database, not the app.** `golf_claim_player()` (SECURITY DEFINER) is the only
+  way to write a claim; direct INSERT/UPDATE on `player_account` is revoked. Grants are reset with
+  REVOKE ALL, because Supabase's pre-Oct-30 defaults gave anon everything on the table.
+- **No admin screen yet.** Approve/reject queries are at the bottom of `sql/auth-claim-player.sql`.
+- Checks passed: 111 unit tests (4 new), 40 smoke tests (8 new), plus phone screenshots reviewed.
+
+**Where it stands (Sep 29, end of session):**
+
+| Piece | State |
+|---|---|
+| `sql/auth-claim-player.sql` — `c760864` | **Pushed** to `main`. **Not yet applied** to production. |
+| App code — `4b0a66f` | **Committed locally on this server, NOT pushed.** |
+| This log entry | Committed locally, not pushed. |
+
+**To pick up:**
+
+1. Open `sql/auth-claim-player.sql` on GitHub, "Copy raw file", run it in the Supabase SQL editor.
+2. Run the three verify queries **one at a time** (the editor shows only the last result). Expect:
+   `anon` = `SELECT` only and `authenticated` = `DELETE, SELECT`; two policies (SELECT, DELETE);
+   `anon_can_claim = false`, `authenticated_can_claim = true`.
+3. Then push `main` (`git push origin main`). That ships the claim screen. **Don't push before
+   step 1** — without the `status` column and the function, the screen can't claim anything.
+4. On the phone: sign in → "Which player are you?" → pick your name → "My rounds: …" should appear
+   and open your player page.
+
+**After that:** custom SMTP before inviting other golfers; an admin view for pending claims if
+they start happening; then RLS on the rest of the schema.
+
 ---
 
 ## Previous Session (Sep 21) - keeping the Supabase projects awake through the off-season ✅
@@ -977,7 +1013,7 @@ by it — the agents are how the work gets done, not what the work is.*
 
 1. **Play a round** to exercise Finish Round → banking on real data. The only step needing a course.
 2. ✅ **Authentication.** Optional email-code sign-in, live and verified on production Sep 29. Custom SMTP still to do.
-3. **Claim your player.** Link an account to a canonical name so a new signup inherits their existing
+3. ⏸️ **Claim your player.** Built Sep 29, waiting on `sql/auth-claim-player.sql` (Latest Session §5). Link an account to a canonical name so a new signup inherits their existing
    handicap history. Mostly already built — `player_alias` and `golf_resync_canonical_names()` are
    the same machinery that merged 15 names on Aug 8. Needs an `account_id` link and a confirmation
    step so nobody can claim someone else's 32 rounds.
@@ -988,4 +1024,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** September 29, 2026 - optional sign-in shipped, player_account applied with RLS
+**Last Updated:** September 29, 2026 - claim screen built; migration pushed but not applied, app commit held locally (see Latest Session §5)

@@ -19,6 +19,8 @@ import { fetchHandicapIndexes, fetchRoundParticipation, courseHandicap, describe
 import PlayerDirectory from './components/PlayerDirectory';
 import PlayerPage from './components/PlayerPage';
 import PlayerPicker from './components/PlayerPicker';
+import SignIn from './components/SignIn';
+import { useAuth } from './hooks/useAuth';
 
 // Infer play_mode for matches created before the play_mode column was added.
 // Games with a fixed mode don't need to be stored. For ambiguous games (stableford,
@@ -95,6 +97,8 @@ function App() {
   // the directory's Back returns home.
   const [showPlayers, setShowPlayers] = useState(false);
   const [playerPageName, setPlayerPageName] = useState(null);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const { user, ready: authReady, sendCode, verifyCode, signOut } = useAuth();
 
   useEffect(() => {
     fetchGlobalPlayers();
@@ -702,6 +706,17 @@ function App() {
     return <PlayerDirectory onSelect={setPlayerPageName} onBack={() => setShowPlayers(false)} />;
   }
 
+  if (showSignIn) {
+    return (
+      <SignIn
+        sendCode={sendCode}
+        verifyCode={verifyCode}
+        onDone={() => setShowSignIn(false)}
+        onBack={() => setShowSignIn(false)}
+      />
+    );
+  }
+
   // --- Join Match Form ---
   if (showJoinForm) {
     return (
@@ -1202,6 +1217,32 @@ function App() {
           >
             Players &amp; Handicaps
           </button>
+
+          {/* Account. Optional - nothing above depends on it. Hidden until the stored session
+              has been read, so a signed-in golfer never sees "Sign in" flash past. */}
+          {authReady && (
+            <div style={{ marginTop: '14px', textAlign: 'center', fontSize: '14px', color: 'var(--text-h)' }}>
+              {user ? (
+                <>
+                  Signed in as <strong>{user.email}</strong>
+                  {' · '}
+                  <button
+                    onClick={signOut}
+                    style={{ background: 'none', border: 'none', color: '#17a2b8', cursor: 'pointer', fontSize: '14px', padding: '8px 4px' }}
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setShowSignIn(true)}
+                  style={{ background: 'none', border: 'none', color: '#17a2b8', cursor: 'pointer', fontSize: '14px', padding: '8px' }}
+                >
+                  Sign in
+                </button>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <div>

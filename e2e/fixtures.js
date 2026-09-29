@@ -49,6 +49,40 @@ export const tables = {
   matches: [],
 };
 
+// The account the mocked auth server signs in, and the one code it accepts. Any other code is
+// refused the way GoTrue refuses it, so a test can exercise the wrong-code path too.
+export const AUTH_USER = { id: '00000000-0000-4000-8000-000000000001', email: 'pat@example.com' };
+export const AUTH_CODE = '123456';
+
+// GoTrue endpoints the sign-in flow calls: otp sends the email, verify trades the code for a
+// session, logout ends it. Anything else under /auth/v1/ is a request the app shouldn't make yet.
+function fulfillAuth(route, endpoint) {
+  const request = route.request();
+  if (endpoint === 'otp') return route.fulfill({ json: {} });
+  if (endpoint === 'logout') return route.fulfill({ status: 204, body: '' });
+  if (endpoint === 'verify') {
+    const { token } = JSON.parse(request.postData() || '{}');
+    if (token !== AUTH_CODE) {
+      return route.fulfill({
+        status: 403,
+        json: { code: 403, error_code: 'otp_expired', msg: 'Token has expired or is invalid' },
+      });
+    }
+    const now = Math.floor(Date.now() / 1000);
+    return route.fulfill({
+      json: {
+        access_token: 'e2e-access-token',
+        token_type: 'bearer',
+        expires_in: 3600,
+        expires_at: now + 3600,
+        refresh_token: 'e2e-refresh-token',
+        user: { ...AUTH_USER, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '2026-09-29T00:00:00Z' },
+      },
+    });
+  }
+  return route.abort();
+}
+
 // Use this `test` instead of Playwright's: it installs the mock and fails any test during which the
 // page threw an uncaught error, even if every assertion passed.
 export const test = base.extend({
@@ -58,7 +92,9 @@ export const test = base.extend({
     await context.route('**/*', (route) => {
       const url = new URL(route.request().url());
       if (url.hostname === 'localhost') return route.continue();
-      if (url.origin !== SUPABASE_URL || !url.pathname.startsWith('/rest/v1/')) return route.abort();
+      if (url.origin !== SUPABASE_URL) return route.abort();
+      if (url.pathname.startsWith('/auth/v1/')) return fulfillAuth(route, url.pathname.slice('/auth/v1/'.length));
+      if (!url.pathname.startsWith('/rest/v1/')) return route.abort();
 
       const table = url.pathname.slice('/rest/v1/'.length);
 

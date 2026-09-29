@@ -1,6 +1,56 @@
-# Golf App Progress - September 21, 2026 (Updated)
+# Golf App Progress - September 29, 2026 (Updated)
 
-## Latest Session (Sep 21) - keeping the Supabase projects awake through the off-season ✅
+## Latest Session (Sep 29) - sign-in ships, and the workflow gets lighter 🟡
+
+### 1. ✅ Workflow: straight to production, straight to `main`
+
+With the app not in use, two safety steps were costing more than they protected:
+
+- **No staging step.** Harold applies migrations directly to production. Migrations are written to
+  run once there: re-runnable, ending in verify queries. `4play_staging` stays paused.
+- **Interactive sessions push to `main`.** Harold is the only developer. The branch rule stays, with
+  Repository admin on its bypass list, so the dev agent's PRs still wait for CI. Sessions run the
+  four CI checks locally before every push.
+- **The dev server is CentOS 7 (glibc 2.17)**, too old for Node 24 or Playwright's Chromium. The
+  checks run in Docker: `mcr.microsoft.com/playwright:v1.63.0-noble` (Node 24 plus browsers).
+
+Both rules are in CLAUDE.md.
+
+### 2. ✅ Optional sign-in — `39eac06`
+
+A "Sign in" link at the foot of the home screen; setting up, joining and scoring a round don't
+depend on it. **The design changed from "match creator must sign in"** (Auth model below): signing
+in exists so a golfer can see their own rounds and index, not to gate scoring. Requiring it for
+creators can come later if wanted.
+
+- **Emailed code, not just a link.** The app is installed to the home screen, and on iOS a link from
+  Mail opens Safari, which doesn't share storage with the installed app. The golfer types the code
+  into the app they are holding.
+- **Sign out is this device only** (`scope: 'local'`); the default ends every device's session.
+- Smoke tests mock GoTrue's `otp`/`verify`/`logout` and cover sign-in, reload, sign-out and a
+  refused code. **Not yet exercised against real Supabase.**
+
+### 3. ✅ `player_account` applied to production, with RLS — `6f4ead4`
+
+The earlier draft left RLS off. With open email sign-up that let any signed-in user reassign or
+delete every other golfer's claim. Now each account may write only its own row
+(`account_id = auth.uid()`); reads stay open. **Applied Sep 29, four policies verified.**
+
+Still open by design: anyone can claim **any** name for their own account. The claim flow's
+confirmation step closes that.
+
+### 4. ⏳ Supabase dashboard setup (Harold)
+
+1. **Email templates:** add `{{ .Token }}` to both **Magic Link** (returning users) and **Confirm
+   signup** (first sign-in). Without it the code screen is a dead end.
+2. **URL Configuration:** Site URL = production; Redirect URLs += `http://localhost:5173`.
+3. **Custom SMTP** before other golfers sign in; the built-in sender allows a few emails an hour.
+
+Then sign in on the phone from the home-screen app. Next build: the claim screen.
+
+---
+
+## Previous Session (Sep 21) - keeping the Supabase projects awake through the off-season ✅
 
 Supabase started warning that the projects will be paused for inactivity. Golf season ends; the
 database does not get to.
@@ -925,7 +975,7 @@ PAT for polling. See the latest session at the top of this file. The app roadmap
 by it — the agents are how the work gets done, not what the work is.*
 
 1. **Play a round** to exercise Finish Round → banking on real data. The only step needing a course.
-2. **Authentication.** Supabase Auth magic link; creator signs in, guests stay frictionless.
+2. **Authentication.** 🟡 Optional email-code sign-in shipped Sep 29; awaiting dashboard setup (Latest Session §4).
 3. **Claim your player.** Link an account to a canonical name so a new signup inherits their existing
    handicap history. Mostly already built — `player_alias` and `golf_resync_canonical_names()` are
    the same machinery that merged 15 names on Aug 8. Needs an `account_id` link and a confirmation
@@ -937,4 +987,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** September 11, 2026 - agent development pipeline built and proven end to end
+**Last Updated:** September 29, 2026 - optional sign-in shipped, player_account applied with RLS

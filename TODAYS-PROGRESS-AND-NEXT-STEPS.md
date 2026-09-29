@@ -1,6 +1,6 @@
 # Golf App Progress - September 29, 2026 (Updated)
 
-## Latest Session (Sep 29) - sign-in ships, and the workflow gets lighter 🟡
+## Latest Session (Sep 29) - sign-in ships, and the workflow gets lighter ✅
 
 ### 1. ✅ Workflow: straight to production, straight to `main`
 
@@ -28,7 +28,8 @@ creators can come later if wanted.
   into the app they are holding.
 - **Sign out is this device only** (`scope: 'local'`); the default ends every device's session.
 - Smoke tests mock GoTrue's `otp`/`verify`/`logout` and cover sign-in, reload, sign-out and a
-  refused code. **Not yet exercised against real Supabase.**
+  refused code. **Verified on production Sep 29:** Harold signed in from the home-screen app on a
+  phone with the emailed code, and the session survived closing and reopening the app.
 
 ### 3. ✅ `player_account` applied to production, with RLS — `6f4ead4`
 
@@ -39,7 +40,7 @@ delete every other golfer's claim. Now each account may write only its own row
 Still open by design: anyone can claim **any** name for their own account. The claim flow's
 confirmation step closes that.
 
-### 4. ⏳ Supabase dashboard setup (Harold)
+### 4. ✅ Supabase dashboard setup (Harold) — done Sep 29 except SMTP
 
 1. **Email templates:** add `{{ .Token }}` to both **Magic Link** (returning users) and **Confirm
    signup** (first sign-in). Without it the code screen is a dead end.
@@ -975,7 +976,7 @@ PAT for polling. See the latest session at the top of this file. The app roadmap
 by it — the agents are how the work gets done, not what the work is.*
 
 1. **Play a round** to exercise Finish Round → banking on real data. The only step needing a course.
-2. **Authentication.** 🟡 Optional email-code sign-in shipped Sep 29; awaiting dashboard setup (Latest Session §4).
+2. ✅ **Authentication.** Optional email-code sign-in, live and verified on production Sep 29. Custom SMTP still to do.
 3. **Claim your player.** Link an account to a canonical name so a new signup inherits their existing
    handicap history. Mostly already built — `player_alias` and `golf_resync_canonical_names()` are
    the same machinery that merged 15 names on Aug 8. Needs an `account_id` link and a confirmation

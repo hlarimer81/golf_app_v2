@@ -29,7 +29,7 @@ These protect a live database that real players and deployed hardware depend on.
 - **Never touch the `firmware` storage bucket.** A separate project (score_play) serves device OTA
   updates from it. Never propose deleting, pausing or locking down the Supabase project.
 - **Interactive sessions with Harold commit straight to `main`** (since 2026-09-29). Direct pushes
-  skip CI and the Gemini review, and Vercel deploys `main` at once, so run `npm run lint`,
+  skip CI and the Gemini review, and Vercel deploys `main` at once, so run `npm run lint`, `npm test`,
   `npm run build` and `npm run test:e2e` locally and push only when all three pass. Keep each
   commit to one change.
 - **The automated dev agent still works on a branch and opens a PR.** It never pushes to `main`.

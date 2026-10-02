@@ -27,18 +27,43 @@ looked like success until someone reloaded. **Touches scoring and money.**
 | Piece | State |
 |---|---|
 | App code | **Pushed** to `main`, deployed. Does not depend on the migration. |
-| `sql/client-error-log.sql` | **Pushed. Not yet applied** to production. Until it is, a refusal still warns the golfer but leaves no row. |
+| `sql/client-error-log.sql` | **Applied** to production Oct 1 (table and policy seen in the inventory). Verify queries not yet confirmed. |
 
-**To pick up:** run `sql/client-error-log.sql` in the SQL editor, then its two verify queries one
-at a time. Expect `anon` and `authenticated` = `INSERT` only; RLS on, one INSERT policy.
+**To pick up:** run the two verify queries at the bottom of `sql/client-error-log.sql`, one at a
+time. Expect `anon` and `authenticated` = `INSERT` only; RLS on, one INSERT policy.
 
 **Not done, by choice:** the e2e mock answers a `matches` PATCH with `[]`, so wager/presses/Wolf
 Vegas saves are covered by unit tests only. Two phones editing the same cell while one is offline
 is still last-write-wins. A daily check of `client_error` that opens a GitHub issue is a possible
 add-on to the keep-awake workflow.
 
-**Next for RLS:** Harold runs `sql/check-rls-status.sql` for the current policy inventory, then
-decide what the policies are meant to protect given that guests score as `anon`.
+### RLS: policy inventory taken Oct 1 — 15 tables, all with RLS on, 41 policies
+
+**🐛 Signing in broke three things, fixed.** `matches_update_anon` and `scores anon delete` were
+`TO anon` only, written before sign-in existed. A signed-in golfer arrives as `authenticated`, so
+the wager, presses and Wolf Vegas state did not save, Finish Round could not mark the round
+complete (so nothing banked), and clearing a score did nothing. All silent. Read off the policy
+list, not reproduced. `sql/rls-signed-in-writes.sql` recreates both policies for
+`anon, authenticated`. **Applied and verified by Harold Oct 1.**
+
+**"(tablet)" policies.** `courses update (tablet)` and `players update (tablet)` are left over from
+when score_play shared this database. No tablet writes here. `sql/rls-drop-tablet-policies.sql`
+drops both; on `players` that removes the only UPDATE policy, which the app never uses.
+**Pushed, not yet applied.**
+
+**Still open, none urgent:**
+
+| Table | Finding |
+|---|---|
+| `golf_courses`, `tee_boxes` | Any signed-in user can DELETE any course; sign-up is open and the app never deletes one. Drop both DELETE policies. |
+| `course_requests` | "view their own requests" lets anyone read every row, including `requested_by`, which can hold an email. |
+| `green_images` | Unused by the app, open INSERT and UPDATE. `sql/drop-green-images-table.sql` exists. |
+| `courses` | The app only reads it, but anyone can INSERT and UPDATE. |
+
+**`client_error`:** the table exists on production (seen in the inventory). Its two verify queries
+are not yet confirmed.
+
+**Next for RLS:** apply `sql/rls-drop-tablet-policies.sql`, then work down the table above.
 
 ---
 
@@ -1067,4 +1092,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - saves resend themselves (outbox); claim screen live; `sql/client-error-log.sql` waiting to be applied (see Latest Session)
+**Last Updated:** October 1, 2026 - outbox shipped; signed-in write policies fixed and verified; `sql/rls-drop-tablet-policies.sql` waiting to be applied (see Latest Session)

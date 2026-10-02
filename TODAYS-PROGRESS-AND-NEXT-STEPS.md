@@ -8,7 +8,31 @@
 > arrives, buy the domain and set up custom SMTP before inviting anyone (steps under "Auth: where
 > it stops for now" below). Remove this note once custom SMTP is live.
 
-## Latest Session (Oct 1) - saves that resend themselves ✅
+## Latest Session (Oct 1) - auth finished, saves that resend, and an agent team that ships ✅
+
+**The night in one screen.** Details are in the sections below, in the order they happened.
+
+| Area | Where it ended |
+|---|---|
+| Claim your player | Live on production; migration applied and verified. |
+| Saving a round | Scores, wager, presses and Wolf Vegas state resend themselves until confirmed. `client_error` logs refusals. Applied and verified. |
+| RLS | Inventory taken; a bug that broke saving for signed-in golfers fixed; tablet policies and unused access removed; `green_images` dropped. All applied and verified. Guest writes stay open by decision. |
+| Auth | Done for now. Custom SMTP waits on a domain (see the warning at the top). Admin screen for claims parked. |
+| Repo | 22 leftover scripts removed; `scripts/` holds only the two staging files. |
+| Agent team | Three guards added (trusted authors, protected files, a review that can hold a merge). `review` is a required check. Reviewer rewritten after failing three ways. Two real runs: PR #8 (merged by hand) and PR #10 (merged by itself, fix confirmed by Harold on a phone). |
+
+**Nothing is waiting to be applied.** No migration is pending and no agent PR is open.
+
+**START HERE next time**, in rough order of value:
+1. **Designer, step 1** — measured layout checks in CI (plan under "Designer agent" below). No AI
+   needed, and it would have caught both visual bugs filed tonight.
+2. **A way for friends to report things** without a GitHub account.
+3. **Renew `AGENT_TOKEN` before about Dec 10**, or the whole team stops.
+4. **Buy a domain**, then custom SMTP — required before inviting anyone if the built-in sender
+   only delivers to the Supabase team.
+5. The smaller team items listed under "Still open on the team".
+
+### Saves that resend themselves
 
 First step of the RLS work, done before any policy is written: five write sites never checked that
 they wrote (every score, the wager, Nassau presses, Wolf Vegas state). A failed or refused save
@@ -165,9 +189,9 @@ holds the PR. `gemini-ping.yml` still uses the old action and is probably broken
 "y"; one line, `lineHeight: 1.4`, in `src/App.jsx`). Coordinator → dev agent → CI → Gemini
 "approve" → squash-merged by itself in about ten minutes, issue closed, nobody touched it. The
 re-saved Gemini key ran with no whitespace warning. The agent added no test and could not look at
-the screen, so whether the "y" is actually fixed is for Harold to confirm on a phone.
-The protected-path hold and the
-untrusted-author path have only run against sample input.
+the screen; **Harold confirmed on a phone that the "y" is fixed.**
+
+The protected-path hold and the untrusted-author path have only run against sample input.
 
 **Known limits.**
 - ~~The review and CI race.~~ **Closed Oct 1.** Harold added `review` as a required check in the
@@ -186,7 +210,49 @@ development cycle, so agent changes deploy when nobody is on a course.
 - Golfers cannot report anything without a GitHub account; there is no in-app feedback.
 - A `needs-info` question that gets answered is never re-read: the issue is already `triaged`.
 - `AGENT_TOKEN` was created about Sep 11 with a 90-day life, so it expires around **Dec 10**.
-- No designer agent exists; the original plan had one.
+- No designer agent exists; the plan is below.
+- `gemini-ping.yml` still uses the `run-gemini-cli` action and is probably broken; remove or
+  convert it.
+
+### Designer agent — the plan (not built)
+
+**The question (Harold, Oct 1):** PR #10 fixed a clipped "y" without the agent ever seeing the
+screen. How can a designer suggest and review visual changes if it cannot see the app?
+
+**The answer: screenshots.** Claude and Gemini both read images, and Playwright already runs the
+real app at phone width with fixture data and can save a picture of any screen. This was done by
+hand tonight: the save-status pill was screenshotted at phone width, seen to cover the match code,
+and moved before it shipped.
+
+**Build in this order.** Each step is useful without the next.
+
+1. **Measured checks in CI, no AI.** Part of "looks right" is arithmetic: tap targets at least a
+   thumb wide, contrast high enough for sunlight, nothing wider than the screen, no clipped text.
+   Ordinary Playwright tests over every screen at phone width. The Select Course overflow (#7)
+   would have failed one.
+2. **The dev agent checks its own visual work.** For a visual issue: screenshot before, change,
+   screenshot after, look at both before finishing. Closes the gap PR #10 showed.
+3. **A visual review on each PR.** Capture the affected screens on `main` and on the branch, give
+   both to the reviewer with the diff, and post them on the PR so Harold sees the change too.
+4. **The designer proper.** On a schedule: screenshot every screen, judge against a written
+   standard, file issues with the picture attached. They go through the coordinator like any other.
+
+**Needed first:**
+- **A written design standard** to judge against. Today it is one sentence in the reviewer's
+  prompt (one-handed, phone, bright sun). Without it a designer has only its own taste.
+- **A cap on issues filed per run**, in shell, like the coordinator's ship limit — or it buries the
+  backlog in nitpicks.
+- **A decision on who it files as.** With `AGENT_TOKEN` its issues are authored by Harold, so they
+  count as trusted. Fine, but it means the trusted-author guard does not apply to the designer.
+
+**What it will not see:**
+- **A real phone.** The test browser is Chrome emulating one. iPhone Safari renders fonts and the
+  home-screen app differently, and a clipped descender is exactly the kind of thing that differs.
+- **Real conditions:** glare, a wet thumb, a glance mid-swing.
+- **Real data.** It sees the four golfers in `e2e/fixtures.js`. Long names, eight players or a
+  full Nassau only get checked if the fixtures grow to include them.
+- **Taste.** It can say a button is too small. Whether the app looks like something worth using
+  stays Harold's call.
 
 ---
 
@@ -1198,9 +1264,10 @@ Finish Round, with a nightly pg_cron backstop.
 
 **Next Focus — in this order:**
 
-*Agent team (new, Sep 11): decide the Phase 3 gate, calibrate the Gemini reviewer, add a read-only
-PAT for polling. See the latest session at the top of this file. The app roadmap below is unchanged
-by it — the agents are how the work gets done, not what the work is.*
+*Agent team: guarded and shipping as of Oct 1 — see "START HERE next time" in the latest session at
+the top of this file for what comes next (designer, a way for friends to report things, token
+renewal). The app roadmap below is unchanged by it — the agents are how the work gets done, not
+what the work is.*
 
 1. **Play a round** to exercise Finish Round → banking on real data. The only step needing a course.
 2. ✅ **Authentication.** Optional email-code sign-in, live and verified on production Sep 29. Custom SMTP is parked until Harold has a domain (Latest Session, "Auth: where it stops for now").
@@ -1208,11 +1275,13 @@ by it — the agents are how the work gets done, not what the work is.*
    canonical name, so a new signup inherits their existing handicap history. The first claim on a
    name is confirmed at once; a claim on a name another account holds waits for approval by hand.
    Still to do: custom SMTP, and an admin view for pending claims if they start happening.
-4. **RLS.** The real blocker and the largest piece; deliberately last, because policies need real
-   identities to be written against.
+4. ✅ **RLS clean-up.** Done Oct 1: every table has RLS on, signed-in golfers can do what guests
+   can, and access nothing uses is gone. Guest writes to matches, players, teams and scores stay
+   open by decision until a signed-in golfer is the one who starts and scores a round.
+
 **Major Milestone:** System is feature-complete for core gameplay + GPS.
 
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up verified; agent team guarded, reviewer rewritten, first hands-off merge (PR #10) (see Latest Session)
+**Last Updated:** October 1, 2026 - auth finished, outbox shipped, RLS cleaned up, agent team guarded and merging by itself; designer plan written (see Latest Session)

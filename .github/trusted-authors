@@ -1,0 +1,9 @@
+# GitHub usernames whose issues and comments the agent team will read. One per line.
+#
+# This repository is public, so anyone with a GitHub account can file an issue or comment on one.
+# The coordinator triages only issues written by someone listed here, and neither it nor the dev
+# agent is shown text written by anyone else. An issue from someone not listed is labelled
+# needs-human and waits for Harold.
+#
+# To let a friend file issues, add their GitHub username below.
+hlarimer81

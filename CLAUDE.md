@@ -66,6 +66,9 @@ These protect a live database that real players and deployed hardware depend on.
 ## How agent work flows through this repo
 
 - **Golfer testers file issues freely**, with no label. Filing an issue starts nothing.
+- **Only trusted authors are read.** The repo is public, so anyone can file an issue or comment.
+  The coordinator and the dev agent are only shown text written by someone in
+  `.github/trusted-authors`; an issue from anyone else is labelled `needs-human` and waits.
 - **The coordinator triages** (`.github/workflows/coordinator.yml`, daily): de-duplicates,
   prioritizes, and labels what's worth building **`ready-for-dev`**. That label is the trigger.
   It ships at most a couple of issues per run — approved work over the limit waits for the next
@@ -75,21 +78,29 @@ These protect a live database that real players and deployed hardware depend on.
   |---|---|
   | *(none)* | Filed but not looked at. Starts nothing. |
   | `triaged` | The coordinator has read it. |
-  | `ready-for-dev` | Approved — the dev agent builds it, and the PR merges itself. |
+  | `ready-for-dev` | Approved — the dev agent builds it, and the PR merges itself unless it is held (below). |
   | `needs-info` | Too vague to build as written; a question is waiting on the issue. |
-  | `needs-human` | Touches the database, migrations, secrets, auth, the firmware bucket, or maths that can't be verified with a test. Harold does these. |
+  | `needs-human` | Touches the database, migrations, secrets, auth, the firmware bucket, or maths that can't be verified with a test. Harold does these. Also put on an issue from an untrusted author, and on a PR that is held. |
   | `duplicate` | Covered by another open issue. |
 - `.github/workflows/claude-dev.yml` implements the issue on a `claude/issue-<n>` branch and opens a
   PR. It never pushes to main.
-- Every PR gets two automatic passes: **CI** (lint, build, smoke tests) and a **Gemini review**
-  (`.github/workflows/gemini-review.yml`), which posts a verdict and findings as a comment.
+- Every PR gets two automatic passes: **CI** (lint, unit tests, build, smoke tests) and a **Gemini
+  review** (`.github/workflows/gemini-review.yml`), which posts a verdict and findings as a comment.
 - **The PR merges itself once CI passes**, and Vercel deploys `main` to production. Harold reviews
   after the fact, not before. This is a deliberate choice (2026-09-12) — the loop runs from filed
   issue to live app with no human in it.
+- **Two things hold a PR for Harold instead** (2026-10-01). Both are decided in shell, not by a
+  prompt:
+  - **It touches a protected file.** The list is `.github/protected-paths`: the workflows and this
+    file, `sql/`, `supabase/`, dependencies and check configuration, the scoring, settlement and
+    handicap maths, saving, and sign-in. Removing lines from an existing test, or adding lint
+    suppressions, holds it too. The PR is opened, labelled `needs-human`, and not merged.
+  - **The Gemini review does not approve.** "Needs changes", or no readable verdict, takes the PR
+    off auto-merge and fails the review job.
 
-**What that means for how you work.** CI is the only thing standing between your PR and real golfers
-mid-round. The smoke tests are five shallow checks; they will not catch a wrong Nassau settlement or
-a miscomputed index.
+**What that means for how you work.** For a PR that is not held, CI is the only thing standing
+between it and real golfers mid-round. The smoke tests are shallow; they will not catch a wrong
+Nassau settlement or a miscomputed index.
 
 - If you change scoring, handicap, or settlement logic, **add tests that would fail without your
   change**. "It builds" is not evidence.

@@ -1,0 +1,43 @@
+# Files an agent may change only with Harold looking. One extended regular expression per line,
+# matched against the path from the repository root.
+#
+# A dev-agent pull request that touches any of these is still opened, but it does not merge
+# itself: it is labelled needs-human and waits. See .github/scripts/held-files.sh, which also
+# holds a pull request that removes lines from an existing test or adds lint suppressions.
+
+# The agent team itself, and the rulebook it reads.
+^\.github/
+^CLAUDE\.md$
+
+# The database and anything that runs with more than the public key.
+^sql/
+^supabase/
+^scripts/
+^\.env
+^src/supabaseClient\.js$
+
+# Dependencies and the configuration of the checks that gate a merge.
+^package\.json$
+^package-lock\.json$
+^eslint\.config\.js$
+^vite\.config\.js$
+^vitest\.config\.js$
+^playwright\.config\.js$
+
+# Money: scoring, settlement and handicap maths.
+^src/lib/golf\.js$
+^src/lib/handicap\.js$
+^src/settlement\.js$
+^src/nassauEngine\.js$
+
+# Saving a round.
+^src/lib/outbox\.js$
+^src/lib/saves\.js$
+^src/hooks/useScores\.js$
+
+# Sign-in and who owns a handicap history.
+^src/lib/account\.js$
+^src/hooks/useAuth\.js$
+^src/hooks/usePlayerClaim\.js$
+^src/components/SignIn\.jsx$
+^src/components/ClaimPlayer\.jsx$

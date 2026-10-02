@@ -109,6 +109,43 @@ jobs:
           printf '%s\n\n---\n*Reviewed by Gemini. [Run](%s/%s/actions/runs/%s)*\n' \
             "$REPLY" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
             | gh pr comment "$PR_NUMBER" --body-file -
+
+          # The review used to be a comment and nothing more: a pull request merged itself whether
+          # the verdict was "approve" or "needs changes". Now anything other than an approval
+          # takes the pull request off auto-merge, labels it for Harold, and fails this job.
+          #
+          # The verdict script is read from the base branch, so a pull request cannot bring its
+          # own. A pull request from a fork has no AGENT_TOKEN; the failing job is the signal there.
+          BASE="origin/${{ github.event.pull_request.base.ref }}"
+          VERDICT=$(printf '%s\n' "$REPLY" | bash <(git show "$BASE:.github/scripts/review-verdict.sh"))
+          echo "verdict: $VERDICT"
+          echo "**Verdict read as:** $VERDICT" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$VERDICT" = "approve" ]; then
+            exit 0
+          fi
+
+          TOKEN="$(printf '%s' "${AGENT_TOKEN_RAW:-$GH_TOKEN}" | tr -d '\r\n')"
+          echo "::add-mask::$TOKEN"
+          export GH_TOKEN="$TOKEN"
+
+          gh pr merge "$PR_NUMBER" --disable-auto || echo "auto-merge was not enabled, or could not be disabled"
+          gh label create needs-human --color d93f0b --description "Needs a person: touches the database, secrets, or a real round" --force >/dev/null || true
+          gh pr edit "$PR_NUMBER" --add-label needs-human || true
+
+          STATE=$(gh pr view "$PR_NUMBER" --json state -q .state || echo UNKNOWN)
+          if [ "$STATE" = "MERGED" ]; then
+            NOTE="**This pull request had already merged before the review finished.** Read the findings above and revert it if they are right."
+          elif [ "$VERDICT" = "needs-changes" ]; then
+            NOTE="Held for Harold: the review asked for changes, so this pull request will not merge by itself."
+          else
+            NOTE="Held for Harold: the review gave no verdict that could be read as an approval, so this pull request will not merge by itself."
+          fi
+          gh pr comment "$PR_NUMBER" --body "$NOTE" || true
+
+          echo "::error::Gemini review verdict is '$VERDICT' — the pull request is held"
+          exit 1
         env:
           REPLY: ${{ steps.gemini.outputs.summary }}
           ERRORS: ${{ steps.gemini.outputs.error }}
+          AGENT_TOKEN_RAW: ${{ secrets.AGENT_TOKEN }}

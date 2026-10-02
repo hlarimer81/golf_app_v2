@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './supabaseClient';
+import { outbox, queueMatchSave, pendingMatchValue } from './lib/saves';
 
 // =====================================================================================
 // Loads / persists a Wolf Vegas round's live state (matches.wolf_vegas JSONB) so wolf
@@ -9,8 +10,7 @@ import { supabase } from './supabaseClient';
 //   const { decisions, hammers, grossBirdies,
 //           setDecision, adjustHammer, cycleHammer, toggleGrossBirdies } = useWolfVegasState(id);
 //
-// If the wolf_vegas column has not been added yet (see sql/add-wolf-vegas-state-column.sql),
-// loads/saves fail softly and the round still works in-memory for the session.
+// Saves go through the outbox (lib/saves.js), which resends until the database confirms them.
 // =====================================================================================
 const EMPTY = { decisions: {}, hammers: {}, grossBirdies: false };
 
@@ -30,7 +30,11 @@ export function useWolfVegasState(matchId) {
       if (cancelled) return;
       // On error (column missing / row not found) fall back to a clean slate rather than
       // leaving a previous match's state on screen.
-      const next = error ? EMPTY : { ...EMPTY, ...(data?.wolf_vegas || {}) };
+      // A state not sent yet is newer than whatever the database holds.
+      const unsent = pendingMatchValue(outbox.pending(), matchId, 'wolf_vegas');
+      const next = unsent !== undefined
+        ? { ...EMPTY, ...unsent }
+        : error ? EMPTY : { ...EMPTY, ...(data?.wolf_vegas || {}) };
       ref.current = next;
       setState(next);
     };
@@ -54,10 +58,7 @@ export function useWolfVegasState(matchId) {
   const apply = useCallback((next) => {
     ref.current = next;
     setState(next);
-    if (!matchId) return;
-    supabase.from('matches').update({ wolf_vegas: next }).eq('id', matchId).then(({ error }) => {
-      if (error) console.error('wolf_vegas save failed', error);
-    });
+    if (matchId) queueMatchSave(matchId, 'wolf_vegas', next);
   }, [matchId]);
 
   const setDecision = useCallback((holeNum, choice) => {

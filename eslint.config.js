@@ -27,7 +27,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['e2e/**/*.js', 'playwright.config.js'],
+    files: ['e2e/**/*.js', 'playwright.config.js', 'vite.config.js'],
     languageOptions: { globals: globals.node },
     rules: {
       // Playwright fixtures call a parameter named `use`, which this rule mistakes for a hook.

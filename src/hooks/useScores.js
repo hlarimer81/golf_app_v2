@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import { outbox, queueScoreSave, overlayScores } from '../lib/saves';
 
 // =====================================================================================
 // Loads a match's scores, keeps them in sync via Supabase realtime, and exposes an
 // optimistic saveScore(). Replaces the fetch/realtime/save block that was copy-pasted
 // into every *Grid.jsx.
+//
+// Saves go through the outbox (lib/saves.js), which resends until the database confirms
+// them. A score still waiting to be sent is laid over every fetch, so a refetch caused by
+// another phone never wipes it off this one.
 //
 //   const { scores, saveScore } = useScores(matchId);
 //   scores[playerId][holeNumber] -> strokes (number) | undefined
@@ -23,7 +28,7 @@ export function useScores(matchId) {
       data?.forEach((s) => {
         (map[s.player_id] ??= {})[s.hole_number] = s.strokes;
       });
-      setScores(map);
+      setScores(overlayScores(map, outbox.pending(), matchId));
     };
 
     fetchScores();
@@ -46,7 +51,8 @@ export function useScores(matchId) {
 
   const saveScore = useCallback(
     async (playerId, holeNum, strokes) => {
-      const val = strokes === '' ? null : parseInt(strokes, 10);
+      const parsed = strokes === '' ? null : parseInt(strokes, 10);
+      const val = Number.isNaN(parsed) ? null : parsed;
 
       // Optimistic local update.
       setScores((prev) => ({
@@ -54,20 +60,7 @@ export function useScores(matchId) {
         [playerId]: { ...(prev[playerId] || {}), [holeNum]: val },
       }));
 
-      if (val === null) {
-        await supabase
-          .from('scores')
-          .delete()
-          .eq('match_id', matchId)
-          .eq('player_id', playerId)
-          .eq('hole_number', holeNum);
-        return;
-      }
-
-      await supabase.from('scores').upsert(
-        { match_id: matchId, player_id: playerId, hole_number: holeNum, strokes: val },
-        { onConflict: 'match_id,player_id,hole_number' }
-      );
+      if (matchId) queueScoreSave(matchId, playerId, holeNum, val);
     },
     [matchId]
   );

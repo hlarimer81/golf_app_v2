@@ -8,7 +8,7 @@
 > arrives, buy the domain and set up custom SMTP before inviting anyone (steps under "Auth: where
 > it stops for now" below). Remove this note once custom SMTP is live.
 
-## Latest Session (Oct 1) - auth finished, saves that resend, and an agent team that ships ✅
+## Latest Session (Oct 1–2) - auth finished, saves that resend, an agent team that ships, and AI golfers ✅
 
 **The night in one screen.** Details are in the sections below, in the order they happened.
 
@@ -19,11 +19,15 @@
 | RLS | Inventory taken; a bug that broke saving for signed-in golfers fixed; tablet policies and unused access removed; `green_images` dropped. All applied and verified. Guest writes stay open by decision. |
 | Auth | Done for now. Custom SMTP waits on a domain (see the warning at the top). Admin screen for claims parked. |
 | Repo | 22 leftover scripts removed; `scripts/` holds only the two staging files. |
-| Agent team | Three guards added (trusted authors, protected files, a review that can hold a merge). `review` is a required check. Reviewer rewritten after failing three ways. Two real runs: PR #8 (merged by hand) and PR #10 (merged by itself, fix confirmed by Harold on a phone). |
+| Agent team | Three guards added (trusted authors, protected files, a review that can hold a merge). `review` is a required check. Reviewer rewritten after failing three ways. Two real runs: PR #8 (merged by hand) and PR #10 (merged by itself, fix confirmed by Harold on a phone). Agents call the owner "H" in anything posted on GitHub. |
+| AI golfers | Hazard and Rough play a real round a night on the live app (02:00 Central), from a 20-scenario rotation with a score generator, and file at most two issues. Two rounds played by hand on Oct 2. Every round ends with a second-phone check. |
+| Handicaps | Two bugs fixed Oct 2, both found through the AI golfers: the scorecard converted handicaps again and added ~36 strokes on nine holes (#11), and Previous Rounds reopened a round without its holes, start hole, play-off-low or allowance. |
 
-| AI golfers | Hazard and Rough built: a nightly real round on the live app, with a scenario rotation and a score generator. **First round played Oct 2 and found a real handicap bug (#11), now fixed.** |
+**Nothing is waiting to be applied.** No migration is pending, no agent PR is open, and the issue
+backlog is empty. Everything is committed and pushed.
 
-**Nothing is waiting to be applied.** No migration is pending and no agent PR is open.
+**Not yet seen:** the nightly schedule firing by itself, an 18-hole round, a money game, and the
+second-phone check. The first scheduled round's summary will show all but the money game.
 
 **START HERE next time**, in rough order of value:
 0. **Read what the AI golfers file each morning** (section "AI golfers" below). One nine-hole

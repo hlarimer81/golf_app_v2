@@ -71,8 +71,40 @@ on their own. When that is built, the policies follow it: creating a match becom
 `authenticated` only, and that is the point to revisit the remaining `anon` writes. Until then,
 don't narrow them.
 
-**Next for auth. START HERE:** custom SMTP before inviting other golfers (Harold, dashboard).
-Nothing else is waiting to be applied.
+### Auth: where it stops for now (decided Oct 1)
+
+Sign-in, claim-your-player and the RLS clean-up are live. Two items are deliberately parked, and
+nothing is waiting to be applied.
+
+**⏸️ Custom SMTP — waiting on a domain.** Harold does not own a domain yet and wants to think
+about which one to buy. Until then sign-in codes go out through Supabase's built-in sender, and
+that is accepted for now because usage is low.
+
+- **The limit is on sending codes, not on being signed in.** The built-in sender allows only a
+  couple of emails an hour across the whole project. A golfer who is already signed in stays
+  signed in (the session persists), so it only bites when several people sign in for the first
+  time around the same hour.
+- **To check before inviting anyone:** Supabase's documentation has said the built-in sender
+  delivers only to email addresses that belong to the project's organization team. If that
+  applies here, a golfer outside the team would never receive a code at all, whatever the hourly
+  limit. Not verified against this project — test by signing in with an address that is not on
+  the Supabase team.
+- **When the domain exists:**
+  1. Create an account with an email provider (Resend has a free tier that covers this volume).
+  2. Add the domain there, create the DNS records it shows at the registrar, wait for "verified".
+  3. Create an API key. It goes only into Supabase — never into the repo or a chat.
+  4. Supabase → Authentication → Emails → SMTP Settings: enable custom SMTP; host, port and
+     username from the provider; the API key as the password; a sender address on the domain.
+  5. Authentication → Rate Limits: raise the email limit, which stays low even with custom SMTP.
+  6. Sign out and back in on the phone. The code should arrive from the new address, and the
+     templates still need `{{ .Token }}` (unchanged by switching sender).
+
+**⏸️ Admin screen for pending claims — parked until a pending claim happens.** Approve and reject
+are hand-run queries at the bottom of `sql/auth-claim-player.sql`. Building the screen means an
+admin list in the database, two admin-only functions, and a migration.
+
+**Later, by design:** a signed-in golfer starts the round and scores it, guests are added by
+them, and match creation becomes `authenticated` only (see the RLS decision above).
 
 ---
 
@@ -1089,7 +1121,7 @@ PAT for polling. See the latest session at the top of this file. The app roadmap
 by it — the agents are how the work gets done, not what the work is.*
 
 1. **Play a round** to exercise Finish Round → banking on real data. The only step needing a course.
-2. ✅ **Authentication.** Optional email-code sign-in, live and verified on production Sep 29. Custom SMTP still to do.
+2. ✅ **Authentication.** Optional email-code sign-in, live and verified on production Sep 29. Custom SMTP is parked until Harold has a domain (Latest Session, "Auth: where it stops for now").
 3. ✅ **Claim your player.** Live on production Oct 1 (Latest Session §5). An account links to a
    canonical name, so a new signup inherits their existing handicap history. The first claim on a
    name is confirmed at once; a claim on a name another account holds waits for approval by hand.
@@ -1101,4 +1133,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up applied and verified; nothing waiting to be applied (see Latest Session)
+**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up verified; custom SMTP parked until a domain is bought (see Latest Session)

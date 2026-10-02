@@ -114,6 +114,49 @@ admin list in the database, two admin-only functions, and a migration.
 **Later, by design:** a signed-in golfer starts the round and scores it, guests are added by
 them, and match creation becomes `authenticated` only (see the RLS decision above).
 
+### Agent team: three guards before friends start playing (Oct 1)
+
+The team is one developer (Claude, `claude-dev.yml`), one reviewer (Gemini, `gemini-review.yml`)
+and one organizer (`coordinator.yml`). It was built for an app with no players. Three gaps closed,
+all enforced in shell rather than asked for in a prompt:
+
+1. **Only trusted authors are read.** The repo is public, so anyone could file an issue and have
+   the coordinator weigh shipping it. `.github/trusted-authors` (Harold only, for now) decides
+   whose issues and comments the coordinator and the dev agent are shown. An issue from anyone
+   else is labelled `needs-human`. The coordinator's decisions are also ignored for any issue
+   number it was not shown. **To let a friend file issues, add their GitHub username to that file.**
+2. **Protected files hold a PR.** `.github/protected-paths` lists the workflows, `CLAUDE.md`,
+   `sql/`, `supabase/`, dependencies and check config, the scoring/settlement/handicap maths,
+   saving, and sign-in. A dev-agent PR touching any of them, removing lines from an existing test,
+   or adding lint suppressions is opened but not merged, and labelled `needs-human`. The list and
+   the script are read from the commit the run started on, so the agent cannot edit them first.
+3. **A Gemini verdict other than "approve" holds a PR.** It takes the PR off auto-merge, labels
+   it, and fails the review job.
+
+Also: the dev agent is now told to run the unit tests, and reads the issue from a file that leaves
+out untrusted comments.
+
+**Tested:** the two scripts and the author filters against sample input, and the workflow files
+with actionlint. **Not tested:** a real run. Nothing has gone through the pipeline since
+mid-September; file one small issue and watch it end to end before relying on it.
+
+**Known limits.**
+- The review and CI race. If CI finishes before Gemini, the PR merges and the hold arrives late
+  (the comment says so). To close it, add the `review` job as a required check in the `Protect
+  Main` ruleset — at the cost that a Gemini outage blocks agent merges until it is re-run.
+- The dev agent runs with a shell and a token in its environment. The guards stop mistakes and
+  stop strangers' text reaching it; they are not a sandbox.
+
+**Decided Oct 1 (Harold):** self-merging to production stays as it is. This is an app for Harold
+and a few friends and the season is mostly over. **Wanted later, not now:** a time-of-day
+development cycle, so agent changes deploy when nobody is on a course.
+
+**Still open on the team:**
+- Golfers cannot report anything without a GitHub account; there is no in-app feedback.
+- A `needs-info` question that gets answered is never re-read: the issue is already `triaged`.
+- `AGENT_TOKEN` was created about Sep 11 with a 90-day life, so it expires around **Dec 10**.
+- No designer agent exists; the original plan had one.
+
 ---
 
 ## Previous Session (Sep 29) - sign-in ships, and the workflow gets lighter ✅
@@ -1141,4 +1184,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up verified; custom SMTP parked until a domain is bought (see Latest Session)
+**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up verified; agent team guarded (trusted authors, protected paths, review holds) but not yet run end to end (see Latest Session)

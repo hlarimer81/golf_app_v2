@@ -920,7 +920,7 @@ function App() {
                     setSelectedCourseId(e.target.value);
                     setSelectedTeeBoxId(''); // Reset tee box when course changes
                   }}
-                  style={{ flex: 1, padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
+                  style={{ flex: 1, minWidth: 0, padding: '12px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '15px' }}
                   required
                 >
                   <option value="" disabled>Select Course</option>

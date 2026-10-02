@@ -22,6 +22,17 @@ export const tables = {
         { id: 'tee-blue', tee_name: 'Blue', tee_color: 'blue', rating: 72.4, slope: 128, par: par72, stroke_index: strokeIndex, yardage: null },
       ],
     },
+    // Name is long on purpose: it's what pushed the course select past the edge of a phone screen.
+    {
+      id: 'course-long-name',
+      name: 'Pebble Brook National Golf and Country Club Championship Course',
+      location: 'Ames, IA',
+      holes: 18,
+      greens: null,
+      tee_boxes: [
+        { id: 'tee-long-white', tee_name: 'White', tee_color: 'white', rating: 70.1, slope: 121, par: par72, stroke_index: strokeIndex, yardage: null },
+      ],
+    },
   ],
   players: [
     { id: 'player-pat', player_name: 'Pat Par', handicap: 12, match_id: null, team_id: null },

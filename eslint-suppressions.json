@@ -1,9 +1,4 @@
 {
-  "scripts/add_courses.js": {
-    "no-undef": {
-      "count": 2
-    }
-  },
   "scripts/check-tables.js": {
     "no-undef": {
       "count": 5

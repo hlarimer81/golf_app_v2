@@ -78,11 +78,10 @@ Running `sql/auth-claim-player.sql` fixed it. That PostgREST message means "the 
 there" far more often than "the cache is stale" — check `pg_proc` before reaching for
 `NOTIFY pgrst, 'reload schema'`.
 
-**Still to confirm:** the three verify queries at the bottom of `sql/auth-claim-player.sql`, run
-**one at a time** (the editor shows only the last result). Expect `anon` = `SELECT` only and
-`authenticated` = `DELETE, SELECT`; two policies (SELECT, DELETE); `anon_can_claim = false`,
-`authenticated_can_claim = true`. The grants one matters: `sql/auth-player-account.sql` grants
-direct INSERT/UPDATE to `authenticated`, and only the claim migration's `REVOKE ALL` takes them away.
+**Verified Oct 1:** Harold ran the three verify queries at the bottom of
+`sql/auth-claim-player.sql` and all matched: `anon` = `SELECT` only and `authenticated` =
+`DELETE, SELECT`; two policies (SELECT, DELETE); `anon_can_claim = false`,
+`authenticated_can_claim = true`. So the only way to write a claim is `golf_claim_player()`.
 
 **Next for auth. START HERE:** custom SMTP before inviting other golfers; an admin view for
 pending claims if they start happening; then RLS on the rest of the schema.
@@ -1026,4 +1025,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - claim screen live on production; migration applied, verify queries still to confirm (see Latest Session §5)
+**Last Updated:** October 1, 2026 - claim screen live on production; migration applied and verified (see Latest Session §5)

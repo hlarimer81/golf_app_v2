@@ -12,6 +12,9 @@
 ^CLAUDE\.md$
 ^GEMINI\.md$
 
+# The AI golfers: what they play on the live app and what they shoot.
+^testers/
+
 # The database and anything that runs with more than the public key.
 ^sql/
 ^supabase/

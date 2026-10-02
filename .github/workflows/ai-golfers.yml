@@ -1,0 +1,286 @@
+name: AI golfers
+
+# Hazard and Rough play one real round a night on the live app, as guests, and file what they find.
+#
+# They are the testers the dev agent builds for. A person plays a round a week at best, and only
+# the games they like; these two play every game two players can play, with every setup option,
+# on a rotation (testers/scenarios.js). Their rounds are real: they are banked, they move the
+# golfers' handicap indexes, and they show up beside everyone else's.
+#
+# The model plays; the workflow acts. Claude drives a phone-sized browser and writes a findings
+# file. It never runs gh. A shell step files the issues and enforces the cap on how many — a cap
+# in a prompt is a request, a cap in shell is a limit. Issues are labelled from-tester and join
+# the normal backlog, where the coordinator triages them like anyone else's.
+#
+# NO DATABASE KEY. This job holds nothing that can reach Supabase. The golfers use the live
+# website exactly as a guest does. That is the one exception to "agents work against mocks only"
+# (CLAUDE.md), and it is narrow on purpose: the dev agent and CI still never touch production.
+#
+# Issues are created with AGENT_TOKEN, so they are authored by Harold and count as coming from a
+# trusted author. That is acceptable because the only thing these golfers read is our own app.
+
+on:
+  schedule:
+    - cron: '0 7 * * *' # 02:00 Central — six hours before the coordinator's run
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Scenario id from testers/scenarios.js (blank = tonight''s turn in the rotation)'
+        required: false
+        default: ''
+      max_issues:
+        description: 'How many issues this round may file'
+        required: false
+        default: '2'
+      file_issues:
+        description: 'File issues (untick to play the round and only report in the run summary)'
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-golfers
+  cancel-in-progress: false
+
+jobs:
+  play:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    env:
+      APP_URL: https://golf-app-v2.vercel.app
+      GH_TOKEN: ${{ secrets.AGENT_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Pick tonight's scenario
+        id: scenario
+        env:
+          SCENARIO_ID: ${{ inputs.scenario }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/round/screenshots"
+          if [ -n "$SCENARIO_ID" ]; then
+            node testers/scenarios.js --id "$SCENARIO_ID" > "$RUNNER_TEMP/round/scenario.json"
+          else
+            node testers/scenarios.js > "$RUNNER_TEMP/round/scenario.json"
+          fi
+          cat "$RUNNER_TEMP/round/scenario.json"
+          echo "id=$(jq -r .id "$RUNNER_TEMP/round/scenario.json")" >> "$GITHUB_OUTPUT"
+          echo "reporter=$(jq -r .reporter "$RUNNER_TEMP/round/scenario.json")" >> "$GITHUB_OUTPUT"
+          echo "seed=$(date -u +%F)-$(jq -r .id "$RUNNER_TEMP/round/scenario.json")" >> "$GITHUB_OUTPUT"
+
+      # So the golfers do not report what is already known. Only issues by trusted authors, the
+      # same rule the coordinator follows: nothing a stranger wrote reaches a model.
+      - name: Collect the open issues
+        run: |
+          TRUSTED=$(grep -Ev '^[[:space:]]*(#|$)' .github/trusted-authors | jq -R 'ascii_downcase' | jq -sc .)
+          gh issue list --state open --limit 100 --json number,title,body,author,labels \
+            | jq --argjson trusted "$TRUSTED" '
+                [ .[] | select((.author.login // "" | ascii_downcase) as $a | ($trusted | index($a)) != null)
+                      | { number, title, body: (.body // "" | .[0:600]), labels: [.labels[].name] } ]' \
+            > "$RUNNER_TEMP/round/open-issues.json"
+          echo "$(jq length "$RUNNER_TEMP/round/open-issues.json") open issues"
+
+      - name: Play the round
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.AGENT_TOKEN }}
+          display_report: true
+          prompt: |
+            You are playing a round of golf on 4Play, a golf scoring web app, as two guest golfers:
+            Hazard and Rough. They are real players in the live app and this is a real round — it
+            will be saved, banked into their handicap history, and seen by the people who use the
+            app. Your job is to use the app the way a golfer does and report what goes wrong.
+
+            The app: ${{ env.APP_URL }}
+            You have a browser the size of a phone, through the playwright tools. One phone, held
+            by one golfer, scoring for both players — that is how the app is really used.
+
+            Tonight's round is described in ${{ runner.temp }}/round/scenario.json. Read it first.
+            You are writing up the round as: ${{ steps.scenario.outputs.reporter }}.
+
+            RULES. These protect other people's data.
+            - Play as guests. Do not sign in. Do not claim a player.
+            - Hazard and Rough already exist as saved players. Pick them from the player list. Do
+              not create players, and do not add anyone else to the round.
+            - Use the handicap the app fills in for each of them. Do not type a handicap.
+            - Play an existing course. Never request a course, enter one by hand, report a course
+              issue, or add green GPS data.
+            - Only ever open, score or finish the round you create tonight. Other rounds in
+              Previous Rounds belong to real people: do not open them.
+            - If you cannot find Hazard or Rough, or there is no course to pick, stop and say so in
+              the findings file. Do not improvise around it.
+
+            THE ROUND.
+            1. Set the round up as the scenario says: game, holes, starting hole, gross or net,
+               handicap allowance, play off the low handicap, teams, and any game option. Where
+               the scenario gives no value for an option, leave the app's default. If the app
+               will not let you set something the scenario asks for, that is a finding.
+            2. Note the course's pars, and the handicap the app gave each golfer.
+            3. Get each golfer's scorecard. Do not make scores up. Run, once per golfer:
+                 node testers/scorecard.js --handicap <the handicap the app shows> --pars <pars for the holes being played, comma separated> --seed ${{ steps.scenario.outputs.seed }}-<golfer name>
+               Add --si <stroke indexes> if the app shows them. Enter those strokes exactly.
+            4. Play hole by hole, entering both golfers' scores, as you would walking off each
+               green. Follow the scenario's wager and press instructions, and its "behaviour".
+            5. As you go, check the app's arithmetic yourself: strokes given, points, holes won,
+               skins and carryovers, who is up, and any money. Work it out independently from the
+               scores you entered and compare. A wrong number here costs people real money, so
+               this matters more than anything cosmetic.
+            6. Finish the round with the app's Finish Round button and read the summary screen.
+            7. Take a screenshot whenever something looks wrong, and one of the final summary.
+               Save screenshots in ${{ runner.temp }}/round/screenshots.
+
+            WHAT COUNTS AS A FINDING.
+            - A bug: a wrong number, a score that did not save or came back different, a crash, a
+              button that does nothing, a screen that cannot be got out of, text or controls cut
+              off or overlapping on a phone screen.
+            - Friction: something a golfer would get wrong or give up on, one-handed, outdoors.
+            Not findings: ideas for new features, and matters of taste. Leave those out.
+
+            Read ${{ runner.temp }}/round/open-issues.json. If something you found is already
+            there, do not report it again.
+
+            Report at most 4 findings, most serious first. If the round went cleanly, report none
+            and say so — an empty list is a good result, not a failure. Never invent a problem.
+
+            Finish by writing ${{ runner.temp }}/round/findings.json, in exactly this shape:
+
+            {
+              "scenario": "the scenario id",
+              "completed": true,
+              "match_code": "the round's 6-character code, or null",
+              "course": "the course played",
+              "handicaps": { "Hazard": 14, "Rough": 9 },
+              "totals": { "Hazard": 91, "Rough": 84 },
+              "summary": "three or four sentences: what you played, how it went, what you checked",
+              "findings": [
+                {
+                  "title": "short and specific — what is wrong and where",
+                  "kind": "bug",
+                  "severity": "high",
+                  "where": "the screen and control",
+                  "steps": "numbered steps to see it again",
+                  "expected": "what should have happened",
+                  "actual": "what happened, with the actual numbers",
+                  "screenshot": "file name in the screenshots folder, or null"
+                }
+              ]
+            }
+
+            "kind" is bug or friction. "severity" is high (wrong money, lost scores, cannot
+            finish), medium, or low. Set "completed" to false if you could not finish the round,
+            and say why in "summary".
+
+            Always write the findings file, even if everything failed. Do not run git or gh.
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 400
+            --mcp-config '{"mcpServers":{"playwright":{"command":"npx","args":["-y","@playwright/mcp@latest","--headless","--isolated","--device","Pixel 7","--output-dir","${{ runner.temp }}/round/screenshots"]}}}'
+            --allowedTools "mcp__playwright,Read,Write,Glob,Grep,LS,TodoWrite,Bash(node:*)"
+            --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit,WebFetch,WebSearch"
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: round-${{ steps.scenario.outputs.id }}
+          path: ${{ runner.temp }}/round/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Report the round and file what was found
+        if: always()
+        env:
+          MAX_ISSUES: ${{ inputs.max_issues || '2' }}
+          # Empty on the nightly schedule, where there are no inputs: file issues then.
+          FILE_ISSUES: ${{ inputs.file_issues }}
+          SCENARIO: ${{ steps.scenario.outputs.id }}
+          REPORTER: ${{ steps.scenario.outputs.reporter }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          FINDINGS="$RUNNER_TEMP/round/findings.json"
+
+          if [ ! -f "$FINDINGS" ]; then
+            echo "::error::The golfers left no findings file — see the Claude Code Report above"
+            echo "### AI golfers — $SCENARIO" >> "$GITHUB_STEP_SUMMARY"
+            echo "No findings file was written. The round may not have been played." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if ! jq -e . "$FINDINGS" >/dev/null 2>&1; then
+            echo "::error::The findings file is not valid JSON"
+            cat "$FINDINGS"
+            exit 1
+          fi
+
+          COMPLETED=$(jq -r '.completed // false' "$FINDINGS")
+          MATCH=$(jq -r '.match_code // "none"' "$FINDINGS")
+          FOUND=$(jq '.findings | length' "$FINDINGS")
+          {
+            echo "### AI golfers — $SCENARIO"
+            echo
+            echo "Written up by **$REPORTER**. Round **$MATCH** at $(jq -r '.course // "unknown course"' "$FINDINGS"). Completed: **$COMPLETED**."
+            echo
+            echo "Handicaps: \`$(jq -c '.handicaps // {}' "$FINDINGS")\` · Totals: \`$(jq -c '.totals // {}' "$FINDINGS")\`"
+            echo
+            jq -r '.summary // "(no summary)"' "$FINDINGS"
+            echo
+            if [ "$FOUND" = "0" ]; then
+              echo "**No findings.** The round went cleanly."
+            else
+              echo "| # | Severity | Kind | Finding |"
+              echo "|---|---|---|---|"
+              jq -r '.findings | to_entries[] | "| \(.key + 1) | \(.value.severity // "") | \(.value.kind // "") | \(.value.title // "" | gsub("\\|"; "/")) |"' "$FINDINGS"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$FILE_ISSUES" = "false" ]; then
+            echo "not filing issues this run" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          gh label create from-tester --color 5319e7 --description "Found by an AI golfer playing a real round" --force >/dev/null
+
+          filed=0
+          while read -r row; do
+            if [ "$filed" -ge "$MAX_ISSUES" ]; then
+              echo "over this round's limit of $MAX_ISSUES — the rest are in the run summary only"
+              break
+            fi
+            title=$(jq -r '.title // "Untitled finding"' <<<"$row" | head -c 200)
+            body=$(jq -r --arg reporter "$REPORTER" --arg scenario "$SCENARIO" --arg match "$MATCH" --arg run "$RUN_URL" '
+              "**Found by \($reporter)**, an AI golfer, playing scenario `\($scenario)` (round \($match)).\n\n" +
+              "**Kind:** \(.kind // "bug") · **Severity:** \(.severity // "unknown")\n\n" +
+              "**Where:** \(.where // "not stated")\n\n" +
+              "**Steps:**\n\(.steps // "not stated")\n\n" +
+              "**Expected:** \(.expected // "not stated")\n\n" +
+              "**Actual:** \(.actual // "not stated")\n\n" +
+              "**Screenshot:** " + (if .screenshot then "`\(.screenshot)` in the [run](\($run))'"'"'s artifacts" else "none" end) +
+              "\n\n---\n*Filed automatically from an AI golfer'"'"'s round. [Run](\($run))*"' <<<"$row")
+            url=$(gh issue create --title "$title" --body "$body" --label from-tester)
+            echo "filed $url"
+            filed=$((filed + 1))
+          done < <(jq -c '.findings | sort_by({high: 0, medium: 1, low: 2}[.severity // "low"] // 3)[]' "$FINDINGS")
+
+          echo "filed $filed of $FOUND findings (limit $MAX_ISSUES)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          if [ "$COMPLETED" != "true" ]; then
+            echo "::error::The round was not completed — see the summary"
+            exit 1
+          fi

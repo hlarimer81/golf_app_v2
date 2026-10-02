@@ -1,0 +1,65 @@
+# AI golfers
+
+Hazard and Rough are two AI golfers who play one real round a night on the live app and file what
+they find. `.github/workflows/ai-golfers.yml` runs them.
+
+- **Hazard** is AI player 1 and stands in for Harold. **Rough** is AI player 2 and stands in for
+  Ryan. Both are saved players in the live app, created by Harold on 2026-10-01 with Harold's and
+  Ryan's handicaps as their starting points.
+- **They are real guests.** No account, no database key: they use the website the way a friend
+  would. Their rounds are banked, their handicap indexes move, and they appear in the player
+  directory and Previous Rounds beside everyone else.
+- **They only touch their own rounds**, play existing courses only, and never add or edit courses,
+  players or green GPS data. This is an instruction in their prompt, not a lock.
+
+## What they play
+
+`scenarios.js` is the coverage plan. The workflow picks tonight's scenario from it; the golfers do
+not choose. It covers the six games two players can play (Stableford, Singles, Skins, Nassau,
+Chairman, 4-Ball) across 18 and 9 holes, gross and net, every handicap allowance in use, playing
+off the low handicap or not, skins carryover on and off, wagers, presses, a back-nine start and
+team play. One a night goes round the list in 20 nights and then starts again, each lap pairing
+every scenario with a different "behaviour" — fixing a score, clearing one, reloading mid-round,
+rejoining by code, checking the player pages afterwards.
+
+9-Point needs three players; Vegas, Wolf, Wolf Vegas and 2-Ball Aggregate need four or five. They
+are not covered until there are more golfers. To add one: create the saved player in the app, add
+the name to `GOLFERS`, and add scenarios for the games that become playable.
+
+## What they shoot
+
+`scorecard.js` produces each golfer's card from the handicap the app fills in at setup. A typical
+round is about three strokes worse than the handicap, because an index is the best 8 of the last
+20 rounds and a golfer averages worse than their index. Without that, each new index would come
+out a little lower than the last. Rounds are bounded to between 3 under and 9 over the handicap.
+
+Nothing else steers their handicaps. The banked rounds move the index, the next round plays to the
+new index, and their games drift the way a golfer's does. Both indexes should stay in a believable
+band around where they started; one running away in either direction points at a problem in the
+generator or in the handicap maths.
+
+## What they file
+
+Each round ends with a findings file. The workflow turns at most two findings into GitHub issues
+labelled `from-tester`, most serious first; the rest stay in the run summary. Screenshots are in
+the run's artifacts. The issues join the normal backlog and the coordinator triages them.
+
+Bugs and friction only — not feature ideas, not taste. A clean round files nothing, and that is a
+good result.
+
+## Running one by hand
+
+Actions → **AI golfers** → Run workflow. Leave the scenario blank for tonight's turn, or give an id
+from `scenarios.js`. Untick "File issues" to play the round and only read the summary.
+
+```bash
+node testers/scenarios.js                 # tonight's scenario
+node testers/scenarios.js --id nassau-18-gross
+node testers/scorecard.js --handicap 14 --pars 4,4,3,5,4,4,3,4,5,4,4,3,5,4,4,3,4,5 --seed demo
+```
+
+## Turning it up or down
+
+Start: one round a night. If rounds keep coming back clean, play more — add a second `cron` line
+to the workflow. If the backlog fills faster than it empties, lower `max_issues` or drop to a few
+nights a week. The coordinator still ships at most two changes a day whatever the golfers file.

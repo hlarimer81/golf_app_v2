@@ -22,6 +22,15 @@ team play. One a night goes round the list in 20 nights and then starts again, e
 every scenario with a different "behaviour" — fixing a score, clearing one, reloading mid-round,
 rejoining by code, checking the player pages afterwards.
 
+**Every round also gets a second-phone check.** One browser keeps score for both golfers, which is
+how the app is mostly used, but it means nobody looks at the round from another phone. So before
+finishing, the golfer opens the round in two new tabs — once from Previous Rounds, once by match
+code — and compares the holes shown, both handicaps, every score and the standings against the
+phone that kept score. It looks and does not touch. This exists because Harold, watching the
+second round, found that Previous Rounds reopened a back-nine round as 18 holes from the 1st; the
+golfers could not have seen it. Two golfers on two phones, each scoring their own ball, is not
+built yet.
+
 9-Point needs three players; Vegas, Wolf, Wolf Vegas and 2-Ball Aggregate need four or five. They
 are not covered until there are more golfers. To add one: create the saved player in the app, add
 the name to `GOLFERS`, and add scenarios for the games that become playable.

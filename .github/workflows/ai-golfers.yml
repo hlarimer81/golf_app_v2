@@ -143,8 +143,26 @@ jobs:
                skins and carryovers, who is up, and any money. Work it out independently from the
                scores you entered and compare. A wrong number here costs people real money, so
                this matters more than anything cosmetic.
-            6. Finish the round with the app's Finish Round button and read the summary screen.
-            7. Take a screenshot whenever something looks wrong, and one of the final summary.
+            6. THE SECOND PHONE. When every score is in, and BEFORE you finish the round, look at
+               it the way another golfer in the group would, from their own phone. Do this on
+               every round. Keep the tab you have been scoring in exactly as it is; that is the
+               first phone, and it is what you compare against.
+               a. Open a new browser tab on the app's home screen. Go to Previous Rounds and open
+                  your round from the list. Compare it with the first phone (see below).
+               b. Open another new tab on the home screen. Use Join Round with the match code.
+                  Compare again.
+               On each, compare these, one by one, against the first phone:
+                 - which holes are on the scorecard (the same holes, starting at the same one)
+                 - each golfer's handicap as shown
+                 - every score you entered, for both golfers
+                 - the standings, points or match status, and any money
+               Anything that differs is a finding, and a serious one: two people looking at the
+               same round must see the same thing. Say which route showed it (Previous Rounds or
+               the code) and exactly what differed, with a screenshot of each phone.
+               Do NOT enter, change or clear any score on the second phone, and do not finish
+               the round from it. Look only. Then go back to the first tab.
+            7. Finish the round with the app's Finish Round button and read the summary screen.
+            8. Take a screenshot whenever something looks wrong, and one of the final summary.
                Save screenshots in ${{ runner.temp }}/round/screenshots.
 
             WHAT COUNTS AS A FINDING.
@@ -169,6 +187,7 @@ jobs:
               "course": "the course played",
               "handicaps": { "Hazard": 14, "Rough": 9 },
               "totals": { "Hazard": 91, "Rough": 84 },
+              "second_phone": { "previous_rounds": "same", "by_code": "same" },
               "summary": "three or four sentences: what you played, how it went, what you checked",
               "findings": [
                 {
@@ -183,6 +202,9 @@ jobs:
                 }
               ]
             }
+
+            Each "second_phone" value is "same", "different" (and then there must be a finding
+            that says how), or "not checked" with the reason in "summary".
 
             "kind" is bug or friction. "severity" is high (wrong money, lost scores, cannot
             finish), medium, or low. Set "completed" to false if you could not finish the round,
@@ -241,6 +263,8 @@ jobs:
             echo "Written up by **$REPORTER**. Round **$MATCH** at $(jq -r '.course // "unknown course"' "$FINDINGS"). Completed: **$COMPLETED**."
             echo
             echo "Handicaps: \`$(jq -c '.handicaps // {}' "$FINDINGS")\` · Totals: \`$(jq -c '.totals // {}' "$FINDINGS")\`"
+            echo
+            echo "Second phone — from Previous Rounds: **$(jq -r '.second_phone.previous_rounds // "not reported"' "$FINDINGS")** · by code: **$(jq -r '.second_phone.by_code // "not reported"' "$FINDINGS")**"
             echo
             jq -r '.summary // "(no summary)"' "$FINDINGS"
             echo

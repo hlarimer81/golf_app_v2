@@ -304,8 +304,10 @@ reopened. Both paths now go through one `openMatch()` in `src/App.jsx`. Two smok
 (`e2e/reopen.spec.js`); the Previous Rounds one fails against the old code.
 
 Worth noting for the testers: the AI golfers could not have found this. They only ever look at
-the round on the phone that created it. A "second phone" check — reopen the round from Previous
-Rounds and compare — would be a good behaviour to add to `testers/scenarios.js`.
+the round on the phone that created it. **Added Oct 2:** every round now ends with a second-phone
+check — the round reopened in new tabs from Previous Rounds and by code, and compared with the
+scoring phone (holes, handicaps, scores, standings). An instruction to a model, not a test; the
+smoke test above is the guarantee for this particular bug. Two golfers on two phones is not built.
 
 ### Designer agent — the plan (not built)
 

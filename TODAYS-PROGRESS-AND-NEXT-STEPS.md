@@ -141,9 +141,11 @@ with actionlint. **Not tested:** a real run. Nothing has gone through the pipeli
 mid-September; file one small issue and watch it end to end before relying on it.
 
 **Known limits.**
-- The review and CI race. If CI finishes before Gemini, the PR merges and the hold arrives late
-  (the comment says so). To close it, add the `review` job as a required check in the `Protect
-  Main` ruleset — at the cost that a Gemini outage blocks agent merges until it is re-run.
+- ~~The review and CI race.~~ **Closed Oct 1.** Harold added `review` as a required check in the
+  `Protect Main` ruleset, beside `build-and-test` (confirmed from the GitHub API). A PR cannot
+  merge until the Gemini review has run and approved. The cost: if Gemini does not answer, agent
+  merges wait — re-run the job from the PR's Checks tab, or merge by hand. Harold's own pushes are
+  unaffected (admin bypass).
 - The dev agent runs with a shell and a token in its environment. The guards stop mistakes and
   stop strangers' text reaching it; they are not a sandbox.
 

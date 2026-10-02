@@ -49,7 +49,10 @@ drops both; on `players` that removed the only UPDATE policy, which the app neve
 **Applied and verified by Harold Oct 1.**
 
 **Access nothing uses.** `sql/rls-remove-unused-access.sql` drops nine policies, each checked
-against every `.from()` call in `src/` and `supabase/functions/`. **Pushed, not yet applied. START HERE.**
+against every `.from()` call in `src/` and `supabase/functions/`. **Applied and verified by Harold Oct 1.**
+Adding a course from the app is unaffected: Request Course goes through the edge function and
+Manual Course Entry writes `golf_courses`/`tee_boxes`, both kept. Only the legacy `courses` table
+became read-only.
 
 | Table | Dropped | Why |
 |---|---|---|
@@ -57,12 +60,19 @@ against every `.from()` call in `src/` and `supabase/functions/`. **Pushed, not 
 | `course_requests` | INSERT and SELECT for everyone | The app never touches it; the edge function writes it as `service_role`. Anyone could read every request. |
 | `course_issues` | SELECT for everyone | The app only files issues. Rows carry `admin_notes`. |
 | `courses` | INSERT and UPDATE for everyone | The app only reads it (the Peninsula nines). `scripts/add_courses.js` stops working. |
-| `green_images` | INSERT and UPDATE for everyone | Unused. The table itself is left for a separate decision (`sql/drop-green-images-table.sql`). |
+| `green_images` | INSERT and UPDATE for everyone | Unused. **Harold dropped the table itself Oct 1** (`sql/drop-green-images-table.sql`), so 14 tables remain. |
 
-**Next for RLS:** apply `sql/rls-remove-unused-access.sql` and run its one verify query. After
-that, what remains is deliberate: guests score as `anon`, so anyone holding the public key can
-insert and update matches, players, teams and scores. Narrowing that needs a design (for example,
-writes only to a match whose code the caller knows), not a clean-up.
+**RLS clean-up is complete.** What remains is deliberate: guests score as `anon`, so anyone
+holding the public key can insert and update matches, players, teams and scores.
+
+**Decided Oct 1 (Harold): that is fine for now.** The intended future state is that a signed-in
+golfer starts the round and does the scoring, and adds guests to it; a guest cannot start a match
+on their own. When that is built, the policies follow it: creating a match becomes
+`authenticated` only, and that is the point to revisit the remaining `anon` writes. Until then,
+don't narrow them.
+
+**Next for auth. START HERE:** custom SMTP before inviting other golfers (Harold, dashboard).
+Nothing else is waiting to be applied.
 
 ---
 
@@ -1091,4 +1101,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - outbox shipped; signed-in and tablet policy fixes verified; `sql/rls-remove-unused-access.sql` waiting to be applied (see Latest Session)
+**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up applied and verified; nothing waiting to be applied (see Latest Session)

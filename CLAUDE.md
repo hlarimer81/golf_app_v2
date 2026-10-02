@@ -138,5 +138,5 @@ off-machine request is aborted, so a test can never reach production.
 - `src/components/` — player pages, course request/entry, green GPS wizard
 - `supabase/functions/request-course/` — edge function that imports courses from the Golf API
 - `sql/` — one-shot migrations and diagnostics, applied by hand; not a replayable history
-- `scripts/` — one-off Node data tools (use production credentials — agents don't run these)
+- `scripts/` — the two `staging-*` files only (out of the workflow — agents don't run these)
 - `docs/` — game mode standards, API reference, troubleshooting, security

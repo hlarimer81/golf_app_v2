@@ -1,5 +1,8 @@
 # Golf Courses Schema Migration Guide
 
+> **This migration is complete.** The helper scripts named below (`inspect-current-courses.js`,
+> `example-app-integration.jsx`) were removed on 2026-10-01; they are in git history.
+
 ## Overview
 
 This guide explains the new database schema for golf courses that properly handles multiple tee boxes per course.

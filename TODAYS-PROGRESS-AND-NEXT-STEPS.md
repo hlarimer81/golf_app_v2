@@ -1,6 +1,48 @@
 # Golf App Progress - October 1, 2026 (Updated)
 
-## Latest Session (Sep 29) - sign-in ships, and the workflow gets lighter ✅
+## Latest Session (Oct 1) - saves that resend themselves ✅
+
+First step of the RLS work, done before any policy is written: five write sites never checked that
+they wrote (every score, the wager, Nassau presses, Wolf Vegas state). A failed or refused save
+looked like success until someone reloaded. **Touches scoring and money.**
+
+- **Outbox** (`src/lib/outbox.js`, `src/lib/saves.js`). `useScores`, `useWager`, `usePresses` and
+  `useWolfVegasState` queue a save instead of calling Supabase. It is sent, confirmed by rows coming
+  back, and otherwise resent: 1s, 2s, 4s … up to 30s, and at once when the phone comes back online
+  or the app returns to the foreground. Kept in `localStorage`, so closing the app doesn't lose it
+  (dropped after 24 hours). Only the latest value per cell or column is sent.
+- **Unsent saves stay on screen.** A realtime refetch used to replace the whole scores map; unsent
+  saves are now laid over every fetch.
+- **Two kinds of failure.** No answer, 5xx, 408, 429: retried for as long as it takes. A 4xx, or
+  "success" with zero rows (what RLS does to a blocked UPDATE): after three tries it is flagged,
+  reported once, and retried once a minute so a policy fixed mid-round clears it.
+- **What the golfer sees** (`src/components/SaveStatus.jsx`, mounted beside `<App />`): nothing
+  normally; "Saving 2…" only once a send has failed; "This round isn't saving — keep a paper card."
+  for a refusal. No button, since the golfer can't fix a refusal.
+- **Error log:** `sql/client-error-log.sql` adds `client_error`, insert-only for anon. One row per
+  refused save: match, table, kind of write, error. No scores or wagers.
+- Checks: 138 unit tests (27 new), 48 smoke tests (8 new: first-time save, resend, resend after
+  reopening, refusal), phone screenshots reviewed.
+
+| Piece | State |
+|---|---|
+| App code | **Pushed** to `main`, deployed. Does not depend on the migration. |
+| `sql/client-error-log.sql` | **Pushed. Not yet applied** to production. Until it is, a refusal still warns the golfer but leaves no row. |
+
+**To pick up:** run `sql/client-error-log.sql` in the SQL editor, then its two verify queries one
+at a time. Expect `anon` and `authenticated` = `INSERT` only; RLS on, one INSERT policy.
+
+**Not done, by choice:** the e2e mock answers a `matches` PATCH with `[]`, so wager/presses/Wolf
+Vegas saves are covered by unit tests only. Two phones editing the same cell while one is offline
+is still last-write-wins. A daily check of `client_error` that opens a GitHub issue is a possible
+add-on to the keep-awake workflow.
+
+**Next for RLS:** Harold runs `sql/check-rls-status.sql` for the current policy inventory, then
+decide what the policies are meant to protect given that guests score as `anon`.
+
+---
+
+## Previous Session (Sep 29) - sign-in ships, and the workflow gets lighter ✅
 
 ### 1. ✅ Workflow: straight to production, straight to `main`
 
@@ -83,7 +125,7 @@ there" far more often than "the cache is stale" — check `pg_proc` before reach
 `DELETE, SELECT`; two policies (SELECT, DELETE); `anon_can_claim = false`,
 `authenticated_can_claim = true`. So the only way to write a claim is `golf_claim_player()`.
 
-**Next for auth. START HERE:** custom SMTP before inviting other golfers; an admin view for
+**Next for auth** (see Latest Session for where RLS stands): custom SMTP before inviting other golfers; an admin view for
 pending claims if they start happening; then RLS on the rest of the schema.
 
 ---
@@ -1025,4 +1067,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - claim screen live on production; migration applied and verified (see Latest Session §5)
+**Last Updated:** October 1, 2026 - saves resend themselves (outbox); claim screen live; `sql/client-error-log.sql` waiting to be applied (see Latest Session)

@@ -1,5 +1,13 @@
 # Golf App Progress - October 1, 2026 (Updated)
 
+> ⚠️ **BEFORE INVITING ANY OTHER GOLFER TO SIGN IN: a domain may be required, not optional.**
+> Sign-in codes go out through Supabase's built-in email sender. Supabase's documentation has said
+> that sender delivers **only to addresses on the Supabase organization's team**, so a golfer who
+> is not on the Supabase account may never receive a code. Not verified on this project.
+> **Test first:** sign in with an email address that is not on the Supabase team. If no code
+> arrives, buy the domain and set up custom SMTP before inviting anyone (steps under "Auth: where
+> it stops for now" below). Remove this note once custom SMTP is live.
+
 ## Latest Session (Oct 1) - saves that resend themselves ✅
 
 First step of the RLS work, done before any policy is written: five write sites never checked that
@@ -84,7 +92,7 @@ that is accepted for now because usage is low.
   couple of emails an hour across the whole project. A golfer who is already signed in stays
   signed in (the session persists), so it only bites when several people sign in for the first
   time around the same hour.
-- **To check before inviting anyone:** Supabase's documentation has said the built-in sender
+- **To check before inviting anyone (also flagged at the top of this file):** Supabase's documentation has said the built-in sender
   delivers only to email addresses that belong to the project's organization team. If that
   applies here, a golfer outside the team would never receive a code at all, whatever the hourly
   limit. Not verified against this project — test by signing in with an address that is not on

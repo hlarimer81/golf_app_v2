@@ -161,7 +161,11 @@ the check but leaves auto-merge on (re-run later); a verdict that does not appro
 holds the PR. `gemini-ping.yml` still uses the old action and is probably broken the same way.
 
 **PR #8 merged Oct 1** (by hand: an earlier hold had switched its auto-merge off), issue #7 closed.
-**Not yet seen working:** a PR merging itself with no hand on it. That is the next issue filed.
+**First hands-off merge, Oct 1: issue #9 → PR #10** ("My rounds" button clipping the tail of the
+"y"; one line, `lineHeight: 1.4`, in `src/App.jsx`). Coordinator → dev agent → CI → Gemini
+"approve" → squash-merged by itself in about ten minutes, issue closed, nobody touched it. The
+re-saved Gemini key ran with no whitespace warning. The agent added no test and could not look at
+the screen, so whether the "y" is actually fixed is for Harold to confirm on a phone.
 The protected-path hold and the
 untrusted-author path have only run against sample input.
 
@@ -1211,4 +1215,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up verified; agent team guarded and run end to end once (PR #8), reviewer rewritten (see Latest Session)
+**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up verified; agent team guarded, reviewer rewritten, first hands-off merge (PR #10) (see Latest Session)

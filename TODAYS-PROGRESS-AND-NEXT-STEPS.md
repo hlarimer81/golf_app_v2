@@ -27,10 +27,7 @@ looked like success until someone reloaded. **Touches scoring and money.**
 | Piece | State |
 |---|---|
 | App code | **Pushed** to `main`, deployed. Does not depend on the migration. |
-| `sql/client-error-log.sql` | **Applied** to production Oct 1 (table and policy seen in the inventory). Verify queries not yet confirmed. |
-
-**To pick up:** run the two verify queries at the bottom of `sql/client-error-log.sql`, one at a
-time. Expect `anon` and `authenticated` = `INSERT` only; RLS on, one INSERT policy.
+| `sql/client-error-log.sql` | **Applied and verified** on production by Harold Oct 1. |
 
 **Not done, by choice:** the e2e mock answers a `matches` PATCH with `[]`, so wager/presses/Wolf
 Vegas saves are covered by unit tests only. Two phones editing the same cell while one is offline
@@ -46,24 +43,26 @@ complete (so nothing banked), and clearing a score did nothing. All silent. Read
 list, not reproduced. `sql/rls-signed-in-writes.sql` recreates both policies for
 `anon, authenticated`. **Applied and verified by Harold Oct 1.**
 
-**"(tablet)" policies.** `courses update (tablet)` and `players update (tablet)` are left over from
+**"(tablet)" policies.** `courses update (tablet)` and `players update (tablet)` were left over from
 when score_play shared this database. No tablet writes here. `sql/rls-drop-tablet-policies.sql`
-drops both; on `players` that removes the only UPDATE policy, which the app never uses.
-**Pushed, not yet applied.**
+drops both; on `players` that removed the only UPDATE policy, which the app never uses.
+**Applied and verified by Harold Oct 1.**
 
-**Still open, none urgent:**
+**Access nothing uses.** `sql/rls-remove-unused-access.sql` drops nine policies, each checked
+against every `.from()` call in `src/` and `supabase/functions/`. **Pushed, not yet applied. START HERE.**
 
-| Table | Finding |
-|---|---|
-| `golf_courses`, `tee_boxes` | Any signed-in user can DELETE any course; sign-up is open and the app never deletes one. Drop both DELETE policies. |
-| `course_requests` | "view their own requests" lets anyone read every row, including `requested_by`, which can hold an email. |
-| `green_images` | Unused by the app, open INSERT and UPDATE. `sql/drop-green-images-table.sql` exists. |
-| `courses` | The app only reads it, but anyone can INSERT and UPDATE. |
+| Table | Dropped | Why |
+|---|---|---|
+| `golf_courses`, `tee_boxes` | DELETE for `authenticated` | Sign-up is open, so any stranger with an account could delete every course. The app never deletes one; the edge function does, as `service_role`. |
+| `course_requests` | INSERT and SELECT for everyone | The app never touches it; the edge function writes it as `service_role`. Anyone could read every request. |
+| `course_issues` | SELECT for everyone | The app only files issues. Rows carry `admin_notes`. |
+| `courses` | INSERT and UPDATE for everyone | The app only reads it (the Peninsula nines). `scripts/add_courses.js` stops working. |
+| `green_images` | INSERT and UPDATE for everyone | Unused. The table itself is left for a separate decision (`sql/drop-green-images-table.sql`). |
 
-**`client_error`:** the table exists on production (seen in the inventory). Its two verify queries
-are not yet confirmed.
-
-**Next for RLS:** apply `sql/rls-drop-tablet-policies.sql`, then work down the table above.
+**Next for RLS:** apply `sql/rls-remove-unused-access.sql` and run its one verify query. After
+that, what remains is deliberate: guests score as `anon`, so anyone holding the public key can
+insert and update matches, players, teams and scores. Narrowing that needs a design (for example,
+writes only to a match whose code the caller knows), not a clean-up.
 
 ---
 
@@ -1092,4 +1091,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - outbox shipped; signed-in write policies fixed and verified; `sql/rls-drop-tablet-policies.sql` waiting to be applied (see Latest Session)
+**Last Updated:** October 1, 2026 - outbox shipped; signed-in and tablet policy fixes verified; `sql/rls-remove-unused-access.sql` waiting to be applied (see Latest Session)

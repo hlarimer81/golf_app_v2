@@ -21,13 +21,13 @@
 | Repo | 22 leftover scripts removed; `scripts/` holds only the two staging files. |
 | Agent team | Three guards added (trusted authors, protected files, a review that can hold a merge). `review` is a required check. Reviewer rewritten after failing three ways. Two real runs: PR #8 (merged by hand) and PR #10 (merged by itself, fix confirmed by Harold on a phone). |
 
-| AI golfers | Hazard and Rough built: a nightly real round on the live app, with a scenario rotation and a score generator. **Built and unit-tested; never yet run.** |
+| AI golfers | Hazard and Rough built: a nightly real round on the live app, with a scenario rotation and a score generator. **First round played Oct 2 and found a real handicap bug (#11), now fixed.** |
 
 **Nothing is waiting to be applied.** No migration is pending and no agent PR is open.
 
 **START HERE next time**, in rough order of value:
-0. **Watch the AI golfers' first rounds** (section "AI golfers" below). The workflow has never
-   run; expect the first one or two to need fixing, the way the dev agent and reviewer did.
+0. **Read what the AI golfers file each morning** (section "AI golfers" below). One nine-hole
+   round has run; an 18-hole round, a money game and the nightly schedule have not been seen yet.
 1. **Designer, step 1** — measured layout checks in CI (plan under "Designer agent" below). No AI
    needed, and it would have caught both visual bugs filed tonight.
 2. **A way for friends to report things** without a GitHub account.
@@ -255,8 +255,44 @@ Unknowns the first run will settle: whether the Playwright MCP server starts wit
 whether a full 18 holes fits in the turn and time limits, what a round costs, and how good the
 findings are.
 
-**First run:** Actions → AI golfers → Run workflow, with "File issues" unticked, and read the
-summary before letting it file anything.
+**First round, Oct 2 (run by hand):** `singles-9-back-nine`, match `6PFA8B`. Worked first time:
+the browser tooling started, the round was played and finished in five minutes, and one issue was
+filed. The coordinator labelled it `needs-human`, as it should for handicap maths. Cost not yet
+checked (it is on the run's summary page).
+
+**🐛 Issue #11, found by that round and fixed Oct 2: the scorecard did not play off the handicap
+shown at setup.** 21 and 11 at setup became 60 and 49 on the card. **Touches handicaps and money.**
+Two bugs in `getEffectiveHandicaps()` in `src/App.jsx`:
+
+1. **Nine-hole rounds added about 36 strokes.** It converted with `rating - parTotal`, where
+   `parTotal` was the par of the first `holesCount` holes but `rating` is the 18-hole rating. It
+   also always took the first nine pars, even for a back-nine start. This was the whole of the
+   21 → 60: Hazard has no banked rounds, so bug 2 did not apply to that round.
+2. **A computed index was converted twice.** Setup turns an index into a course handicap for the
+   chosen tees; the scorecard then treated that as a raw index and converted it again. On 18
+   holes that is a few strokes, which is why nobody noticed. The tester's report named this one
+   and missed the first.
+
+**The fix.** The number on the setup screen is the course handicap, and the scorecard never
+converts it again. `playingHandicaps()` in `src/lib/handicap.js` (a protected path, unlike
+`App.jsx`) applies only the allowance and play-off-low. A saved roster handicap is now converted
+once, at setup, where the golfer sees it ("course handicap 21 from saved handicap 21"). 9 unit
+tests and 4 smoke tests; the smoke tests fail against the old code.
+
+- **Nine holes get no halving.** `strokesReceived()` gives a stroke where the hole's stroke index
+  is within the handicap, and indexes run 1–18 over the whole course, so nine holes already carry
+  about half. Halving the number as well would give a quarter.
+- **Behaviour changes to know about:** a guest's typed handicap, and any number overridden in the
+  dropdown, is now played as entered (it used to be converted on the scorecard). Reopening an old
+  round shows net results off the stored number, so old net standings can differ by a few strokes
+  from what the screen showed on the day. Banked handicap history is not affected: banking uses
+  gross scores and the stored handicap.
+- **Not done:** changing the course or tees after picking players does not refresh the numbers
+  already in the dropdowns. That was true before too.
+
+**What the first round says about the testers:** specific, correct about the symptom, half right
+about the cause. Good enough to act on; not good enough to hand a money fix to the dev agent
+without a person reading the code.
 
 ### Designer agent — the plan (not built)
 
@@ -1328,4 +1364,4 @@ what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 2, 2026 - AI golfers (Hazard and Rough) built, not yet run; auth, outbox, RLS and the agent team guards all live (see Latest Session)
+**Last Updated:** October 2, 2026 - AI golfers played their first round and found a handicap bug (#11), fixed; auth, outbox, RLS and the agent team guards all live (see Latest Session)

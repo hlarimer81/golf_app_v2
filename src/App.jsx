@@ -15,7 +15,7 @@ import GolfGPSWidget from './GolfGPSWidget';
 import RequestCourseForm from './components/RequestCourseForm';
 import ReportCourseIssue from './components/ReportCourseIssue';
 import { gameDescriptions, gameRecentLabels } from './lib/gameRegistry';
-import { fetchHandicapIndexes, fetchRoundParticipation, courseHandicap, describeIndex } from './lib/handicap';
+import { fetchHandicapIndexes, fetchRoundParticipation, courseHandicap, playingHandicaps, describeIndex } from './lib/handicap';
 import PlayerDirectory from './components/PlayerDirectory';
 import PlayerPage from './components/PlayerPage';
 import PlayerPicker from './components/PlayerPicker';
@@ -127,6 +127,20 @@ function App() {
       slope: teeBox?.slope, rating: teeBox?.rating, par,
       parRelative: (entry.estimated_count ?? 0) > 0,
     });
+  };
+
+  // Course handicap for a player with no computed index, from the handicap saved on the roster.
+  // The same conversion as above, done here so that the number in the dropdown is the number the
+  // round is played off. It used to be done later, on the scorecard, where nobody saw it change.
+  // The dropdown offers 0-39.
+  const rosterCourseHandicap = (savedHandicap) => {
+    const course = golfCourses.find(c => c.id === selectedCourseId);
+    const teeBox = course?.tee_boxes?.find(tb => tb.id === selectedTeeBoxId);
+    const par = teeBox?.par?.reduce((a, b) => a + b, 0) ?? null;
+    const converted = courseHandicap(Number(savedHandicap) || 0, {
+      slope: teeBox?.slope, rating: teeBox?.rating, par,
+    });
+    return Math.min(39, Math.max(0, converted));
   };
 
   const fetchGolfCourses = async () => {
@@ -491,50 +505,11 @@ function App() {
 
   // --- Show the correct scorer based on game type ---
   if (showScorer) {
-    // Dynamically calculate Effective Handicap (Pops) based on WHS formula
-    const getEffectiveHandicaps = () => {
-      if (!useHandicaps) return finalPlayers.map(p => ({ ...p, handicap: 0 }));
-      
-      const slope = courseData?.slope;
-      const rating = courseData?.rating;
-      const pars = courseData?.pars || Array(18).fill(4);
-      const parTotal = pars.slice(0, holesCount).reduce((a, b) => a + b, 0);
-
-      const getCourseHcp = (rawHcp) => {
-        if (!slope || !rating || slope <= 0 || rating <= 0) return rawHcp;
-        const ch = (rawHcp * slope / 113.0) + (rating - parTotal);
-        return Math.max(0, Math.round(ch));
-      };
-
-      const getAllowanceAdj = (cHcp) => {
-        if (cHcp <= 0) return 0;
-        return Math.round(cHcp * (hcpAllowance / 100));
-      };
-
-      let pData = finalPlayers.map(p => {
-        const raw = p.handicap || 0;
-        const c = getCourseHcp(raw);
-        const a = getAllowanceAdj(c);
-        return { ...p, _allowanceHcp: a };
-      });
-
-      if (playOffLow && pData.length > 0) {
-        const minHcp = Math.min(...pData.map(p => p._allowanceHcp));
-        pData = pData.map(p => ({
-          ...p,
-          effectiveHcp: Math.max(0, p._allowanceHcp - minHcp)
-        }));
-      } else {
-        pData = pData.map(p => ({ ...p, effectiveHcp: p._allowanceHcp }));
-      }
-
-      return pData.map(p => ({
-         ...p,
-         handicap: p.effectiveHcp // Override the raw DB handicap before passing to grids
-      }));
-    };
-
-    const playersWithPops = getEffectiveHandicaps();
+    // The strokes each player plays off: the course handicap saved at setup, cut to the allowance
+    // and played off the low handicap. No slope or rating here - see playingHandicaps().
+    const playersWithPops = playingHandicaps(finalPlayers, {
+      useHandicaps, allowancePct: hcpAllowance, playOffLow,
+    });
 
     let ScorerComponent;
     let bannerColor = '#4CAF50';
@@ -1370,7 +1345,7 @@ function App() {
                     const computed = suggestedHandicap(selectedName);
                     updatePlayer(i, {
                       name: selectedName,
-                      hcp: computed ?? (globalP ? globalP.handicap : p.hcp)
+                      hcp: computed ?? (globalP ? rosterCourseHandicap(globalP.handicap) : p.hcp)
                     });
                   }}
                 />
@@ -1401,12 +1376,23 @@ function App() {
                   built from rounds with no course rating is not a WHS index. */}
               {(() => {
                 const entry = handicapIndexes[p.name];
-                if (!entry) return null;
                 const suggested = suggestedHandicap(p.name);
-                const desc = describeIndex(entry);
                 if (suggested == null) {
-                  return <span style={{ fontSize: '9px', color: '#888', flexBasis: '100%' }}>{desc.label}</span>;
+                  // No computed index: the number came from the handicap saved on the roster,
+                  // converted for this course and tee. Say so, because it can differ from the
+                  // number the golfer remembers saving.
+                  const saved = globalPlayers.find(gp => gp.player_name === p.name)?.handicap;
+                  const fromSaved = saved != null && !p.isGuest
+                    ? ` · course handicap ${rosterCourseHandicap(saved)} from saved handicap ${saved}`
+                    : '';
+                  if (!entry && !fromSaved) return null;
+                  return (
+                    <span style={{ fontSize: '9px', color: '#888', flexBasis: '100%' }}>
+                      {entry ? describeIndex(entry).label : 'No rounds yet'}{fromSaved}
+                    </span>
+                  );
                 }
+                const desc = describeIndex(entry);
                 const overridden = Number(p.hcp) !== suggested;
                 return (
                   <span style={{ fontSize: '9px', color: overridden ? '#ff9800' : '#888', flexBasis: '100%' }}>

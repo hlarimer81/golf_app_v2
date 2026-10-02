@@ -138,6 +138,38 @@ export function courseHandicap(index, { slope, rating, par, parRelative = false 
 }
 
 //--------------------------------------------------------------------------------------------------
+// The strokes each player actually plays off in a round: their course handicap, cut to the round's
+// allowance, and then (if the round plays off the low handicap) reduced by the lowest in the group.
+//
+// THE HANDICAP ON A players ROW IS ALREADY A COURSE HANDICAP. It is the number the setup screen
+// showed and the golfer accepted or overrode, and it must not be converted again here. This used
+// to live in App.jsx and ran every stored handicap back through slope and rating, which was wrong
+// twice over (found by the AI golfers' first round, issue #11):
+//
+//   - A player with a computed index had already been converted at setup, so they were converted
+//     a second time.
+//   - It subtracted the par of the first `holesCount` holes from the 18-hole course rating. On a
+//     nine-hole round that added about 36 strokes to everybody: a 21 became a 60.
+//
+// NINE HOLES NEED NOTHING SPECIAL. strokesReceived() in golf.js gives a stroke on each hole whose
+// stroke index is within the handicap, and stroke indexes run 1-18 across the whole course. Nine
+// holes hold about half of them, so a player gets about half their strokes without the number
+// being touched. Halving it here as well would give them a quarter.
+//--------------------------------------------------------------------------------------------------
+export function playingHandicaps(players, { useHandicaps = true, allowancePct = 100, playOffLow = false } = {}) {
+    if (!useHandicaps) return players.map(p => ({ ...p, handicap: 0 }));
+
+    const pct = Number(allowancePct) > 0 ? Number(allowancePct) : 100;
+    const allowed = players.map(p => {
+        const course = Number(p.handicap) || 0;
+        return course <= 0 ? 0 : Math.round(course * (pct / 100));
+    });
+
+    const low = playOffLow && allowed.length ? Math.min(...allowed) : 0;
+    return players.map((p, i) => ({ ...p, handicap: Math.max(0, allowed[i] - low) }));
+}
+
+//--------------------------------------------------------------------------------------------------
 // How to describe an index to a player, given how it was derived.
 //
 // An index built mostly from rounds with no course rating is not a WHS index and should not be

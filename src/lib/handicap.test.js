@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { courseHandicap, describeIndex } from './handicap';
+import { courseHandicap, describeIndex, playingHandicaps } from './handicap';
 
 describe('courseHandicap', () => {
   it('returns null for a player with no index, rather than treating them as scratch', () => {
@@ -71,5 +71,59 @@ describe('describeIndex', () => {
     const d = describeIndex({ handicap_index: 22.6, estimated_count: 14, rounds_available: 20 });
     expect(d.estimated).toBe(true);
     expect(d.label).toBe('22.6 (estimated - 14 of 20 rounds lack course rating)');
+  });
+});
+
+describe('playingHandicaps', () => {
+  const group = [
+    { id: 'a', player_name: 'Hazard', handicap: 21 },
+    { id: 'b', player_name: 'Rough', handicap: 11 },
+  ];
+  const strokes = (players) => players.map(p => p.handicap);
+
+  it('plays the handicap saved at setup as it is, with no second conversion', () => {
+    // Issue #11: these came out as 60 and 49 on a nine-hole round, because the saved course
+    // handicap was run through slope and (18-hole rating - 9-hole par) again.
+    expect(strokes(playingHandicaps(group))).toEqual([21, 11]);
+  });
+
+  it('has no notion of holes, slope or rating - a nine-hole round uses the same numbers', () => {
+    // Nine holes hold about half the stroke indexes, so strokesReceived() already gives about
+    // half the strokes. See the comment on playingHandicaps().
+    expect(strokes(playingHandicaps(group, { holesCount: 9, slope: 140, rating: 74 }))).toEqual([21, 11]);
+  });
+
+  it('gives nobody any strokes in a gross round', () => {
+    expect(strokes(playingHandicaps(group, { useHandicaps: false }))).toEqual([0, 0]);
+  });
+
+  it('cuts each handicap to the allowance, rounding to a whole stroke', () => {
+    expect(strokes(playingHandicaps(group, { allowancePct: 90 }))).toEqual([19, 10]);
+    expect(strokes(playingHandicaps(group, { allowancePct: 50 }))).toEqual([11, 6]);
+  });
+
+  it('plays off the low handicap after the allowance, not before', () => {
+    expect(strokes(playingHandicaps(group, { playOffLow: true }))).toEqual([10, 0]);
+    // 90% of 21 and 11 is 19 and 10, so the gap is 9 - not 90% of the 10-stroke gap rounded.
+    expect(strokes(playingHandicaps(group, { allowancePct: 90, playOffLow: true }))).toEqual([9, 0]);
+  });
+
+  it('treats a missing, zero or negative handicap as scratch', () => {
+    const odd = [{ id: 'a', handicap: null }, { id: 'b', handicap: 0 }, { id: 'c', handicap: -2 }, { id: 'd', handicap: '14' }];
+    expect(strokes(playingHandicaps(odd))).toEqual([0, 0, 0, 14]);
+  });
+
+  it('treats an unset allowance as 100%', () => {
+    expect(strokes(playingHandicaps(group, { allowancePct: '' }))).toEqual([21, 11]);
+  });
+
+  it('keeps every other field on the player and does not change its input', () => {
+    const out = playingHandicaps(group, { playOffLow: true });
+    expect(out[0]).toMatchObject({ id: 'a', player_name: 'Hazard' });
+    expect(group[0].handicap).toBe(21);
+  });
+
+  it('copes with an empty group', () => {
+    expect(playingHandicaps([], { playOffLow: true })).toEqual([]);
   });
 });

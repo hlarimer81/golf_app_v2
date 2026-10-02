@@ -384,22 +384,29 @@ function App() {
       return;
     }
 
-    // Set all the match state
-    setMatchId(matchData.id);
-    setMatchCode(matchData.match_code);
-    setMatchName(matchData.match_name);
-    setUseHandicaps(matchData.use_handicaps);
-    setGameType(matchData.game_type || 'stableford');
-    setPlayMode(inferPlayMode(matchData.play_mode, matchData.game_type));
-    setSelectedCourseId(matchData.course_id || 'Peninsula Golf Club');
-    setSelectedTeeBoxId(matchData.tee_box_id || '');
-    setHolesCount(matchData.holes || 18);
-    setStartHole(matchData.start_hole || 1);
-    setPlayOffLow(matchData.play_off_low ?? true);
-    setHcpAllowance(matchData.handicap_allowance_pct || 100);
-    setFinalPlayers(playersData);
-    setShowScorer(true);
+    openMatch(matchData, playersData);
     setLoading(false);
+  };
+
+  // Put an existing round on screen, exactly as it was set up. Joining by code and opening from
+  // Previous Rounds both come through here. They used to restore the round separately, and
+  // Previous Rounds left out the holes, the starting hole, play-off-low and the allowance - so a
+  // back-nine round opened as 18 holes from the 1st, with handicaps worked out on the defaults.
+  const openMatch = (match, matchPlayers) => {
+    setMatchId(match.id);
+    setMatchCode(match.match_code);
+    setMatchName(match.match_name);
+    setUseHandicaps(match.use_handicaps);
+    setGameType(match.game_type || 'stableford');
+    setPlayMode(inferPlayMode(match.play_mode, match.game_type));
+    setSelectedCourseId(match.course_id || 'Peninsula Golf Club');
+    setSelectedTeeBoxId(match.tee_box_id || '');
+    setHolesCount(match.holes || 18);
+    setStartHole(match.start_hole || 1);
+    setPlayOffLow(match.play_off_low ?? true);
+    setHcpAllowance(match.handicap_allowance_pct || 100);
+    setFinalPlayers(matchPlayers);
+    setShowScorer(true);
   };
 
   const savePlayers = async () => {
@@ -649,16 +656,7 @@ function App() {
       return;
     }
 
-    setMatchId(match.id);
-    setMatchCode(match.match_code);
-    setMatchName(match.match_name);
-    setUseHandicaps(match.use_handicaps);
-    setGameType(match.game_type || 'stableford');
-    setPlayMode(inferPlayMode(match.play_mode, match.game_type));
-    setSelectedCourseId(match.course_id || 'Peninsula Golf Club');
-    setSelectedTeeBoxId(match.tee_box_id || '');
-    setFinalPlayers(playersData);
-    setShowScorer(true);
+    openMatch(match, playersData);
     setShowRecentMatches(false);
     setLoading(false);
   };

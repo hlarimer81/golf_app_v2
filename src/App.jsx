@@ -1244,7 +1244,7 @@ function App() {
                     {myClaim?.status === 'confirmed' ? (
                       <button
                         onClick={() => setPlayerPageName(myClaim.canonical_name)}
-                        style={{ background: 'none', border: 'none', color: '#17a2b8', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', padding: '8px' }}
+                        style={{ background: 'none', border: 'none', color: '#17a2b8', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', lineHeight: '1.4', padding: '8px' }}
                       >
                         My rounds: {myClaim.canonical_name}
                       </button>

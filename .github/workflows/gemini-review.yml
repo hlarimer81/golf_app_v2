@@ -60,6 +60,13 @@ jobs:
         uses: google-github-actions/run-gemini-cli@v0
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # The Gemini CLI refuses to run headless in a folder it has not been told to trust, and
+          # exits before sending anything: "not running in a trusted directory". That arrived in
+          # a CLI release after this workflow was written, and broke the reviewer on PR #8
+          # (2026-10-01). Tools are switched off below, so trusting the checkout lets it read its
+          # settings and nothing more. `.gemini/` is a protected path, so a pull request cannot
+          # slip its own settings in.
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           settings: |

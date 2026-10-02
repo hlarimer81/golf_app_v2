@@ -7,7 +7,10 @@
 
 # The agent team itself, and the rulebook it reads.
 ^\.github/
+^\.gemini/
+^\.claude/
 ^CLAUDE\.md$
+^GEMINI\.md$
 
 # The database and anything that runs with more than the public key.
 ^sql/

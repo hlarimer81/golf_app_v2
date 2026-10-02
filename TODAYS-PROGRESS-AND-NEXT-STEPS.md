@@ -1,4 +1,4 @@
-# Golf App Progress - September 29, 2026 (Updated)
+# Golf App Progress - October 1, 2026 (Updated)
 
 ## Latest Session (Sep 29) - sign-in ships, and the workflow gets lighter ✅
 
@@ -49,7 +49,7 @@ confirmation step closes that.
 
 Then sign in on the phone from the home-screen app. Next build: the claim screen.
 
-### 5. ⏸️ Claim screen — built and tested, waiting on a migration. **START HERE.**
+### 5. ✅ Claim screen — live on production Oct 1
 
 "Which player are you?" on the home screen, once signed in: pick your name from the directory list
 and your rounds and index follow the account. **Touches handicaps.**
@@ -63,27 +63,29 @@ and your rounds and index follow the account. **Touches handicaps.**
 - **No admin screen yet.** Approve/reject queries are at the bottom of `sql/auth-claim-player.sql`.
 - Checks passed: 111 unit tests (4 new), 40 smoke tests (8 new), plus phone screenshots reviewed.
 
-**Where it stands (Sep 29, end of session):**
+**Where it stands (Oct 1):**
 
 | Piece | State |
 |---|---|
-| `sql/auth-claim-player.sql` — `c760864` | **Pushed** to `main`. **Not yet applied** to production. |
-| App code — `4b0a66f` | **Committed locally on this server, NOT pushed.** |
-| This log entry | Committed locally, not pushed. |
+| `sql/auth-claim-player.sql` — `c760864` | **Applied** to production Oct 1. |
+| App code — `4b0a66f` | **Pushed** to `main`, deployed. |
+| Claim on production | **Works** — Harold claimed a player from the app Oct 1. |
 
-**To pick up:**
+**What went wrong on the way (Oct 1):** the app was pushed before the migration was in, and the
+first tap on "Yes, that's me" failed with *"Could not find the function
+public.golf_claim_player(p_name) in the schema cache"*. The function had never been created.
+Running `sql/auth-claim-player.sql` fixed it. That PostgREST message means "the function is not
+there" far more often than "the cache is stale" — check `pg_proc` before reaching for
+`NOTIFY pgrst, 'reload schema'`.
 
-1. Open `sql/auth-claim-player.sql` on GitHub, "Copy raw file", run it in the Supabase SQL editor.
-2. Run the three verify queries **one at a time** (the editor shows only the last result). Expect:
-   `anon` = `SELECT` only and `authenticated` = `DELETE, SELECT`; two policies (SELECT, DELETE);
-   `anon_can_claim = false`, `authenticated_can_claim = true`.
-3. Then push `main` (`git push origin main`). That ships the claim screen. **Don't push before
-   step 1** — without the `status` column and the function, the screen can't claim anything.
-4. On the phone: sign in → "Which player are you?" → pick your name → "My rounds: …" should appear
-   and open your player page.
+**Still to confirm:** the three verify queries at the bottom of `sql/auth-claim-player.sql`, run
+**one at a time** (the editor shows only the last result). Expect `anon` = `SELECT` only and
+`authenticated` = `DELETE, SELECT`; two policies (SELECT, DELETE); `anon_can_claim = false`,
+`authenticated_can_claim = true`. The grants one matters: `sql/auth-player-account.sql` grants
+direct INSERT/UPDATE to `authenticated`, and only the claim migration's `REVOKE ALL` takes them away.
 
-**After that:** custom SMTP before inviting other golfers; an admin view for pending claims if
-they start happening; then RLS on the rest of the schema.
+**Next for auth. START HERE:** custom SMTP before inviting other golfers; an admin view for
+pending claims if they start happening; then RLS on the rest of the schema.
 
 ---
 
@@ -1013,10 +1015,10 @@ by it — the agents are how the work gets done, not what the work is.*
 
 1. **Play a round** to exercise Finish Round → banking on real data. The only step needing a course.
 2. ✅ **Authentication.** Optional email-code sign-in, live and verified on production Sep 29. Custom SMTP still to do.
-3. ⏸️ **Claim your player.** Built Sep 29, waiting on `sql/auth-claim-player.sql` (Latest Session §5). Link an account to a canonical name so a new signup inherits their existing
-   handicap history. Mostly already built — `player_alias` and `golf_resync_canonical_names()` are
-   the same machinery that merged 15 names on Aug 8. Needs an `account_id` link and a confirmation
-   step so nobody can claim someone else's 32 rounds.
+3. ✅ **Claim your player.** Live on production Oct 1 (Latest Session §5). An account links to a
+   canonical name, so a new signup inherits their existing handicap history. The first claim on a
+   name is confirmed at once; a claim on a name another account holds waits for approval by hand.
+   Still to do: custom SMTP, and an admin view for pending claims if they start happening.
 4. **RLS.** The real blocker and the largest piece; deliberately last, because policies need real
    identities to be written against.
 **Major Milestone:** System is feature-complete for core gameplay + GPS.
@@ -1024,4 +1026,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** September 29, 2026 - claim screen built; migration pushed but not applied, app commit held locally (see Latest Session §5)
+**Last Updated:** October 1, 2026 - claim screen live on production; migration applied, verify queries still to confirm (see Latest Session §5)

@@ -153,14 +153,16 @@ three reviewer failures. The reviewer needed three fixes before it answered:
    model. That action had now failed three unrelated ways without this repo changing.
 3. **HTTP 400 "Invalid JSON payload".** `GEMINI_API_KEY` is stored with stray whitespace, which
    broke the request headers. The workflow now trims the key and warns when it had to.
-   **To do (Harold): re-save the `GEMINI_API_KEY` secret without the trailing line break.**
+   Harold re-saved the `GEMINI_API_KEY` secret Oct 1; the next review run will show whether the
+   whitespace warning is gone.
 
 Fourth attempt: **"Verdict: approve — No concerns."**, `review` green. No reply at all now fails
 the check but leaves auto-merge on (re-run later); a verdict that does not approve fails it and
 holds the PR. `gemini-ping.yml` still uses the old action and is probably broken the same way.
 
-**Not yet seen working:** a PR merging itself with no hand on it. PR #8's auto-merge was switched
-off by an earlier hold, so it needs merging by hand. The protected-path hold and the
+**PR #8 merged Oct 1** (by hand: an earlier hold had switched its auto-merge off), issue #7 closed.
+**Not yet seen working:** a PR merging itself with no hand on it. That is the next issue filed.
+The protected-path hold and the
 untrusted-author path have only run against sample input.
 
 **Known limits.**

@@ -111,11 +111,21 @@ jobs:
 
           # "This model is currently experiencing high demand" (503) is common and brief, so a
           # few tries are worth it. Anything else is not going to change by asking again.
+          #
+          # The key is trimmed first. A secret pasted with a trailing newline puts a line break in
+          # the middle of the request headers, the Content-Type header after it is lost, and
+          # Google answers 400 "Invalid JSON payload" to a body that is perfectly good JSON. The
+          # same kind of stray newline broke AGENT_TOKEN once.
+          KEY="$(printf '%s' "$GEMINI_API_KEY" | tr -d '[:space:]')"
+          echo "::add-mask::$KEY"
+          echo "request is $(wc -c < "$RUNNER_TEMP/request.json") bytes, valid JSON: $(jq -e . "$RUNNER_TEMP/request.json" >/dev/null 2>&1 && echo yes || echo NO)"
+          [ "$KEY" = "$GEMINI_API_KEY" ] || echo "::warning::GEMINI_API_KEY is stored with stray whitespace — re-save the secret without it"
+
           URL="https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent"
           for attempt in 1 2 3 4; do
             CODE=$(curl -sS -m 180 -o "$RUNNER_TEMP/response.json" -w '%{http_code}' \
-              -H "x-goog-api-key: ${GEMINI_API_KEY}" \
               -H 'Content-Type: application/json' \
+              -H "x-goog-api-key: ${KEY}" \
               --data-binary "@$RUNNER_TEMP/request.json" "$URL") || CODE=000
             echo "attempt $attempt: HTTP $CODE"
             case "$CODE" in

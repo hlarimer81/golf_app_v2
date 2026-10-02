@@ -137,8 +137,31 @@ Also: the dev agent is now told to run the unit tests, and reads the issue from 
 out untrusted comments.
 
 **Tested:** the two scripts and the author filters against sample input, and the workflow files
-with actionlint. **Not tested:** a real run. Nothing has gone through the pipeline since
-mid-September; file one small issue and watch it end to end before relying on it.
+with actionlint.
+
+**First real run, Oct 1: issue #7 → PR #8** ("Main menu UI Select Course fix", a one-line
+`minWidth: 0` in `src/App.jsx` plus a smoke test). The coordinator approved it, the dev agent
+built it, CI passed, and `review` was enforced as a required check: the PR sat unmerged through
+three reviewer failures. The reviewer needed three fixes before it answered:
+
+1. **"Not running in a trusted directory."** A newer Gemini CLI refuses to run headless in an
+   untrusted folder.
+2. **"Model stream ended with malformed function call."** With that fixed, the model tried to
+   call a tool it had been denied and returned nothing. **The reviewer no longer uses Google's
+   `run-gemini-cli` action**: `gemini-review.yml` sends the diff in one HTTPS request to the
+   Gemini API (`GEMINI_MODEL`, currently `gemini-3.8-flash`), no tools, with retries on a busy
+   model. That action had now failed three unrelated ways without this repo changing.
+3. **HTTP 400 "Invalid JSON payload".** `GEMINI_API_KEY` is stored with stray whitespace, which
+   broke the request headers. The workflow now trims the key and warns when it had to.
+   **To do (Harold): re-save the `GEMINI_API_KEY` secret without the trailing line break.**
+
+Fourth attempt: **"Verdict: approve — No concerns."**, `review` green. No reply at all now fails
+the check but leaves auto-merge on (re-run later); a verdict that does not approve fails it and
+holds the PR. `gemini-ping.yml` still uses the old action and is probably broken the same way.
+
+**Not yet seen working:** a PR merging itself with no hand on it. PR #8's auto-merge was switched
+off by an earlier hold, so it needs merging by hand. The protected-path hold and the
+untrusted-author path have only run against sample input.
 
 **Known limits.**
 - ~~The review and CI race.~~ **Closed Oct 1.** Harold added `review` as a required check in the
@@ -1186,4 +1209,4 @@ by it — the agents are how the work gets done, not what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up verified; agent team guarded (trusted authors, protected paths, review holds) but not yet run end to end (see Latest Session)
+**Last Updated:** October 1, 2026 - outbox shipped; RLS clean-up verified; agent team guarded and run end to end once (PR #8), reviewer rewritten (see Latest Session)

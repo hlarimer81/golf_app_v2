@@ -17,6 +17,15 @@ test('home screen shows round setup and the course list', async ({ page }) => {
   await expect(course.locator('option', { hasText: 'Test Links' })).toHaveCount(1);
 });
 
+test('course select stays on screen even with a long course name', async ({ page }) => {
+  const course = selectWithPlaceholder(page, 'Select Course');
+  await course.selectOption({ label: 'Pebble Brook National Golf and Country Club Championship Course' });
+
+  const box = await course.boundingBox();
+  const viewportWidth = page.viewportSize().width;
+  expect(box.x + box.width).toBeLessThanOrEqual(viewportWidth);
+});
+
 test('choosing a course selects its first tee', async ({ page }) => {
   await selectWithPlaceholder(page, 'Select Course').selectOption({ label: 'Test Links' });
 

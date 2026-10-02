@@ -188,6 +188,9 @@ jobs:
             finish), medium, or low. Set "completed" to false if you could not finish the round,
             and say why in "summary".
 
+            Anywhere in the findings file that you mention the app's owner, call him "H", never by
+            his name: findings are posted on a public repository.
+
             Always write the findings file, even if everything failed. Do not run git or gh.
           claude_args: |
             --model claude-sonnet-5

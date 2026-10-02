@@ -110,7 +110,7 @@ jobs:
               echo "#$num by $who: would be set aside (dry run)"
               continue
             fi
-            gh issue comment "$num" --body "Thanks for filing this. The automated team only picks up issues from people on its trusted list, so this one is waiting for Harold to look at." || true
+            gh issue comment "$num" --body "Thanks for filing this. The automated team only picks up issues from people on its trusted list, so this one is waiting for H to look at." || true
             gh issue edit "$num" --add-label triaged --add-label needs-human
             echo "#$num by $who: set aside for a person"
           done < <(jq -c '.[]' "$RUNNER_TEMP/untrusted.json")
@@ -188,6 +188,9 @@ jobs:
             - Several golfers reporting the same friction is strong evidence. One person's feature
               idea is weak evidence.
             - Money rides on the scoring. Be conservative near it.
+
+            In every "reason" and "comment" you write, call the app's owner "H", never by his name:
+            those are posted on a public repository.
 
             Write only the JSON file. Do not run git or gh, do not edit code, and do not comment on
             issues yourself — the workflow does that from your decisions file.

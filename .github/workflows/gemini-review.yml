@@ -202,9 +202,9 @@ jobs:
           if [ "$STATE" = "MERGED" ]; then
             NOTE="**This pull request had already merged before the review finished.** Read the findings above and revert it if they are right."
           elif [ "$VERDICT" = "needs-changes" ]; then
-            NOTE="Held for Harold: the review asked for changes, so this pull request will not merge by itself."
+            NOTE="Held for H: the review asked for changes, so this pull request will not merge by itself."
           else
-            NOTE="Held for Harold: the review gave no verdict that could be read as an approval, so this pull request will not merge by itself."
+            NOTE="Held for H: the review gave no verdict that could be read as an approval, so this pull request will not merge by itself."
           fi
           gh pr comment "$PR_NUMBER" --body "$NOTE" || true
 

@@ -59,7 +59,7 @@ jobs:
           AUTHOR=$(jq -r '.author.login // "unknown"' "$RUNNER_TEMP/issue.json")
           if ! jq -e --argjson trusted "$TRUSTED" '(.author.login // "" | ascii_downcase) as $a | ($trusted | index($a)) != null' "$RUNNER_TEMP/issue.json" >/dev/null; then
             echo "::error::Issue #$ISSUE_NUMBER was written by $AUTHOR, who is not in .github/trusted-authors"
-            gh issue comment "$ISSUE_NUMBER" --body "The dev agent only builds issues written by someone on its trusted list, so it has not started on this one. Harold can add the author to \`.github/trusted-authors\`, or re-file the issue himself." || true
+            gh issue comment "$ISSUE_NUMBER" --body "The dev agent only builds issues written by someone on its trusted list, so it has not started on this one. H can add the author to \`.github/trusted-authors\`, or re-file the issue himself." || true
             gh issue edit "$ISSUE_NUMBER" --remove-label ready-for-dev --add-label needs-human || true
             exit 1
           fi
@@ -132,6 +132,9 @@ jobs:
             looked, and what you would need in order to proceed, as a comment on the issue. Do not
             keep searching. An exhaustive hunt for something that is not there burns the whole run
             and produces nothing, which is worse than asking.
+
+            When you write anything that will appear on GitHub — an issue comment, or the summary that
+            becomes the pull request body — call the app's owner "H", never by his name.
 
             Never finish silently. If a command you need is refused by the tool permissions, or you
             cannot complete the task for any other reason, post a comment on the issue naming the
@@ -231,8 +234,8 @@ jobs:
           if [ -n "$HELD" ]; then
             gh label create needs-human --color d93f0b --description "Needs a person: touches the database, secrets, or a real round" --force >/dev/null || true
             gh pr edit "$PR_URL" --add-label needs-human || true
-            gh pr comment "$PR_URL" --body "$(printf 'Held for Harold: this pull request will not merge by itself, because it changes files an agent may not ship unseen.\n\n```\n%s\n```\n\nIf the change is right, merge it by hand. The list of protected files is `.github/protected-paths`.' "$HELD")" || true
-            gh issue comment "$ISSUE_NUMBER" --body "The dev agent opened $PR_URL, but it is waiting for Harold: it touches files that are not allowed to merge unseen." || true
+            gh pr comment "$PR_URL" --body "$(printf 'Held for H: this pull request will not merge by itself, because it changes files an agent may not ship unseen.\n\n```\n%s\n```\n\nIf the change is right, merge it by hand. The list of protected files is `.github/protected-paths`.' "$HELD")" || true
+            gh issue comment "$ISSUE_NUMBER" --body "The dev agent opened $PR_URL, but it is waiting for H: it touches files that are not allowed to merge unseen." || true
             echo "held — auto-merge not enabled"
             exit 0
           fi

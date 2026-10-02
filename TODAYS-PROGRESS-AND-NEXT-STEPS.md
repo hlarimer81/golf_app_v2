@@ -1,4 +1,4 @@
-# Golf App Progress - October 1, 2026 (Updated)
+# Golf App Progress - October 2, 2026 (Updated)
 
 > ⚠️ **BEFORE INVITING ANY OTHER GOLFER TO SIGN IN: a domain may be required, not optional.**
 > Sign-in codes go out through Supabase's built-in email sender. Supabase's documentation has said
@@ -21,9 +21,13 @@
 | Repo | 22 leftover scripts removed; `scripts/` holds only the two staging files. |
 | Agent team | Three guards added (trusted authors, protected files, a review that can hold a merge). `review` is a required check. Reviewer rewritten after failing three ways. Two real runs: PR #8 (merged by hand) and PR #10 (merged by itself, fix confirmed by Harold on a phone). |
 
+| AI golfers | Hazard and Rough built: a nightly real round on the live app, with a scenario rotation and a score generator. **Built and unit-tested; never yet run.** |
+
 **Nothing is waiting to be applied.** No migration is pending and no agent PR is open.
 
 **START HERE next time**, in rough order of value:
+0. **Watch the AI golfers' first rounds** (section "AI golfers" below). The workflow has never
+   run; expect the first one or two to need fixing, the way the dev agent and reviewer did.
 1. **Designer, step 1** — measured layout checks in CI (plan under "Designer agent" below). No AI
    needed, and it would have caught both visual bugs filed tonight.
 2. **A way for friends to report things** without a GitHub account.
@@ -213,6 +217,46 @@ development cycle, so agent changes deploy when nobody is on a course.
 - No designer agent exists; the plan is below.
 - `gemini-ping.yml` still uses the `run-gemini-cli` action and is probably broken; remove or
   convert it.
+
+### AI golfers: Hazard and Rough (built Oct 1–2, not yet run)
+
+Two AI golfers who play one real round a night on the live app and file what they find, so the
+dev team has a steady supply of real work through the off-season. `.github/workflows/ai-golfers.yml`,
+`testers/README.md`.
+
+**Decisions (Harold):**
+- **They are real guests on production**, not players against a mock. A fake database could never
+  test handicaps, permissions or live sync. The workflow holds no database key; they use the
+  website. `CLAUDE.md`'s "mocks only" rule has this one exception, theirs alone.
+- **Names.** Hazard is AI player 1 (Harold), Rough is AI player 2 (Ryan). Harold created both as
+  saved players in the app with his and Ryan's handicaps.
+- **Other people's rounds:** instruction only ("only touch the round you created"), no lock.
+- **Scores.** The app fills in each golfer's handicap at setup (`src/App.jsx:1373`: the computed
+  index, else the saved handicap). `testers/scorecard.js` generates a card to that number, about
+  three strokes worse on a typical day because an index is the best 8 of 20. Their handicaps then
+  drift by themselves as rounds are banked; nothing else steers them.
+- **Courses:** existing ones only. No requesting, entering or editing courses, no green GPS.
+- **Coverage is the goal: every game and every option.** `testers/scenarios.js` is a rotation of
+  20 scenarios the workflow picks from, so coverage is planned and not left to the model. With two
+  golfers that is six games (Stableford, Singles, Skins, Nassau, Chairman, 4-Ball). **9-Point
+  needs 3 golfers; Vegas, Wolf, Wolf Vegas and 2-Ball Aggregate need 4 or 5** — not covered until
+  more AI golfers are added.
+- **Cadence:** one round a night (02:00 Central, six hours before the coordinator), at most two
+  issues per round, labelled `from-tester`. If rounds keep coming back clean, play more per night.
+
+**How it works.** The workflow picks the scenario, Claude drives a phone-sized browser through the
+Playwright MCP server and writes a findings file, and a shell step files the issues with the cap.
+The coordinator is told a `from-tester` report can be wrong and that money findings need a person
+unless a unit test can prove the fix. `testers/` is a protected path.
+
+**Tested:** the score generator and the rotation (21 unit tests), the issue-building shell against
+a sample findings file, and the workflow file with actionlint. **Not tested: an actual round.**
+Unknowns the first run will settle: whether the Playwright MCP server starts with the flags given,
+whether a full 18 holes fits in the turn and time limits, what a round costs, and how good the
+findings are.
+
+**First run:** Actions → AI golfers → Run workflow, with "File issues" unticked, and read the
+summary before letting it file anything.
 
 ### Designer agent — the plan (not built)
 
@@ -1284,4 +1328,4 @@ what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 1, 2026 - auth finished, outbox shipped, RLS cleaned up, agent team guarded and merging by itself; designer plan written (see Latest Session)
+**Last Updated:** October 2, 2026 - AI golfers (Hazard and Rough) built, not yet run; auth, outbox, RLS and the agent team guards all live (see Latest Session)

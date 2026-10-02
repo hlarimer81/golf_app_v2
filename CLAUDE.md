@@ -24,6 +24,11 @@ These protect a live database that real players and deployed hardware depend on.
 - **Never use production credentials.** Production is Supabase project `lvwdffsibhqzgbqixfdi`. Agents
   work against mocks only. Never read, print, copy or edit `.env`,
   `.env.local`, or any secret.
+  - **One exception, decided by Harold 2026-10-01: the AI golfers.** Hazard and Rough
+    (`.github/workflows/ai-golfers.yml`, `testers/README.md`) play real rounds on the live app
+    through the website, as guests, and their rounds are banked. That workflow holds no database
+    key. The exception is theirs alone: the dev agent, CI and interactive sessions still never
+    touch production data.
 - **Never run SQL against any database.** You may *write* a migration file in `sql/`; a human
   reviews and applies it. The same goes for `supabase functions deploy`.
 - **Never touch the `firmware` storage bucket.** A separate project (score_play) serves device OTA
@@ -66,6 +71,9 @@ These protect a live database that real players and deployed hardware depend on.
 ## How agent work flows through this repo
 
 - **Golfer testers file issues freely**, with no label. Filing an issue starts nothing.
+- **Two of the testers are AI.** Hazard and Rough play one real round a night on the live app and
+  file at most two issues per round, labelled `from-tester` (`testers/README.md`). Their reports
+  can be wrong: confirm what one describes exists before building it.
 - **Only trusted authors are read.** The repo is public, so anyone can file an issue or comment.
   The coordinator and the dev agent are only shown text written by someone in
   `.github/trusted-authors`; an issue from anyone else is labelled `needs-human` and waits.
@@ -151,4 +159,5 @@ off-machine request is aborted, so a test can never reach production.
 - `supabase/functions/request-course/` — edge function that imports courses from the Golf API
 - `sql/` — one-shot migrations and diagnostics, applied by hand; not a replayable history
 - `scripts/` — the two `staging-*` files only (out of the workflow — agents don't run these)
+- `testers/` — the AI golfers: what they play (`scenarios.js`) and what they shoot (`scorecard.js`)
 - `docs/` — game mode standards, API reference, troubleshooting, security

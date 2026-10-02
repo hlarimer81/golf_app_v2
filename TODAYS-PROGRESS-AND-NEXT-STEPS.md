@@ -294,6 +294,19 @@ tests and 4 smoke tests; the smoke tests fail against the old code.
 about the cause. Good enough to act on; not good enough to hand a money fix to the dev agent
 without a person reading the code.
 
+**🐛 Found by Harold watching the second round, fixed Oct 2: Previous Rounds reopened a round with
+the wrong settings.** He opened the golfers' back-nine round from Previous Rounds and saw the
+front nine. `loadMatch()` restored the game, course and players but not `holes`, `start_hole`,
+`play_off_low` or `handicap_allowance_pct`, so any round opened that way came back as 18 holes
+from the 1st, at 100% allowance, played off the low handicap. Joining by code restored all four.
+**Touches handicaps:** a round set up at 90% or not off the low showed different strokes when
+reopened. Both paths now go through one `openMatch()` in `src/App.jsx`. Two smoke tests
+(`e2e/reopen.spec.js`); the Previous Rounds one fails against the old code.
+
+Worth noting for the testers: the AI golfers could not have found this. They only ever look at
+the round on the phone that created it. A "second phone" check — reopen the round from Previous
+Rounds and compare — would be a good behaviour to add to `testers/scenarios.js`.
+
 ### Designer agent — the plan (not built)
 
 **The question (Harold, Oct 1):** PR #10 fixed a clipped "y" without the agent ever seeing the
@@ -1364,4 +1377,4 @@ what the work is.*
 **Watch item:** score_play's firmware OTA downloads from this project's storage bucket. Don't retire
 the project. See Latest Session §3.
 
-**Last Updated:** October 2, 2026 - AI golfers played their first round and found a handicap bug (#11), fixed; auth, outbox, RLS and the agent team guards all live (see Latest Session)
+**Last Updated:** October 2, 2026 - AI golfers playing; handicap bug #11 and the Previous Rounds reopen bug both fixed (see Latest Session)

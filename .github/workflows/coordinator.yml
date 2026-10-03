@@ -183,7 +183,14 @@ jobs:
         if: steps.backlog.outputs.untriaged != '0'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Runs on H's Claude subscription, not the metered API key: triage is a handful of
+          # turns, so it costs little of the subscription's allowance, and the key's budget goes
+          # to the golfers. The token comes from `claude setup-token`. Until that secret exists
+          # the API key is used, so this file is safe to merge first. Once it exists the key is
+          # never used here: if the subscription's limit is reached the run fails and says so,
+          # and the next run (the next issue, or the daily one) tries again.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           github_token: ${{ secrets.AGENT_TOKEN }}
           display_report: true
           prompt: |

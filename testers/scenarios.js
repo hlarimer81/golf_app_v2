@@ -67,8 +67,11 @@ export function pickScenario(day) {
     };
 }
 
+// The id is typed by hand into the Run workflow box, often on a phone, which capitalises the first
+// letter and leaves a space behind. Neither should cost a run.
 export function scenarioById(id, day = 0) {
-    const index = SCENARIOS.findIndex(s => s.id === id);
+    const wanted = String(id ?? '').trim().toLowerCase();
+    const index = SCENARIOS.findIndex(s => s.id === wanted);
     if (index < 0) return null;
     return { ...pickScenario(day), ...SCENARIOS[index] };
 }
@@ -82,7 +85,7 @@ if (isMain) {
     for (let i = 2; i < process.argv.length; i += 2) args[process.argv[i].replace(/^--/, '')] = process.argv[i + 1];
     const day = args.day !== undefined && args.day !== '' ? Number(args.day) : daysSinceEpoch();
 
-    const scenario = args.id ? scenarioById(args.id, day) : pickScenario(day);
+    const scenario = args.id?.trim() ? scenarioById(args.id, day) : pickScenario(day);
     if (!scenario) {
         console.error(`no scenario called "${args.id}". Known: ${SCENARIOS.map(s => s.id).join(', ')}`);
         process.exit(1);

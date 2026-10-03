@@ -153,6 +153,12 @@ describe('scenarioById', () => {
         expect(GOLFERS).toContain(s.reporter);
     });
 
+    it('ignores capitals and spaces around the name, as a phone keyboard leaves them', () => {
+        const typed = scenarioById(' Nassau-18-net-wager-press ', 5);
+        expect(typed).toEqual(scenarioById('nassau-18-net-wager-press', 5));
+        expect(typed.id).toBe('nassau-18-net-wager-press');
+    });
+
     it('is null for a name that does not exist', () => {
         expect(scenarioById('no-such-thing')).toBeNull();
     });

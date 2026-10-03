@@ -21,13 +21,15 @@
 | Repo | 22 leftover scripts removed; `scripts/` holds only the two staging files. |
 | Agent team | Three guards added (trusted authors, protected files, a review that can hold a merge). `review` is a required check. Reviewer rewritten after failing three ways. Two real runs: PR #8 (merged by hand) and PR #10 (merged by itself, fix confirmed by Harold on a phone). Agents call the owner "H" in anything posted on GitHub. |
 | AI golfers | Hazard and Rough play a real round a night on the live app (02:00 Central), from a 20-scenario rotation with a score generator, and file at most two issues. Two rounds played by hand on Oct 2. Every round ends with a second-phone check. |
+| Nassau | Live status sat at "AS" in every round: the grid read `player.team`, saved players carry `teams.team_name` (#12, #13, fixed `8c8f1b5`). `presses` column added on production; presses can save. |
 | Handicaps | Two bugs fixed Oct 2, both found through the AI golfers: the scorecard converted handicaps again and added ~36 strokes on nine holes (#11), and Previous Rounds reopened a round without its holes, start hole, play-off-low or allowance. |
 
 **Nothing is waiting to be applied.** No migration is pending, no agent PR is open, and the issue
 backlog is empty. Everything is committed and pushed.
 
-**Not yet seen:** the nightly schedule firing by itself, an 18-hole round, a money game, and the
-second-phone check. The first scheduled round's summary will show all but the money game.
+**Seen since:** the nightly schedule fired by itself (late: the 07:00 UTC cron started 13:45), and
+an 18-hole round with both second-phone checks passing (SE3KSM, Oct 3). **Not yet seen:** a money
+game, and a Nassau press saved and read back.
 
 **START HERE next time**, in rough order of value:
 0. **Read what the AI golfers file each morning** (section "AI golfers" below). One nine-hole
@@ -706,12 +708,14 @@ Password lives in `.env.local` (gitignored by `*.local`), deliberately separate 
 entirely (`usePresses.js:23,31` use `.then(() => {})`, `useWolfVegasState.js:58` checks only
 `error`). Worth the same treatment.
 
-### 5. 🐛 `usePresses.js` writes to a column that does not exist
+### 5. ✅ `usePresses.js` wrote to a column that did not exist — column added Oct 2
 
-`matches` has `press_mode`, `wager`, `wolf_partners`, `wolf_vegas`, `wv_hammers` — but **no
-`presses` column.** Both call sites write `{ presses: next }` and swallow the resulting `42703`
-with `.then(() => {})`. Consistent with the known "Nassau presses need DB persistence" backlog item
-below, but the code currently pretends to save. Not fixed — needs the schema decision first.
+`matches` had no `presses` column, so every press save failed and the press lookup returned 400
+(the AI golfers saw it in the console on round SE3KSM). The `presses` half of
+`sql/add-wager-column.sql` had never been applied. Harold re-ran the whole file on production on
+2026-10-02 and its verify query showed both `wager` and `presses` as `jsonb`. Saves now go through
+the outbox (`queueMatchSave`), not `.then(() => {})`. Not yet seen live: a press saved and read
+back on a second phone.
 
 ### 6. ✅ HANDICAP SYSTEM — built, backfilled, wired (commit `c5f8a86`)
 

@@ -1,4 +1,4 @@
-# Golf App Progress - October 3, 2026 (Updated)
+# Golf App Progress - October 3, 2026 (Updated, daytime session)
 
 > ⚠️ **BEFORE INVITING ANY OTHER GOLFER TO SIGN IN: a domain may be required, not optional.**
 > Sign-in codes go out through Supabase's built-in email sender. Supabase's documentation has said
@@ -8,7 +8,67 @@
 > arrives, buy the domain and set up custom SMTP before inviting anyone (steps under "Auth: where
 > it stops for now" below). Remove this note once custom SMTP is live.
 
-## Latest Session (Oct 2–3) - the golfers' first full round, a Nassau fix, and a dev agent that has to prove a bug ✅
+## Latest Session (Oct 3, daytime) - both Nassau retests clean, a foursome, and a loop that needs Harold less ✅
+
+| Area | Where it ended |
+|---|---|
+| The usage limit | It was the workflows' `ANTHROPIC_API_KEY`, not only the interactive session. Two golfer runs failed in under a second with nothing in the log but `is_error: true`. Harold lifted it in the Anthropic Console about 09:00 Central and the 07:00 UTC scheduled round then played. |
+| Nassau retest, gross | **Passed.** Round 76QMUV (`nassau-18-gross`, run 37122740889): the header moved through H +1, AS, R +1 … R +8 and ended Front 9 R +1 / Overall R +7 / Back 9 R +6. No "Team undefined" in any page snapshot. Second phone the same by both routes. No findings. |
+| Nassau retest, net with a wager | **Passed.** Round 5MALKY (`nassau-18-net-wager-press`, run 37130184520): Hazard 13, Rough 0 off the low handicap; the golfers recomputed the strokes and the $15 settlement ($5 front, back, overall) and it matched. **No press fired** (nobody went 2 down), so saving a press and reading it back on a second phone is still unexercised. |
+| Nassau net handicaps | The open question is closed: `player.handicap` in `NassauGrid` is already the playing handicap (`App.jsx` runs every game's players through `playingHandicaps()`). `e17eed4` replaced the grid's own copy of the net maths with `netScore()` / `strokesReceived()` from `lib/golf.js`, and added the first net Nassau smoke test. No change in behaviour: the new test passed on the old grid first. |
+| Scenario id typo | A manual run died in 13 seconds on `Nassau-18-net-wager-press` (a phone capitalises the first letter). `b1777e0`: the lookup trims and lowercases. Note that **"Re-run" on GitHub replays the old commit and the old inputs**; use Run workflow to pick up a fix. |
+| Why a model step failed | `2d31488`: a step in the golfers, coordinator and dev-agent workflows prints the final result message from the saved transcript (`.github/scripts/claude-failure-reason.sh`) as an error annotation and in the run summary. Only that one message, never the transcript. **Not yet seen on a real failure**: the transcript format is read from the action's source, not from a run. |
+| Retest after a fix | `faa7af9`: with no scenario asked for, the round plays the scenario of the oldest `from-tester` issue closed as completed and not labelled `retested` (`.github/scripts/retest-queue.sh`). The golfers look for the bug; the workflow comments on the issue with what they saw and labels it `retested`. Still happening → also filed as a new finding. That night's rotation turn is skipped. |
+| Coordinator, when | `7860087`: runs when an issue is opened, one run at a time, with the daily run as a fallback at 08:17 Central (off the hour). |
+| Coordinator, how much | Same commit: the cap is **two issues in any 24 hours**, not two per run, counted from the repo's issue events (`.github/scripts/shipped-last-day.sh`). A label added by hand counts. If the count cannot be read the run fails and nothing ships. Over the cap, an approved issue is labelled **`queued`** and a later run starts it without asking the model again. The old path labelled it `triaged` and said "next time", which hid it from every later run. |
+| Coordinator, who pays | `9d1400c`: runs on Harold's Claude subscription through `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`; secret added Oct 3). With the secret set it never uses the API key: at the subscription's limit the run fails and says so. The golfers and the dev agent stay on the API key. |
+| Four golfers | `c8f37c1`: **Rake** (15) and **Mulligan** (10) join Hazard and Rough; Harold created both as saved players. Every scenario is a foursome unless it names its `players` (9-Point takes three; two Nassaus stay head to head). Nine new scenarios cover 9-Point, Vegas, Wolf, Wolf Vegas and 2-Ball Aggregate, so all eleven games are in the rotation, now 29 nights. Turn limit 400 → 600. |
+| Side names | `f888829`: a side is named from its golfers' initials and golfers are matched to their side by that name, so Rough and Rake, each playing for themselves, were both saved onto side "R". `sideNames()` in `lib/teams.js` lengthens only the sides that clash ("Ro", "Ra"), and numbers golfers with the same name. `e2e/sides.spec.js` failed on the old code with "R", "R", "H". Rounds already saved keep their names. |
+
+**Cost.** From the costs each run logs: golfer rounds were $0.82 to $3.02 (about 145 turns for
+18 holes with two players), the dev agent $0.42 and $1.05 an issue, the coordinator $0.13 to
+$0.22 a run. About $14 of the roughly $40 spent is visible in those logs; the Console's Usage page
+has the rest. A foursome enters twice the scores, so expect $4–6 a round (an estimate, not yet
+measured). The plan (Harold, Oct 3): spend more now — nightly foursomes, more testers, a designer —
+until the current bugs are fixed and the redesign is done, then play less often, mostly retests.
+
+**Not yet seen working.** All of these are live and tested only with `gh` stubbed or by unit test:
+the retest round and its comment, the `issues: opened` trigger, the 24-hour count, the
+subscription token, the failure-reason step, a foursome round, the Wolf and Vegas instructions
+against the real setup screens, and "Ro"/"Ra" on a live round. The 02:00 round on Oct 4 exercises
+most of them at once.
+
+**START HERE next time**, in rough order of value:
+0. **Read the Oct 4 02:00 run.** It should be the retest of #11 on `singles-9-back-nine`, as a
+   foursome. Check: the "retesting [11]" line in "Pick tonight's scenario"; all four golfers found;
+   sides saved as H, Ro, Ra, M; a comment and the `retested` label on #11. If it files anything,
+   check the coordinator's run: the "Count what has started in the last 24 hours" step, and that
+   the model step ran on the subscription.
+1. **Add the `retested` label to #12 and #13**, or the golfers replay `nassau-18-gross` for them
+   the night after. Both were verified by round 76QMUV.
+2. **Set a monthly spend limit in the Anthropic Console** for the build-up phase. It is the only
+   hard ceiling on the API key.
+3. **A press, live.** Neither Nassau retest fired one. `nassau-18-net-90-two-presses` (Rake v
+   Mulligan) presses whenever someone is 2 down.
+4. **Measure a foursome's cost** from the first few rounds, then decide rounds per night.
+5. **Designer, step 1** — measured layout checks in CI (plan under "Designer agent" below). No AI
+   needed, and it would have caught both visual bugs filed Oct 1–2.
+6. **A way for friends to report things** without a GitHub account.
+7. **Renew `AGENT_TOKEN` before about Dec 10**, or the whole team stops. The `gh` read-only token
+   on the dev server and the subscription token also expire; note their dates when known.
+8. **Buy a domain**, then custom SMTP — required before inviting anyone if the built-in sender
+   only delivers to the Supabase team.
+9. The smaller team items listed under "Still open on the team".
+
+**Open, found this session:**
+- **3 tool calls denied per golfer round** — unchanged from the last session; still only a count.
+- **A playing handicap above 36 gets no third stroke**, in `strokesReceived()` and `netScore()`,
+  so in every game. Not hit by any current golfer.
+- **A course with no stroke indexes** falls back to index 10 on every hole in Nassau, so anyone
+  on 10 or more gets a stroke everywhere.
+- **Wolf Vegas with five players** is not covered; there are four golfers.
+
+## Previous Session (Oct 2–3, night) - the golfers' first full round, a Nassau fix, and a dev agent that has to prove a bug ✅
 
 | Area | Where it ended |
 |---|---|
@@ -24,12 +84,12 @@
 **Seen:** the nightly schedule firing by itself, and an 18-hole round with both second-phone checks
 passing (SE3KSM).
 
-**Stopped because** Harold hit a Claude usage limit on Oct 3, so the fixes have not been retested
-live. If the limit is on the `ANTHROPIC_API_KEY` the workflows use, tonight's golfer round and the
-coordinator will fail until it resets — check the next run before reading anything into it.
+**Stopped because** Harold hit a Claude usage limit on Oct 3, so the fixes had not been retested
+live. *(Oct 3, daytime: the limit was on the workflows' API key too; lifted, and both retests
+passed. See the session above.)*
 
 **Open, found this session:**
-- **Nassau net handicaps, unverified.** `NassauGrid`'s `calculateNetStrokes` compares
+- **Nassau net handicaps, unverified.** *(Closed Oct 3: it is the playing handicap. `e17eed4`.)* `NassauGrid`'s `calculateNetStrokes` compares
   `player.handicap` straight against the stroke index. If that is already the adjusted playing
   handicap (allowance, play-off-low) it is right; if not, a net Nassau gives the wrong strokes.
   Check before a net Nassau with money on it.
@@ -37,20 +97,7 @@ coordinator will fail until it resets — check the next run before reading anyt
   see them, copy `claude-execution-output.json` into the round artifact — but it is the full
   transcript and the repo is public, so decide that first.
 
-**START HERE next time**, in rough order of value:
-0. **Retest the Nassau fix live.** Actions → AI golfers → Run workflow, scenario id
-   `nassau-18-gross`. Expect the header to follow the holes, the popup to name each hole's winner,
-   and no "Team undefined". Then `nassau-18-net-wager-press`: the first money game, and the first
-   press saved and read back on a second phone.
-1. **Read what the AI golfers file each morning** (section "AI golfers" below), and watch the
-   first dev-agent fix made under the new prove-it-first step.
-2. **Designer, step 1** — measured layout checks in CI (plan under "Designer agent" below). No AI
-   needed, and it would have caught both visual bugs filed Oct 1–2.
-3. **A way for friends to report things** without a GitHub account.
-4. **Renew `AGENT_TOKEN` before about Dec 10**, or the whole team stops.
-5. **Buy a domain**, then custom SMTP — required before inviting anyone if the built-in sender
-   only delivers to the Supabase team.
-6. The smaller team items listed under "Still open on the team".
+*The "start here" list for this session was replaced by the one at the top of the file (Oct 3).*
 
 ## Previous Session (Oct 1–2) - auth finished, saves that resend, an agent team that ships, and AI golfers ✅
 
@@ -255,6 +302,12 @@ development cycle, so agent changes deploy when nobody is on a course.
   convert it.
 
 ### AI golfers: Hazard and Rough (built Oct 1–2, first full round Oct 3)
+
+> **Changed Oct 3 (daytime), see the session at the top.** There are now four golfers (Rake and
+> Mulligan added) playing as a foursome, 29 scenarios covering all eleven games, a retest of each
+> fixed issue before the rotation, and a coordinator that runs when an issue is filed. Where the
+> text below says two golfers, 20 scenarios, six games or "six hours before the coordinator", it
+> describes how this was first built. `testers/README.md` is current.
 
 Two AI golfers who play one real round a night on the live app and file what they find, so the
 dev team has a steady supply of real work through the off-season. `.github/workflows/ai-golfers.yml`,

@@ -77,16 +77,18 @@ These protect a live database that real players and deployed hardware depend on.
 - **Only trusted authors are read.** The repo is public, so anyone can file an issue or comment.
   The coordinator and the dev agent are only shown text written by someone in
   `.github/trusted-authors`; an issue from anyone else is labelled `needs-human` and waits.
-- **The coordinator triages** (`.github/workflows/coordinator.yml`, daily): de-duplicates,
-  prioritizes, and labels what's worth building **`ready-for-dev`**. That label is the trigger.
-  It ships at most a couple of issues per run — approved work over the limit waits for the next
-  one rather than queueing five unreviewed changes at production.
+- **The coordinator triages** (`.github/workflows/coordinator.yml`, when an issue is opened, and
+  once a day as a fallback): de-duplicates, prioritizes, and labels what's worth building
+  **`ready-for-dev`**. That label is the trigger. At most two issues start in any 24 hours,
+  however often it runs — approved work over the limit is labelled `queued` and starts when
+  there is room, rather than sending five unreviewed changes at production.
 
   | Label | Meaning |
   |---|---|
   | *(none)* | Filed but not looked at. Starts nothing. |
   | `triaged` | The coordinator has read it. |
   | `ready-for-dev` | Approved — the dev agent builds it, and the PR merges itself unless it is held (below). |
+  | `queued` | Approved, but the daily limit was reached. The coordinator starts it when there is room. |
   | `needs-info` | Too vague to build as written; a question is waiting on the issue. |
   | `needs-human` | Touches the database, migrations, secrets, auth, the firmware bucket, or maths that can't be verified with a test. Harold does these. Also put on an issue from an untrusted author, and on a PR that is held. |
   | `duplicate` | Covered by another open issue. |

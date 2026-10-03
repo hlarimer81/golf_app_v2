@@ -1,11 +1,18 @@
 name: Coordinator
 
-# Triages the open backlog once a day: de-duplicates, decides what is worth building, and starts
-# development on the best few by labelling them ready-for-dev.
+# Triages the open backlog: de-duplicates, decides what is worth building, and starts development
+# on the best few by labelling them ready-for-dev.
+#
+# It runs when an issue is opened, and once a day as a fallback. It used to run only once a day,
+# and GitHub starts that hours late, so a golfer's finding waited until the next morning and was
+# sometimes fixed by hand before the coordinator had read it. The cap on what may ship is
+# therefore on the day, not the run: at most two issues start in any 24 hours, however many times
+# this runs (.github/scripts/shipped-last-day.sh). An issue approved over the cap is labelled
+# queued, and a later run starts it when there is room, without asking the model again.
 #
 # The model decides; this workflow acts. Claude reads the issues and writes a decisions file — it
 # never runs gh and never touches code. A shell step applies those decisions and enforces the cap
-# on how many issues may ship in one run. A cap inside a prompt is a request; a cap in shell is a
+# on how many issues may ship in a day. A cap inside a prompt is a request; a cap in shell is a
 # limit. That matters here, because a labelled issue becomes a PR that merges itself into
 # production without anyone looking at it.
 #
@@ -18,12 +25,16 @@ name: Coordinator
 # by filename instead of name, which is how this was spotted.
 
 on:
+  # Anyone can open an issue on a public repository. That is safe to start on: an issue from an
+  # author who is not on the trusted list is set aside in shell, and no model reads it.
+  issues:
+    types: [opened]
   schedule:
-    - cron: '0 13 * * *' # 08:00 Central
+    - cron: '17 13 * * *' # 08:17 Central. Off the hour: GitHub starts top-of-the-hour crons hours late.
   workflow_dispatch:
     inputs:
       max_to_ship:
-        description: 'How many issues may be labelled ready-for-dev this run'
+        description: 'How many issues may be labelled ready-for-dev in any 24 hours'
         required: false
         default: '2'
       dry_run:
@@ -34,6 +45,13 @@ on:
 
 permissions:
   contents: read
+
+# One at a time. Two issues filed together start two runs; the second waits, then triages
+# whatever the first did not see. Each run reads the whole backlog, so a run that GitHub drops
+# from the queue loses nothing.
+concurrency:
+  group: coordinator
+  cancel-in-progress: false
 
 jobs:
   triage:
@@ -60,6 +78,7 @@ jobs:
           ensure needs-human    d93f0b "Needs a person: touches the database, secrets, or a real round"
           ensure needs-info     fbca04 "Too vague to build as written"
           ensure triaged        c5def5 "The coordinator has looked at this"
+          ensure queued         bfd4f2 "Approved, waiting for room under the daily limit"
 
       - name: Fetch the open backlog
         id: backlog
@@ -115,6 +134,45 @@ jobs:
             echo "#$num by $who: set aside for a person"
           done < <(jq -c '.[]' "$RUNNER_TEMP/untrusted.json")
 
+      # Before the model runs, so these two steps use the scripts as they were checked out.
+      - name: Count what has started in the last 24 hours
+        id: budget
+        env:
+          MAX_TO_SHIP: ${{ inputs.max_to_ship || '2' }}
+        run: |
+          started=$(bash .github/scripts/shipped-last-day.sh)
+          left=$(( MAX_TO_SHIP - started ))
+          [ "$left" -gt 0 ] || left=0
+          echo "$started started in the last 24 hours; room for $left more (limit $MAX_TO_SHIP)"
+          echo "left=$left" >> "$GITHUB_OUTPUT"
+
+      # Issues approved on an earlier run, when the day's limit had been reached. They go first,
+      # oldest first. The model already decided these, so it is not asked again.
+      - name: Start what was approved earlier and is waiting
+        id: release
+        env:
+          LEFT: ${{ steps.budget.outputs.left }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          left="$LEFT"
+          while read -r num; do
+            if [ "$left" -le 0 ]; then
+              echo "#$num: still waiting — the day's limit has been reached"
+              continue
+            fi
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "#$num: would start now (dry run)"
+            else
+              gh issue comment "$num" --body "There is room under the daily limit now. Starting development on this." || true
+              gh issue edit "$num" --remove-label queued --add-label ready-for-dev
+              echo "#$num: started from the queue" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+            left=$((left - 1))
+          done < <(jq -r '[ .[] | select([.labels[].name] | index("queued"))
+                               | select([.labels[].name] | index("ready-for-dev") | not) ]
+                          | sort_by(.createdAt)[] | .number' "$RUNNER_TEMP/issues.json")
+          echo "left=$left" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@v4
         if: steps.backlog.outputs.untriaged != '0'
         with:
@@ -164,8 +222,8 @@ jobs:
             - **ship** — clear enough to build, worth building, and safe for an agent. This starts
               development AND the resulting pull request merges itself into production once CI
               passes, with nobody reviewing it. Only choose this when you would be comfortable with
-              the change going live unseen. Set priority 1 for the most valuable; only the top few
-              actually ship each run.
+              the change going live unseen. Set priority 1 for the most valuable; only a couple
+              start in any one day, and the rest wait in a queue in the order you gave.
             - **clarify** — the idea may be good but the issue does not say enough to build from.
               Write the specific question you need answered in "comment".
             - **duplicate** — another open issue already covers it. Give its number.
@@ -216,6 +274,7 @@ jobs:
         if: steps.backlog.outputs.untriaged != '0'
         env:
           MAX_TO_SHIP: ${{ inputs.max_to_ship || '2' }}
+          LEFT: ${{ steps.release.outputs.left }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: |
           DECISIONS="$RUNNER_TEMP/triage.json"
@@ -261,10 +320,13 @@ jobs:
 
             case "$action" in
               ship)
-                if [ "$shipped" -ge "$MAX_TO_SHIP" ]; then
-                  echo "#$num: approved but over this run's limit of $MAX_TO_SHIP — leaving for next time"
-                  gh issue comment "$num" --body "Triaged as ready to build, but this run's limit of $MAX_TO_SHIP was already reached. It will be picked up next time." || true
-                  gh issue edit "$num" --add-label triaged || true
+                # Over the day's limit: queue it. It used to be labelled triaged and nothing else,
+                # which told the golfer it would be picked up next time and then hid it from
+                # every later run, because a triaged issue is never looked at again.
+                if [ "$shipped" -ge "$LEFT" ]; then
+                  echo "#$num: approved but the limit of $MAX_TO_SHIP in 24 hours has been reached — queued"
+                  gh issue comment "$num" --body "Triaged as ready to build, but $MAX_TO_SHIP changes have already started in the last 24 hours. This one is queued and will start when there is room." || true
+                  gh issue edit "$num" --add-label triaged --add-label queued
                   continue
                 fi
                 gh issue comment "$num" --body "$(printf 'Starting development on this.\n\n%s' "$reason")" || true
@@ -299,7 +361,7 @@ jobs:
             esac
           done < <(jq -c '.decisions | sort_by(.priority // 99)[]' "$DECISIONS")
 
-          echo "shipped $shipped of at most $MAX_TO_SHIP this run" >> "$GITHUB_STEP_SUMMARY"
+          echo "started $shipped this run; the limit is $MAX_TO_SHIP in any 24 hours" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Nothing to do
         if: steps.backlog.outputs.untriaged == '0'

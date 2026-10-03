@@ -21,7 +21,7 @@ name: AI golfers
 
 on:
   schedule:
-    - cron: '0 7 * * *' # 02:00 Central — six hours before the coordinator's run
+    - cron: '0 7 * * *' # 02:00 Central. The coordinator runs when an issue is filed.
   workflow_dispatch:
     inputs:
       scenario:

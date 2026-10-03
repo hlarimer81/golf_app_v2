@@ -16,6 +16,7 @@ import RequestCourseForm from './components/RequestCourseForm';
 import ReportCourseIssue from './components/ReportCourseIssue';
 import { gameDescriptions, gameRecentLabels } from './lib/gameRegistry';
 import { fetchHandicapIndexes, fetchRoundParticipation, courseHandicap, playingHandicaps, describeIndex } from './lib/handicap';
+import { sideNames } from './lib/teams';
 import PlayerDirectory from './components/PlayerDirectory';
 import PlayerPage from './components/PlayerPage';
 import PlayerPicker from './components/PlayerPicker';
@@ -455,22 +456,11 @@ function App() {
         return;
       }
 
+      // Each side's saved name. They must all differ: the players below are matched to their
+      // side by it. See sideNames() in lib/teams.js.
       const distinctTeams = [...new Set(activePlayers.map(p => p.team))];
-      const teamMapping = {};
-
-      for (const t of distinctTeams) {
-        const teamPlayers = activePlayers.filter(p => p.team === t);
-        const teamName = teamPlayers.map(p => {
-          const parts = p.name.trim().split(/\s+/);
-          if (parts.length === 1) {
-            return parts[0][0].toUpperCase();
-          } else {
-            return parts[0][0].toUpperCase() + parts[parts.length - 1][0].toUpperCase();
-          }
-        }).join('-');
-        
-        teamMapping[t] = teamName;
-      }
+      const names = sideNames(distinctTeams.map(t => activePlayers.filter(p => p.team === t).map(p => p.name)));
+      const teamMapping = Object.fromEntries(distinctTeams.map((t, i) => [t, names[i]]));
 
       const { data: teamData, error: teamError } = await supabase
         .from('teams')

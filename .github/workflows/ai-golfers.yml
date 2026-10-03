@@ -163,7 +163,10 @@ jobs:
                the round from it. Look only. Then go back to the first tab.
             7. Finish the round with the app's Finish Round button and read the summary screen.
             8. Take a screenshot whenever something looks wrong, and one of the final summary.
-               Save screenshots in ${{ runner.temp }}/round/screenshots.
+               Save screenshots in ${{ runner.temp }}/round/screenshots. That folder already
+               exists, and the browser saves screenshots there by default: give
+               browser_take_screenshot a bare file name, not a path. Never run mkdir or any shell
+               command other than node.
 
             WHAT COUNTS AS A FINDING.
             - A bug: a wrong number, a score that did not save or came back different, a crash, a
@@ -217,6 +220,7 @@ jobs:
           claude_args: |
             --model claude-sonnet-5
             --max-turns 400
+            --add-dir ${{ runner.temp }}/round
             --mcp-config '{"mcpServers":{"playwright":{"command":"npx","args":["-y","@playwright/mcp@latest","--headless","--isolated","--device","Pixel 7","--output-dir","${{ runner.temp }}/round/screenshots"]}}}'
             --allowedTools "mcp__playwright,Read,Write,Glob,Grep,LS,TodoWrite,Bash(node:*)"
             --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit,WebFetch,WebSearch"

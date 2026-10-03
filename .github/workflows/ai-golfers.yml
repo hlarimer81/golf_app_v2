@@ -201,6 +201,7 @@ jobs:
                   "steps": "numbered steps to see it again",
                   "expected": "what should have happened",
                   "actual": "what happened, with the actual numbers",
+                  "suspected_cause": "your guess at why, or null",
                   "screenshot": "file name in the screenshots folder, or null"
                 }
               ]
@@ -208,6 +209,11 @@ jobs:
 
             Each "second_phone" value is "same", "different" (and then there must be a finding
             that says how), or "not checked" with the reason in "summary".
+
+            "expected" and "actual" are what you saw on the screen, nothing else. If you have a
+            theory about why it happened — a console error, a request that failed — put it in
+            "suspected_cause", not in "actual". You cannot see the code, so it is a guess, and the
+            issue will say so. Leave it null rather than stretch.
 
             "kind" is bug or friction. "severity" is high (wrong money, lost scores, cannot
             finish), medium, or low. Set "completed" to false if you could not finish the round,
@@ -302,6 +308,7 @@ jobs:
               "**Steps:**\n\(.steps // "not stated")\n\n" +
               "**Expected:** \(.expected // "not stated")\n\n" +
               "**Actual:** \(.actual // "not stated")\n\n" +
+              (if .suspected_cause then "**The golfer'"'"'s guess at the cause (unverified — they cannot see the code):** \(.suspected_cause)\n\n" else "" end) +
               "**Screenshot:** " + (if .screenshot then "`\(.screenshot)` in the [run](\($run))'"'"'s artifacts" else "none" end) +
               "\n\n---\n*Filed automatically from an AI golfer'"'"'s round. [Run](\($run))*"' <<<"$row")
             url=$(gh issue create --title "$title" --body "$body" --label from-tester)

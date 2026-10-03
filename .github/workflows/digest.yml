@@ -1,0 +1,84 @@
+name: Digest
+
+# Once a day, tells H what is waiting on him.
+#
+# The agents comment and label through AGENT_TOKEN, which is H's own account, and GitHub does not
+# notify anyone of their own activity. A needs-human label, or a pull request held for touching a
+# protected file, therefore reached nobody. This collects everything that is waiting
+# (.github/scripts/digest.sh) and posts it as a comment on one standing issue, "Waiting on H".
+#
+# Two tokens, on purpose:
+#   - AGENT_TOKEN creates the standing issue, so that H is its author and is subscribed to it.
+#   - GITHUB_TOKEN posts the daily comment, so that it comes from github-actions and not from H,
+#     which is what makes GitHub send the notification.
+#
+# Nothing waiting, no comment: silence means there is nothing to do. If this workflow itself
+# breaks, the run fails and GitHub's own failed-run email says so.
+#
+# The standing issue is labelled digest and triaged, so the coordinator never treats it as work.
+
+on:
+  schedule:
+    - cron: '37 14 * * *' # 09:37 Central, after the golfers' round and the coordinator's daily run
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Show the digest in the run summary, post nothing'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+      actions: read
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Collect what is waiting
+        id: collect
+        run: |
+          count=$(bash .github/scripts/digest.sh "$RUNNER_TEMP/digest.md")
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/digest.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post it
+        if: steps.collect.outputs.count != '0' && inputs.dry_run != true
+        env:
+          AGENT_TOKEN_RAW: ${{ secrets.AGENT_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # The standing issue. Made once, as H, and found again by its label every day after.
+          issue=$(gh issue list --state open --label digest --limit 1 --json number -q '.[0].number // empty')
+          if [ -z "$issue" ]; then
+            AGENT="$(printf '%s' "$AGENT_TOKEN_RAW" | tr -d '\r\n')"
+            echo "::add-mask::$AGENT"
+            GH_TOKEN="$AGENT" gh label create digest --color 1d76db --description "The daily note of what is waiting on a person" --force >/dev/null
+            GH_TOKEN="$AGENT" gh label create triaged --color c5def5 --description "The coordinator has looked at this" --force >/dev/null
+            url=$(GH_TOKEN="$AGENT" gh issue create --title "Waiting on H" --label digest --label triaged \
+              --body "Once a day the Digest workflow comments here with everything that is waiting on a person: issues labelled needs-human, pull requests that have not merged, questions waiting for an answer, and runs that failed. No comment means nothing is waiting. Leave this issue open; closing it only makes the workflow open another.")
+            issue="${url##*/}"
+            echo "opened $url"
+          fi
+
+          printf '\n---\n*Posted by the Digest workflow. [Run](%s)*\n' "$RUN_URL" >> "$RUNNER_TEMP/digest.md"
+          gh issue comment "$issue" --body-file "$RUNNER_TEMP/digest.md"

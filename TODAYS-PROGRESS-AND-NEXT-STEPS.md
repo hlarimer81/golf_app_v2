@@ -293,6 +293,14 @@ The protected-path hold and the untrusted-author path have only run against samp
 and a few friends and the season is mostly over. **Wanted later, not now:** a time-of-day
 development cycle, so agent changes deploy when nobody is on a course.
 
+**Daily digest (added Oct 3).** Nothing the agents did reached Harold by email: they act through
+`AGENT_TOKEN`, which is his account, and GitHub does not notify anyone of their own activity.
+`.github/workflows/digest.yml` (09:37 Central) lists issues labelled `needs-human`, open pull
+requests, `needs-info` questions and runs that failed in the last 24 hours, and comments on a
+standing issue "Waiting on H" as `github-actions`. The issue is created with `AGENT_TOKEN` so that
+Harold is its author and subscribed. Nothing waiting, no comment. **Whether the email arrives
+depends on his GitHub notification settings and is not yet seen**: run it by hand once to check.
+
 **Still open on the team:**
 - Golfers cannot report anything without a GitHub account; there is no in-app feedback.
 - ~~A `needs-info` question that gets answered is never re-read.~~ Fixed Oct 3: the coordinator's

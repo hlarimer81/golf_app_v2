@@ -89,7 +89,7 @@ These protect a live database that real players and deployed hardware depend on.
   | `triaged` | The coordinator has read it. |
   | `ready-for-dev` | Approved — the dev agent builds it, and the PR merges itself unless it is held (below). |
   | `queued` | Approved, but the daily limit was reached. The coordinator starts it when there is room. |
-  | `needs-info` | Too vague to build as written; a question is waiting on the issue. |
+  | `needs-info` | Too vague to build as written; a question is waiting on the issue. Answer in a comment and the coordinator reads the issue again. |
   | `needs-human` | Touches the database, migrations, secrets, auth, the firmware bucket, or maths that can't be verified with a test. Harold does these. Also put on an issue from an untrusted author, and on a PR that is held. |
   | `duplicate` | Covered by another open issue. |
   | `retested` | A closed `from-tester` issue whose scenario the AI golfers have played again since the fix. Their comment says what they saw. |

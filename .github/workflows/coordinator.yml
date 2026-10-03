@@ -16,6 +16,12 @@ name: Coordinator
 # limit. That matters here, because a labelled issue becomes a PR that merges itself into
 # production without anyone looking at it.
 #
+# A question that gets answered is read again. When the coordinator asks for detail it labels the
+# issue needs-info and triaged, and a triaged issue is otherwise never looked at again, so the
+# answer used to sit there unread. Its question now ends with a hidden marker; a needs-info issue
+# whose last comment from a trusted author is not that question has been answered, and goes back
+# to the model with the question and the answer. A comment on a needs-info issue starts a run.
+#
 # AGENT_TOKEN, not GITHUB_TOKEN: a label applied with GITHUB_TOKEN does not trigger other
 # workflows, so the dev agent would never wake up.
 #
@@ -29,6 +35,10 @@ on:
   # author who is not on the trusted list is set aside in shell, and no model reads it.
   issues:
     types: [opened]
+  # An answer to a question. The job below only runs for a comment on an issue that is waiting on
+  # one; every other comment in the repository, and the coordinator's own question, is skipped.
+  issue_comment:
+    types: [created]
   schedule:
     - cron: '17 13 * * *' # 08:17 Central. Off the hour: GitHub starts top-of-the-hour crons hours late.
   workflow_dispatch:
@@ -55,6 +65,11 @@ concurrency:
 
 jobs:
   triage:
+    if: >-
+      github.event_name != 'issue_comment' ||
+      (github.event.issue.pull_request == null &&
+       contains(github.event.issue.labels.*.name, 'needs-info') &&
+       !contains(github.event.comment.body, '<!-- coordinator:question -->'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -94,10 +109,22 @@ jobs:
           TRUSTED=$(grep -Ev '^[[:space:]]*(#|$)' .github/trusted-authors | jq -R 'ascii_downcase' | jq -sc .)
           echo "trusted authors: $TRUSTED"
 
+          # An issue waiting on a question has been answered when its last comment from a trusted
+          # author is not the coordinator's question. It is handed to the model as if untriaged,
+          # marked "answered", with the question and the answer among its comments.
           jq --argjson trusted "$TRUSTED" '
             def ok: (.author.login // "" | ascii_downcase) as $a | ($trusted | index($a)) != null;
-            [ .[] | select(ok) | .comments |= map(select(ok)) ]
+            def has($l): [.labels[].name] | index($l) != null;
+            [ .[] | select(ok) | .comments |= map(select(ok))
+                  | if has("needs-info") and (.comments | length) > 0
+                       and (.comments | last | .body // "" | contains("<!-- coordinator:question -->") | not)
+                    then .answered = true
+                       | .labels |= map(select(.name != "triaged" and .name != "needs-info"))
+                    else . end ]
           ' "$RUNNER_TEMP/all-issues.json" > "$RUNNER_TEMP/issues.json"
+
+          jq '[.[] | select(.answered == true) | .number]' "$RUNNER_TEMP/issues.json" > "$RUNNER_TEMP/answered.json"
+          echo "answered since the coordinator asked: $(jq -c . "$RUNNER_TEMP/answered.json")"
 
           jq --argjson trusted "$TRUSTED" '
             def ok: (.author.login // "" | ascii_downcase) as $a | ($trusted | index($a)) != null;
@@ -210,6 +237,11 @@ jobs:
             money is wrong, choose needs-human unless the fix can be proven by a unit test — and
             say so in the reason.
 
+            An issue marked "answered": true is one you asked a question on earlier, and someone
+            has since replied. Your question and the reply are in its comments. Decide again
+            with the reply in hand. Choose clarify a second time only if the reply does not
+            answer what you asked, and ask something different.
+
             Decide what to do with every issue that does NOT already carry the "triaged" label.
             Write your decisions to ${{ runner.temp }}/triage.json in exactly this shape:
 
@@ -318,6 +350,13 @@ jobs:
             action=$(jq -r '.action' <<<"$row")
             reason=$(jq -r '.reason // ""' <<<"$row")
 
+            # An answered question: whatever is decided now, unless it is another question, the
+            # issue is no longer waiting on one.
+            answered=()
+            if jq -e --argjson n "$num" 'index($n) != null' "$RUNNER_TEMP/answered.json" >/dev/null 2>&1; then
+              answered=(--remove-label needs-info)
+            fi
+
             # The model may only decide about the issues it was shown. A number that is not on
             # that list is a mistake or something it was talked into; either way, do nothing.
             if ! jq -e --argjson n "$num" 'index($n) != null' "$RUNNER_TEMP/actionable.json" >/dev/null 2>&1; then
@@ -333,33 +372,34 @@ jobs:
                 if [ "$shipped" -ge "$LEFT" ]; then
                   echo "#$num: approved but the limit of $MAX_TO_SHIP in 24 hours has been reached — queued"
                   gh issue comment "$num" --body "Triaged as ready to build, but $MAX_TO_SHIP changes have already started in the last 24 hours. This one is queued and will start when there is room." || true
-                  gh issue edit "$num" --add-label triaged --add-label queued
+                  gh issue edit "$num" --add-label triaged --add-label queued "${answered[@]}"
                   continue
                 fi
                 gh issue comment "$num" --body "$(printf 'Starting development on this.\n\n%s' "$reason")" || true
-                gh issue edit "$num" --add-label triaged --add-label ready-for-dev
+                gh issue edit "$num" --add-label triaged --add-label ready-for-dev "${answered[@]}"
                 shipped=$((shipped + 1))
                 echo "#$num: shipped"
                 ;;
               clarify)
+                # The marker is how a later run tells this question from the answer to it.
                 q=$(jq -r '.comment // .reason' <<<"$row")
-                gh issue comment "$num" --body "$q" || true
+                gh issue comment "$num" --body "$(printf '%s\n\n<!-- coordinator:question -->' "$q")" || true
                 gh issue edit "$num" --add-label triaged --add-label needs-info
                 echo "#$num: asked for detail"
                 ;;
               duplicate)
                 dup=$(jq -r '.duplicate_of // empty' <<<"$row")
                 gh issue comment "$num" --body "Looks like a duplicate of #$dup. Leaving both open for a person to decide." || true
-                gh issue edit "$num" --add-label triaged --add-label duplicate
+                gh issue edit "$num" --add-label triaged --add-label duplicate "${answered[@]}"
                 echo "#$num: duplicate of #$dup"
                 ;;
               needs-human)
                 gh issue comment "$num" --body "$(printf 'This one needs a person.\n\n%s' "$reason")" || true
-                gh issue edit "$num" --add-label triaged --add-label needs-human
+                gh issue edit "$num" --add-label triaged --add-label needs-human "${answered[@]}"
                 echo "#$num: needs a human"
                 ;;
               skip)
-                gh issue edit "$num" --add-label triaged || true
+                gh issue edit "$num" --add-label triaged "${answered[@]}" || true
                 echo "#$num: skipped — $reason"
                 ;;
               *)

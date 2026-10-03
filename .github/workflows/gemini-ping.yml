@@ -1,15 +1,20 @@
 name: Gemini ping
 
-# Manual check that the Gemini reviewer can actually answer and post.
+# Manual check that the Gemini reviewer's key and model answer.
 #
-# The reviewer ran 89 seconds on PR #2 and posted nothing, which is ambiguous: either it had
-# nothing to say about a ten-line deletion, or it cannot post at all. This separates the two.
-# The job prints Gemini's reply itself (from the action's `summary` output) AND asks Gemini to
-# post that reply as a comment through the GitHub MCP server:
+# `review` is a required check, so when Gemini gives no reply nothing can merge, and the only way
+# to try again used to be a pull request. This asks the same model one short question over the
+# same plain HTTPS request the review uses (gemini-review.yml) and prints what came back:
 #
-#   reply in the summary + comment on the issue -> everything works
-#   reply in the summary, no comment             -> model fine, MCP posting broken
-#   no reply at all                              -> key or action broken
+#   a reply                 -> the key and the model work; a failing review is about the diff
+#   HTTP 400 / 401 / 403    -> the key: missing, wrong, or saved with stray whitespace
+#   HTTP 404                -> the model has been retired; change GEMINI_MODEL in gemini-review.yml
+#   HTTP 429 / 5xx          -> Gemini is busy or down; try again later
+#
+# It posts nothing and holds no write permission. It used to go through Google's run-gemini-cli
+# action and ask Gemini to post a comment through the GitHub MCP server, to find out why the
+# reviewer posted nothing. The review dropped both on 2026-10-01, so that check tested a path
+# nothing uses any more.
 #
 # Run it from the Actions tab: "Gemini ping" -> Run workflow.
 
@@ -19,11 +24,7 @@ on:
       question:
         description: 'Question to ask Gemini'
         required: true
-        default: 'In one sentence, what does this repository do?'
-      target:
-        description: 'Issue or PR number to comment on'
-        required: true
-        default: '1'
+        default: 'In one sentence, what is a Nassau in golf?'
 
 permissions:
   contents: read
@@ -31,12 +32,7 @@ permissions:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-      id-token: write
+    timeout-minutes: 5
 
     steps:
       - name: Checkout repository
@@ -45,58 +41,50 @@ jobs:
           persist-credentials: false
 
       - name: Ask Gemini
-        id: gemini
-        uses: google-github-actions/run-gemini-cli@v0
         env:
-          GEMINI_CLI_TRUST_WORKSPACE: 'true'
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          settings: |
-            {
-              "model": { "maxSessionTurns": 5 },
-              "mcpServers": {
-                "github": {
-                  "command": "docker",
-                  "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server:v0.27.0"],
-                  "includeTools": ["add_issue_comment", "issue_read", "pull_request_read"],
-                  "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
-                }
-              },
-              "tools": { "core": [] }
-            }
-          prompt: |
-            Answer this question in two sentences or fewer:
-
-            ${{ inputs.question }}
-
-            Then post your answer as a comment on ${{ github.repository }} number ${{ inputs.target }},
-            using the add_issue_comment tool. Begin the comment with "Gemini ping:".
-
-            If the add_issue_comment tool is unavailable or the call fails, say so explicitly in
-            your final answer, including the error.
-
-      - name: Report what came back
-        if: always()
+          QUESTION: ${{ inputs.question }}
         run: |
-          {
-            echo "### Gemini ping"
-            echo
-            echo "**Reply:**"
-            echo
-            echo "${REPLY:-(empty)}"
-            echo
-            echo "**Errors:**"
-            echo
-            echo "${ERRORS:-(none)}"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ -z "${REPLY// /}" ]; then
-            echo "::error::Gemini returned no reply — the API key or the action is the problem, not MCP posting"
+          # The model the review uses, read from the review so there is one place to change it.
+          MODEL=$(sed -n 's/^ *GEMINI_MODEL: *//p' .github/workflows/gemini-review.yml | head -n 1)
+          if [ -z "$MODEL" ]; then
+            echo "::error::could not read GEMINI_MODEL from gemini-review.yml"
             exit 1
           fi
-          echo "Gemini replied. Check issue/PR #${{ inputs.target }} for the comment: if the reply is here but no comment appeared, MCP posting is the broken part."
-        env:
-          REPLY: ${{ steps.gemini.outputs.summary }}
-          ERRORS: ${{ steps.gemini.outputs.error }}
+          echo "### Gemini ping — $MODEL" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "::error::GEMINI_API_KEY is not available to this run"
+            exit 1
+          fi
+          # Trimmed for the same reason as in the review: a key saved with a trailing newline
+          # breaks the request headers and Google answers 400 to a body that is good JSON.
+          KEY="$(printf '%s' "$GEMINI_API_KEY" | tr -d '[:space:]')"
+          echo "::add-mask::$KEY"
+          [ "$KEY" = "$GEMINI_API_KEY" ] || echo "::warning::GEMINI_API_KEY is stored with stray whitespace — re-save the secret without it"
+
+          jq -n --arg text "$QUESTION" '{ contents: [ { role: "user", parts: [ { text: $text } ] } ] }' \
+            > "$RUNNER_TEMP/request.json"
+
+          CODE=$(curl -sS -m 60 -o "$RUNNER_TEMP/response.json" -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            -H "x-goog-api-key: ${KEY}" \
+            --data-binary "@$RUNNER_TEMP/request.json" \
+            "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent") || CODE=000
+          echo "HTTP $CODE"
+
+          if [ "$CODE" != "200" ]; then
+            MESSAGE=$(jq -r '.error.message // empty' "$RUNNER_TEMP/response.json" 2>/dev/null | head -c 500)
+            echo "HTTP $CODE from $MODEL: ${MESSAGE:-no message}" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::error::Gemini did not answer — HTTP $CODE ${MESSAGE}"
+            exit 1
+          fi
+
+          REPLY=$(jq -r '[.candidates[0].content.parts[]? | select(.thought != true) | .text // empty] | join("")' "$RUNNER_TEMP/response.json")
+          if [ -z "${REPLY//[[:space:]]/}" ]; then
+            REASON=$(jq -r '.candidates[0].finishReason // .promptFeedback.blockReason // "unknown"' "$RUNNER_TEMP/response.json")
+            echo "HTTP 200 but no text. Finish reason: $REASON" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::error::Gemini answered with no text ($REASON)"
+            exit 1
+          fi
+          { echo; echo "$REPLY"; } | tee -a "$GITHUB_STEP_SUMMARY"

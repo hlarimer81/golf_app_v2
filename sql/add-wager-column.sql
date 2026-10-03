@@ -29,3 +29,13 @@ ADD COLUMN IF NOT EXISTS presses JSONB;
 COMMENT ON COLUMN matches.presses IS
   'Manual Nassau presses: JSON array of 0-based "after-hole" indices (see src/nassauEngine.js).';
 
+
+-- ---------------------------------------------------------------------------------------------
+-- Verify. Expect two rows:
+--   presses | jsonb
+--   wager   | jsonb
+-- ---------------------------------------------------------------------------------------------
+SELECT column_name, data_type
+  FROM information_schema.columns
+ WHERE table_schema = 'public' AND table_name = 'matches' AND column_name IN ('wager', 'presses')
+ ORDER BY column_name;

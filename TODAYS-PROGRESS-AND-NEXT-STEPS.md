@@ -1,4 +1,4 @@
-# Golf App Progress - October 2, 2026 (Updated)
+# Golf App Progress - October 3, 2026 (Updated)
 
 > ⚠️ **BEFORE INVITING ANY OTHER GOLFER TO SIGN IN: a domain may be required, not optional.**
 > Sign-in codes go out through Supabase's built-in email sender. Supabase's documentation has said
@@ -8,7 +8,51 @@
 > arrives, buy the domain and set up custom SMTP before inviting anyone (steps under "Auth: where
 > it stops for now" below). Remove this note once custom SMTP is live.
 
-## Latest Session (Oct 1–2) - auth finished, saves that resend, an agent team that ships, and AI golfers ✅
+## Latest Session (Oct 2–3) - the golfers' first full round, a Nassau fix, and a dev agent that has to prove a bug ✅
+
+| Area | Where it ended |
+|---|---|
+| AI golfers run | The nightly round logged repeated `mkdir ... needs approval` errors. The model's only working directory was the checkout; the round folder (`$RUNNER_TEMP/round`) was outside it, and it kept trying to `mkdir` a screenshots folder the workflow had already made. Fixed `a08f709`: `--add-dir` on the round folder, and the prompt says the folder exists. Round SE3KSM (`nassau-18-gross`, Oct 3, run 37088106800) then wrote its findings and filed #12 and #13. |
+| Nassau | Live FRONT 9 / OVERALL / BACK 9 sat at "AS" in **every** Nassau round, singles or teams; every hole said "Not enough scores yet", the hole popup said "Team undefined", and the Money screen settled nothing. The grid read `player.team`; saved players carry `teams.team_name`. Only the Finish Round summary (team helpers) was right. Fixed `8c8f1b5`: `nassauSides` / `nassauHoleWinner` in `src/nassauEngine.js`, built on `activeTeams` / `getTeamPlayers`. 5 unit tests; `e2e/nassau.spec.js` failed on the old code with "AS". One change in team Nassau: a hole goes to the best score among the side's golfers who have scored, as the settlement already counted. |
+| Presses | `presses` column added on production by Harold, Oct 2 (item 5 below). |
+| The golfers' guess was wrong | #12 blamed a 400 on `matches?select=presses`. That was real (the missing column) but had nothing to do with "AS". Two prompt changes follow from it. |
+| Dev agent | `fa16a71`: for a bug, trace the cause yourself, treat the reporter's cause as a guess, write a test that fails on the reported symptom before fixing, and say in the PR whether the cause matched. |
+| Golfers' reports | `5d5cc16`: `expected` / `actual` are what was on the screen only; a theory goes in a new `suspected_cause` field, which the issue labels as an unverified guess. |
+| Coordinator | Not broken. It runs once a day (08:00 Central); #12 and #13 were filed after its last run and fixed before its next. Scheduled runs start hours late (the 07:00 UTC golfer cron started 13:45; the 13:00 UTC coordinator 18:12) — GitHub delays top-of-the-hour crons. Move them to an odd minute if that ever matters. |
+| `gh` on the dev server | Installed (2.102), signed in as root with a **fine-grained read-only token**: `golf_app_v2` only; Actions, Contents, Issues, Pull requests read-only. An interactive session can read runs, logs, artifacts and issues, and cannot start, re-run or cancel a workflow or comment. Harold starts workflows himself. Token expires about 90 days from Oct 2. |
+
+**Seen:** the nightly schedule firing by itself, and an 18-hole round with both second-phone checks
+passing (SE3KSM).
+
+**Stopped because** Harold hit a Claude usage limit on Oct 3, so the fixes have not been retested
+live. If the limit is on the `ANTHROPIC_API_KEY` the workflows use, tonight's golfer round and the
+coordinator will fail until it resets — check the next run before reading anything into it.
+
+**Open, found this session:**
+- **Nassau net handicaps, unverified.** `NassauGrid`'s `calculateNetStrokes` compares
+  `player.handicap` straight against the stroke index. If that is already the adjusted playing
+  handicap (allowance, play-off-low) it is right; if not, a net Nassau gives the wrong strokes.
+  Check before a net Nassau with money on it.
+- **3 tool calls denied per golfer round** (5 the round before). The log gives only the count. To
+  see them, copy `claude-execution-output.json` into the round artifact — but it is the full
+  transcript and the repo is public, so decide that first.
+
+**START HERE next time**, in rough order of value:
+0. **Retest the Nassau fix live.** Actions → AI golfers → Run workflow, scenario id
+   `nassau-18-gross`. Expect the header to follow the holes, the popup to name each hole's winner,
+   and no "Team undefined". Then `nassau-18-net-wager-press`: the first money game, and the first
+   press saved and read back on a second phone.
+1. **Read what the AI golfers file each morning** (section "AI golfers" below), and watch the
+   first dev-agent fix made under the new prove-it-first step.
+2. **Designer, step 1** — measured layout checks in CI (plan under "Designer agent" below). No AI
+   needed, and it would have caught both visual bugs filed Oct 1–2.
+3. **A way for friends to report things** without a GitHub account.
+4. **Renew `AGENT_TOKEN` before about Dec 10**, or the whole team stops.
+5. **Buy a domain**, then custom SMTP — required before inviting anyone if the built-in sender
+   only delivers to the Supabase team.
+6. The smaller team items listed under "Still open on the team".
+
+## Previous Session (Oct 1–2) - auth finished, saves that resend, an agent team that ships, and AI golfers ✅
 
 **The night in one screen.** Details are in the sections below, in the order they happened.
 
@@ -21,26 +65,12 @@
 | Repo | 22 leftover scripts removed; `scripts/` holds only the two staging files. |
 | Agent team | Three guards added (trusted authors, protected files, a review that can hold a merge). `review` is a required check. Reviewer rewritten after failing three ways. Two real runs: PR #8 (merged by hand) and PR #10 (merged by itself, fix confirmed by Harold on a phone). Agents call the owner "H" in anything posted on GitHub. |
 | AI golfers | Hazard and Rough play a real round a night on the live app (02:00 Central), from a 20-scenario rotation with a score generator, and file at most two issues. Two rounds played by hand on Oct 2. Every round ends with a second-phone check. |
-| Nassau | Live status sat at "AS" in every round: the grid read `player.team`, saved players carry `teams.team_name` (#12, #13, fixed `8c8f1b5`). `presses` column added on production; presses can save. |
 | Handicaps | Two bugs fixed Oct 2, both found through the AI golfers: the scorecard converted handicaps again and added ~36 strokes on nine holes (#11), and Previous Rounds reopened a round without its holes, start hole, play-off-low or allowance. |
 
 **Nothing is waiting to be applied.** No migration is pending, no agent PR is open, and the issue
 backlog is empty. Everything is committed and pushed.
 
-**Seen since:** the nightly schedule fired by itself (late: the 07:00 UTC cron started 13:45), and
-an 18-hole round with both second-phone checks passing (SE3KSM, Oct 3). **Not yet seen:** a money
-game, and a Nassau press saved and read back.
-
-**START HERE next time**, in rough order of value:
-0. **Read what the AI golfers file each morning** (section "AI golfers" below). One nine-hole
-   round has run; an 18-hole round, a money game and the nightly schedule have not been seen yet.
-1. **Designer, step 1** — measured layout checks in CI (plan under "Designer agent" below). No AI
-   needed, and it would have caught both visual bugs filed tonight.
-2. **A way for friends to report things** without a GitHub account.
-3. **Renew `AGENT_TOKEN` before about Dec 10**, or the whole team stops.
-4. **Buy a domain**, then custom SMTP — required before inviting anyone if the built-in sender
-   only delivers to the Supabase team.
-5. The smaller team items listed under "Still open on the team".
+(This session's START HERE list moved up into the Oct 2–3 section.)
 
 ### Saves that resend themselves
 
@@ -224,7 +254,7 @@ development cycle, so agent changes deploy when nobody is on a course.
 - `gemini-ping.yml` still uses the `run-gemini-cli` action and is probably broken; remove or
   convert it.
 
-### AI golfers: Hazard and Rough (built Oct 1–2, not yet run)
+### AI golfers: Hazard and Rough (built Oct 1–2, first full round Oct 3)
 
 Two AI golfers who play one real round a night on the live app and file what they find, so the
 dev team has a steady supply of real work through the off-season. `.github/workflows/ai-golfers.yml`,

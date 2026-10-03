@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
     inputs:
       scenario:
-        description: 'Scenario id from testers/scenarios.js (blank = tonight''s turn in the rotation)'
+        description: 'Scenario id from testers/scenarios.js (blank = a fix waiting to be retested, or else tonight''s turn in the rotation)'
         required: false
         default: ''
       max_issues:
@@ -74,6 +74,18 @@ jobs:
           SCENARIO_ID: ${{ inputs.scenario }}
         run: |
           mkdir -p "$RUNNER_TEMP/round/screenshots"
+          # A fix comes before the rotation. With no scenario asked for, play the one a closed
+          # from-tester issue was found on, if any is still waiting (.github/scripts/retest-queue.sh).
+          # That night's turn in the rotation is skipped, not postponed: still one round a night.
+          if [ -z "${SCENARIO_ID// /}" ]; then
+            bash .github/scripts/retest-queue.sh > "$RUNNER_TEMP/round/retest.json"
+            SCENARIO_ID=$(jq -r '.scenario // empty' "$RUNNER_TEMP/round/retest.json")
+            if [ -n "$SCENARIO_ID" ]; then
+              echo "retesting $(jq -c '[.issues[].number]' "$RUNNER_TEMP/round/retest.json") on $SCENARIO_ID"
+            else
+              rm "$RUNNER_TEMP/round/retest.json"
+            fi
+          fi
           if [ -n "$SCENARIO_ID" ]; then
             node testers/scenarios.js --id "$SCENARIO_ID" > "$RUNNER_TEMP/round/scenario.json"
           else
@@ -178,6 +190,16 @@ jobs:
             Read ${{ runner.temp }}/round/open-issues.json. If something you found is already
             there, do not report it again.
 
+            RETEST. If ${{ runner.temp }}/round/retest.json exists, tonight's round is a retest.
+            Each issue in it was found on this scenario and has since been reported fixed. Read
+            it before you start. Play the round as you would any other, and when you reach the
+            point each issue describes, look for it. For each issue, add an entry to "retest" in
+            the findings file: its number, "fixed" (true, or false if it still happens), and
+            "saw" — what the app showed this time, with the actual numbers. If the round never
+            got to where the issue would show, set "fixed" to null and say why in "saw". An
+            issue that still happens is also a finding: report it in "findings" as usual, and
+            give the old issue's number in its title.
+
             Report at most 4 findings, most serious first. If the round went cleanly, report none
             and say so — an empty list is a good result, not a failure. Never invent a problem.
 
@@ -192,6 +214,9 @@ jobs:
               "totals": { "Hazard": 91, "Rough": 84 },
               "second_phone": { "previous_rounds": "same", "by_code": "same" },
               "summary": "three or four sentences: what you played, how it went, what you checked",
+              "retest": [
+                { "issue": 12, "fixed": true, "saw": "what the app showed this time" }
+              ],
               "findings": [
                 {
                   "title": "short and specific — what is wrong and where",
@@ -206,6 +231,8 @@ jobs:
                 }
               ]
             }
+
+            "retest" is an empty list unless there is a retest.json.
 
             Each "second_phone" value is "same", "different" (and then there must be a finding
             that says how), or "not checked" with the reason in "summary".
@@ -328,6 +355,30 @@ jobs:
           done < <(jq -c '.findings | sort_by({high: 0, medium: 1, low: 2}[.severity // "low"] // 3)[]' "$FINDINGS")
 
           echo "filed $filed of $FOUND findings (limit $MAX_ISSUES)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          # A retest round: say on each fixed issue what the golfers saw this time, and label it
+          # retested so it is not played again. Every issue the round was for is labelled, even
+          # one the golfers could not check, so a retest that cannot be done never blocks the
+          # rotation; the comment says so and a person takes it from there. A round that left no
+          # findings file never gets here, and is retried the next night.
+          RETEST="$RUNNER_TEMP/round/retest.json"
+          if [ -f "$RETEST" ]; then
+            gh label create retested --color 0e8a16 --description "Played again by an AI golfer after the fix" --force >/dev/null
+            while read -r num; do
+              entry=$(jq -c --argjson n "$num" '[.retest[]? | select(.issue == $n)] | first // {}' "$FINDINGS")
+              case "$(jq -r 'if has("fixed") then (.fixed | tostring) else "missing" end' <<<"$entry")" in
+                true)  verdict="it no longer happens" ;;
+                false) verdict="it **still happens**" ;;
+                *)     verdict="the golfers could not check it" ;;
+              esac
+              saw=$(jq -r '.saw // "They did not report on it."' <<<"$entry" | head -c 800)
+              body=$(printf '**Retested by %s**, an AI golfer, playing `%s` (round %s): %s.\n\n%s\n\n---\n*Posted automatically after a retest round. [Run](%s)*' \
+                "$REPORTER" "$SCENARIO" "$MATCH" "$verdict" "$saw" "$RUN_URL")
+              gh issue comment "$num" --body "$body" >/dev/null
+              gh issue edit "$num" --add-label retested >/dev/null
+              echo "#$num retested: $verdict" | tee -a "$GITHUB_STEP_SUMMARY"
+            done < <(jq -r '.issues[].number' "$RETEST")
+          fi
 
           if [ "$COMPLETED" != "true" ]; then
             echo "::error::The round was not completed — see the summary"

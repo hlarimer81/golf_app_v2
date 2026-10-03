@@ -56,10 +56,21 @@ the run's artifacts. The issues join the normal backlog and the coordinator tria
 Bugs and friction only — not feature ideas, not taste. A clean round files nothing, and that is a
 good result.
 
+## Playing a fix again
+
+A fix comes before the rotation. When a `from-tester` issue is closed as completed, the next round
+with no scenario asked for plays the scenario that issue was found on, and the golfers look for the
+bug again. The workflow then comments on the issue with what they saw — it no longer happens, it
+still happens, or they could not check — and labels it `retested`, so it is played once. If it
+still happens they also file it as a new finding. That night's turn in the rotation is skipped.
+
+To skip a retest (the fix was already checked by hand), add the `retested` label yourself. The
+queue is `.github/scripts/retest-queue.sh`.
+
 ## Running one by hand
 
-Actions → **AI golfers** → Run workflow. Leave the scenario blank for tonight's turn, or give an id
-from `scenarios.js`. Untick "File issues" to play the round and only read the summary.
+Actions → **AI golfers** → Run workflow. Leave the scenario blank for a waiting retest, or else
+tonight's turn; or give an id from `scenarios.js`. Untick "File issues" to play the round and only read the summary.
 
 ```bash
 node testers/scenarios.js                 # tonight's scenario

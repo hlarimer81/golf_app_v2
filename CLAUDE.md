@@ -90,6 +90,7 @@ These protect a live database that real players and deployed hardware depend on.
   | `needs-info` | Too vague to build as written; a question is waiting on the issue. |
   | `needs-human` | Touches the database, migrations, secrets, auth, the firmware bucket, or maths that can't be verified with a test. Harold does these. Also put on an issue from an untrusted author, and on a PR that is held. |
   | `duplicate` | Covered by another open issue. |
+  | `retested` | A closed `from-tester` issue whose scenario the AI golfers have played again since the fix. Their comment says what they saw. |
 - `.github/workflows/claude-dev.yml` implements the issue on a `claude/issue-<n>` branch and opens a
   PR. It never pushes to main.
 - Every PR gets two automatic passes: **CI** (lint, unit tests, build, smoke tests) and a **Gemini

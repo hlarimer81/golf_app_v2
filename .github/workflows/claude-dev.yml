@@ -116,13 +116,20 @@ jobs:
                comment on the issue and stop.
             2. If the issue is too vague to implement, or asks for something the hard rules forbid,
                post a comment on the issue saying exactly what you need, and stop. Do not guess.
-            3. Make the smallest change that resolves the issue. Match the style of the code around
+            3. If the issue reports a bug, find the cause before you change anything. The reporter
+               describes what they saw; any cause they suggest is a guess, and it can point at
+               something real but unrelated. Trace the symptom through the code yourself. Then
+               write a test that reproduces the symptom as reported (a unit test for logic, an e2e
+               test for a screen) and run it to confirm it FAILS before your fix. If you cannot
+               make it fail, you have not found the bug: say so in a comment on the issue and
+               stop. In the summary, say what the cause was and whether it matched the report.
+            4. Make the smallest change that resolves the issue. Match the style of the code around
                it. Do not reformat unrelated code or bump dependencies.
-            4. Verify your work: npm run lint, npm test, npm run build, and npm run test:e2e must
+            5. Verify your work: npm run lint, npm test, npm run build, and npm run test:e2e must
                all pass.
                Fix what you broke. If a pre-existing failure blocks you, say so in a comment on the
                issue.
-            5. If you changed or added a user-facing flow, add or extend a smoke test in e2e/.
+            6. If you changed or added a user-facing flow, add or extend a smoke test in e2e/.
 
             Finish by printing a short summary of what you changed and how you verified it. That
             summary becomes the pull request body.

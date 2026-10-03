@@ -295,11 +295,14 @@ development cycle, so agent changes deploy when nobody is on a course.
 
 **Still open on the team:**
 - Golfers cannot report anything without a GitHub account; there is no in-app feedback.
-- A `needs-info` question that gets answered is never re-read: the issue is already `triaged`.
+- ~~A `needs-info` question that gets answered is never re-read.~~ Fixed Oct 3: the coordinator's
+  question carries a hidden marker, an answered issue goes back to the model, and a comment on a
+  `needs-info` issue starts a run. Not yet seen on a real issue.
 - `AGENT_TOKEN` was created about Sep 11 with a 90-day life, so it expires around **Dec 10**.
 - No designer agent exists; the plan is below.
-- `gemini-ping.yml` still uses the `run-gemini-cli` action and is probably broken; remove or
-  convert it.
+- ~~`gemini-ping.yml` still uses the `run-gemini-cli` action.~~ Converted Oct 3 to the same plain
+  HTTPS request the review makes: a manual check of the key and the model, posting nothing. Not
+  yet run.
 
 ### AI golfers: Hazard and Rough (built Oct 1–2, first full round Oct 3)
 

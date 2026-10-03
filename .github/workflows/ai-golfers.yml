@@ -1,9 +1,10 @@
 name: AI golfers
 
-# Hazard and Rough play one real round a night on the live app, as guests, and file what they find.
+# Hazard, Rough, Rake and Mulligan play one real round a night on the live app, as guests, and file
+# what they find.
 #
 # They are the testers the dev agent builds for. A person plays a round a week at best, and only
-# the games they like; these two play every game two players can play, with every setup option,
+# the games they like; these four play every game in the app, with every setup option,
 # on a rotation (testers/scenarios.js). Their rounds are real: they are banked, they move the
 # golfers' handicap indexes, and they show up beside everyone else's.
 #
@@ -116,28 +117,32 @@ jobs:
           github_token: ${{ secrets.AGENT_TOKEN }}
           display_report: true
           prompt: |
-            You are playing a round of golf on 4Play, a golf scoring web app, as two guest golfers:
-            Hazard and Rough. They are real players in the live app and this is a real round — it
+            You are playing a round of golf on 4Play, a golf scoring web app, as a group of guest
+            golfers. There are four of them — Hazard, Rough, Rake and Mulligan — and tonight's
+            scenario says which of them are playing ("players"): usually all four, sometimes two
+            or three. They are real players in the live app and this is a real round — it
             will be saved, banked into their handicap history, and seen by the people who use the
             app. Your job is to use the app the way a golfer does and report what goes wrong.
 
             The app: ${{ env.APP_URL }}
             You have a browser the size of a phone, through the playwright tools. One phone, held
-            by one golfer, scoring for both players — that is how the app is really used.
+            by one golfer, scoring for the whole group — that is how the app is really used.
 
             Tonight's round is described in ${{ runner.temp }}/round/scenario.json. Read it first.
             You are writing up the round as: ${{ steps.scenario.outputs.reporter }}.
 
             RULES. These protect other people's data.
             - Play as guests. Do not sign in. Do not claim a player.
-            - Hazard and Rough already exist as saved players. Pick them from the player list. Do
-              not create players, and do not add anyone else to the round.
+            - The golfers already exist as saved players. Pick tonight's players from the player
+              list, exactly the ones the scenario names. Do not create players, and do not add
+              anyone else to the round.
             - Use the handicap the app fills in for each of them. Do not type a handicap.
+            - Where the scenario gives "teams", put each golfer on the side it says.
             - Play an existing course. Never request a course, enter one by hand, report a course
               issue, or add green GPS data.
             - Only ever open, score or finish the round you create tonight. Other rounds in
               Previous Rounds belong to real people: do not open them.
-            - If you cannot find Hazard or Rough, or there is no course to pick, stop and say so in
+            - If you cannot find one of tonight's players, or there is no course to pick, stop and say so in
               the findings file. Do not improvise around it.
 
             THE ROUND.
@@ -149,8 +154,9 @@ jobs:
             3. Get each golfer's scorecard. Do not make scores up. Run, once per golfer:
                  node testers/scorecard.js --handicap <the handicap the app shows> --pars <pars for the holes being played, comma separated> --seed ${{ steps.scenario.outputs.seed }}-<golfer name>
                Add --si <stroke indexes> if the app shows them. Enter those strokes exactly.
-            4. Play hole by hole, entering both golfers' scores, as you would walking off each
-               green. Follow the scenario's wager and press instructions, and its "behaviour".
+            4. Play hole by hole, entering every golfer's score, as you would walking off each
+               green. Follow the scenario's wager and press instructions, its "choices" (what
+               the golfers decide on each hole in games like Wolf), and its "behaviour".
             5. As you go, check the app's arithmetic yourself: strokes given, points, holes won,
                skins and carryovers, who is up, and any money. Work it out independently from the
                scores you entered and compare. A wrong number here costs people real money, so
@@ -166,7 +172,7 @@ jobs:
                On each, compare these, one by one, against the first phone:
                  - which holes are on the scorecard (the same holes, starting at the same one)
                  - each golfer's handicap as shown
-                 - every score you entered, for both golfers
+                 - every score you entered, for every golfer
                  - the standings, points or match status, and any money
                Anything that differs is a finding, and a serious one: two people looking at the
                same round must see the same thing. Say which route showed it (Previous Rounds or
@@ -210,8 +216,8 @@ jobs:
               "completed": true,
               "match_code": "the round's 6-character code, or null",
               "course": "the course played",
-              "handicaps": { "Hazard": 14, "Rough": 9 },
-              "totals": { "Hazard": 91, "Rough": 84 },
+              "handicaps": { "Hazard": 14, "Rough": 9, "Rake": 15, "Mulligan": 10 },
+              "totals": { "Hazard": 91, "Rough": 84, "Rake": 92, "Mulligan": 85 },
               "second_phone": { "previous_rounds": "same", "by_code": "same" },
               "summary": "three or four sentences: what you played, how it went, what you checked",
               "retest": [
@@ -234,6 +240,8 @@ jobs:
 
             "retest" is an empty list unless there is a retest.json.
 
+            "handicaps" and "totals" have one entry for each golfer who played tonight.
+
             Each "second_phone" value is "same", "different" (and then there must be a finding
             that says how), or "not checked" with the reason in "summary".
 
@@ -252,7 +260,7 @@ jobs:
             Always write the findings file, even if everything failed. Do not run git or gh.
           claude_args: |
             --model claude-sonnet-5
-            --max-turns 400
+            --max-turns 600
             --add-dir ${{ runner.temp }}/round
             --mcp-config '{"mcpServers":{"playwright":{"command":"npx","args":["-y","@playwright/mcp@latest","--headless","--isolated","--device","Pixel 7","--output-dir","${{ runner.temp }}/round/screenshots"]}}}'
             --allowedTools "mcp__playwright,Read,Write,Glob,Grep,LS,TodoWrite,Bash(node:*)"

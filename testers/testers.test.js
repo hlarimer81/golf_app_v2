@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateCard, strokesOverPar, seededRandom, TYPICAL_OVER } from './scorecard';
 import { SCENARIOS, BEHAVIOURS, GOLFERS, pickScenario, scenarioById, daysSinceEpoch } from './scenarios';
+import { GAME_ORDER } from '../src/lib/gameRegistry';
 
 const pars = [4, 4, 3, 5, 4, 4, 3, 4, 5, 4, 4, 3, 5, 4, 4, 3, 4, 5];
 const strokeIndex = [7, 11, 17, 1, 9, 5, 15, 13, 3, 8, 12, 18, 2, 10, 6, 16, 14, 4];
@@ -89,9 +90,43 @@ describe('scenarios', () => {
         expect(new Set(SCENARIOS.map(s => s.id)).size).toBe(SCENARIOS.length);
     });
 
-    it('covers every game two golfers can play, and none that need more', () => {
-        expect([...new Set(SCENARIOS.map(s => s.game))].sort())
-            .toEqual(['chairman', 'fourball', 'nassau', 'singles', 'skins', 'stableford']);
+    it('covers every game in the app', () => {
+        expect([...new Set(SCENARIOS.map(s => s.game))].sort()).toEqual([...GAME_ORDER].sort());
+    });
+
+    it('is a foursome unless the scenario names who plays', () => {
+        expect(GOLFERS).toEqual(['Hazard', 'Rough', 'Rake', 'Mulligan']);
+        SCENARIOS.forEach((s, i) => {
+            const dealt = pickScenario(i);
+            expect(dealt.players).toEqual(s.players ?? GOLFERS);
+            dealt.players.forEach(p => expect(GOLFERS).toContain(p));
+            expect(new Set(dealt.players).size).toBe(dealt.players.length);
+            expect(dealt.players).toContain(dealt.reporter);
+        });
+    });
+
+    it('gives each game the number of players it needs', () => {
+        const count = (s) => (s.players ?? GOLFERS).length;
+        SCENARIOS.filter(s => s.game === 'ninepoint').forEach(s => expect(count(s)).toBe(3));
+        SCENARIOS.filter(s => ['fourball', 'vegas', 'wolf', 'wolfvegas', 'aggregate'].includes(s.game))
+            .forEach(s => expect(count(s)).toBe(4));
+    });
+
+    it('says who is on which side wherever four golfers play a two-sided game', () => {
+        SCENARIOS.filter(s => ['fourball', 'vegas', 'aggregate', 'nassau'].includes(s.game) && (s.players ?? GOLFERS).length === 4)
+            .forEach(s => {
+                expect(s.teams, s.id).toBeTruthy();
+                GOLFERS.forEach(g => expect(s.teams, s.id).toContain(g));
+            });
+        SCENARIOS.filter(s => s.game === 'wolf' || s.game === 'wolfvegas').forEach(s => expect(s.choices, s.id).toBeTruthy());
+    });
+
+    it('never names a golfer in a scenario who is not playing it', () => {
+        SCENARIOS.forEach(s => {
+            const out = GOLFERS.filter(g => !(s.players ?? GOLFERS).includes(g));
+            const text = [s.teams, s.choices, s.wager, s.presses].filter(Boolean).join(' ');
+            out.forEach(g => expect(text, s.id).not.toContain(g));
+        });
     });
 
     it('never asks for a nine-hole Nassau, which the app refuses', () => {
@@ -157,6 +192,15 @@ describe('scenarioById', () => {
         const typed = scenarioById(' Nassau-18-net-wager-press ', 5);
         expect(typed).toEqual(scenarioById('nassau-18-net-wager-press', 5));
         expect(typed.id).toBe('nassau-18-net-wager-press');
+    });
+
+    it('deals a named scenario the same way the rotation would: players, and a reporter among them', () => {
+        expect(scenarioById('ninepoint-18-net', 5).players).toEqual(['Hazard', 'Rough', 'Mulligan']);
+        expect(scenarioById('wolf-18-net', 5).players).toEqual(GOLFERS);
+        for (let day = 0; day < 8; day++) {
+            const s = scenarioById('nassau-18-gross', day);
+            expect(['Hazard', 'Rough']).toContain(s.reporter);
+        }
     });
 
     it('is null for a name that does not exist', () => {

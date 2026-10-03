@@ -1,11 +1,13 @@
 # AI golfers
 
-Hazard and Rough are two AI golfers who play one real round a night on the live app and file what
-they find. `.github/workflows/ai-golfers.yml` runs them.
+Hazard, Rough, Rake and Mulligan are four AI golfers who play one real round a night on the live
+app, as a foursome, and file what they find. `.github/workflows/ai-golfers.yml` runs them.
 
 - **Hazard** is AI player 1 and stands in for Harold. **Rough** is AI player 2 and stands in for
   Ryan. Both are saved players in the live app, created by Harold on 2026-10-01 with Harold's and
   Ryan's handicaps as their starting points.
+- **Rake** and **Mulligan** joined on 2026-10-03 to make a foursome, starting at handicaps of 15
+  and 10. Harold creates them as saved players in the live app; no agent can.
 - **They are real guests.** No account, no database key: they use the website the way a friend
   would. Their rounds are banked, their handicap indexes move, and they appear in the player
   directory and Previous Rounds beside everyone else.
@@ -15,25 +17,26 @@ they find. `.github/workflows/ai-golfers.yml` runs them.
 ## What they play
 
 `scenarios.js` is the coverage plan. The workflow picks tonight's scenario from it; the golfers do
-not choose. It covers the six games two players can play (Stableford, Singles, Skins, Nassau,
-Chairman, 4-Ball) across 18 and 9 holes, gross and net, every handicap allowance in use, playing
-off the low handicap or not, skins carryover on and off, wagers, presses, a back-nine start and
-team play. One a night goes round the list in 20 nights and then starts again, each lap pairing
+not choose. It covers all eleven games across 18 and 9 holes, gross and net, every handicap
+allowance in use, playing off the low handicap or not, skins carryover on and off, wagers, presses,
+a back-nine start and team play. A scenario is played by all four golfers unless it names its
+`players`: 9-Point takes exactly three, and two Nassaus stay head to head. Where four play a
+two-sided game the scenario says who is on which side, and in Wolf and Wolf Vegas it says what the
+Wolf chooses on each hole. One a night goes round the list in 29 nights and then starts again, each lap pairing
 every scenario with a different "behaviour" — fixing a score, clearing one, reloading mid-round,
 rejoining by code, checking the player pages afterwards.
 
-**Every round also gets a second-phone check.** One browser keeps score for both golfers, which is
+**Every round also gets a second-phone check.** One browser keeps score for the whole group, which is
 how the app is mostly used, but it means nobody looks at the round from another phone. So before
 finishing, the golfer opens the round in two new tabs — once from Previous Rounds, once by match
-code — and compares the holes shown, both handicaps, every score and the standings against the
+code — and compares the holes shown, every handicap, every score and the standings against the
 phone that kept score. It looks and does not touch. This exists because Harold, watching the
 second round, found that Previous Rounds reopened a back-nine round as 18 holes from the 1st; the
 golfers could not have seen it. Two golfers on two phones, each scoring their own ball, is not
 built yet.
 
-9-Point needs three players; Vegas, Wolf, Wolf Vegas and 2-Ball Aggregate need four or five. They
-are not covered until there are more golfers. To add one: create the saved player in the app, add
-the name to `GOLFERS`, and add scenarios for the games that become playable.
+Wolf Vegas can also be played by five; that is not covered. To add a golfer: create the saved
+player in the app, add the name to `GOLFERS`, and add scenarios for what becomes playable.
 
 ## What they shoot
 

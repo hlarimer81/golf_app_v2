@@ -231,6 +231,17 @@ jobs:
             --allowedTools "mcp__playwright,Read,Write,Glob,Grep,LS,TodoWrite,Bash(node:*)"
             --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit,WebFetch,WebSearch"
 
+      # The action's log stops at "is_error:true". This prints the message that came back, so a
+      # usage limit says so in the run instead of needing a person to go and find out. The script
+      # is read from the commit, not the working tree, and the step holds no token: it runs
+      # after a model that can write files.
+      - name: Say why the model stopped
+        if: always() && steps.claude.outcome == 'failure'
+        env:
+          GH_TOKEN: ''
+          TRANSCRIPT: ${{ steps.claude.outputs.execution_file }}
+        run: git show HEAD:.github/scripts/claude-failure-reason.sh | bash -s -- "$TRANSCRIPT"
+
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v4

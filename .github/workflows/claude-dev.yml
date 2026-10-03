@@ -158,6 +158,17 @@ jobs:
             --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,TodoWrite,Bash"
             --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(gh pr create:*),Bash(gh pr merge:*),Bash(gh issue view:*)"
 
+      # The action's log stops at "is_error:true". This prints the message that came back, so a
+      # usage limit says so in the run instead of needing a person to go and find out. The script
+      # is read from the commit, not the working tree, and the step holds no token: it runs
+      # after a model that can write files.
+      - name: Say why the model stopped
+        if: always() && steps.claude.outcome == 'failure'
+        env:
+          GH_TOKEN: ''
+          TRANSCRIPT: ${{ steps.claude.outputs.execution_file }}
+        run: git show HEAD:.github/scripts/claude-failure-reason.sh | bash -s -- "$TRANSCRIPT"
+
       # A failed agent step skips everything after it, including the comment the prompt asks for —
       # so a dead run left no trace anywhere except a log archive someone had to download. Now the
       # issue itself says the run died.

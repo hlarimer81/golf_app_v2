@@ -121,6 +121,7 @@ jobs:
           node-version: 24
 
       - name: Decide what to do with each issue
+        id: claude
         if: steps.backlog.outputs.untriaged != '0'
         uses: anthropics/claude-code-action@v1
         with:
@@ -199,6 +200,17 @@ jobs:
             --max-turns 40
             --allowedTools "Read,Write,Glob,Grep,LS,TodoWrite,Bash"
             --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit"
+
+      # The action's log stops at "is_error:true". This prints the message that came back, so a
+      # usage limit says so in the run instead of needing a person to go and find out. The script
+      # is read from the commit, not the working tree, and the step holds no token: it runs
+      # after a model that can write files.
+      - name: Say why the model stopped
+        if: always() && steps.claude.outcome == 'failure'
+        env:
+          GH_TOKEN: ''
+          TRANSCRIPT: ${{ steps.claude.outputs.execution_file }}
+        run: git show HEAD:.github/scripts/claude-failure-reason.sh | bash -s -- "$TRANSCRIPT"
 
       - name: Apply the decisions
         if: steps.backlog.outputs.untriaged != '0'

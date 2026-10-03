@@ -18,9 +18,42 @@
 //     parent, pressAfterHole }
 // =====================================================================================
 
+import { activeTeams, getTeamPlayers } from './lib/teams';
+
 const SEG = { front: 'front', back: 'back', overall: 'overall' };
 const segStart = (seg) => (seg === SEG.back ? 9 : 0);
 const segEnd = (seg) => (seg === SEG.front ? 8 : 17);
+
+// The two sides and their sideNet, from the round's players. Teams come from the shared helpers:
+// a saved player carries its team in `teams.team_name`, not `team`, and reading `team` directly
+// left both sides empty, so the live status sat at "AS" all round (issue #12).
+//   netFor(strokes, holeIdx, player) -> net strokes, or null if the hole is unscored
+export function nassauSides({ players, scores, netFor }) {
+  const teams = activeTeams(players);
+  const sides = [teams[0] || 'Team A', teams[1] || 'Team B'];
+  const sideNet = sides.map((team) => {
+    const members = getTeamPlayers(players, team);
+    return Array.from({ length: 18 }, (_, h) => {
+      let best = 0;
+      members.forEach((p) => {
+        const net = netFor(scores[p.id]?.[h + 1], h, p);
+        if (net != null && (best === 0 || net < best)) best = net;
+      });
+      return best;
+    });
+  });
+  return { sides, sideNet };
+}
+
+// Who won a hole on sideNet: a side's name, 'TIE', or null until both sides have scored it.
+export function nassauHoleWinner({ sides, sideNet }, holeIdx) {
+  const s0 = sideNet[0][holeIdx] || 0;
+  const s1 = sideNet[1][holeIdx] || 0;
+  if (s0 === 0 || s1 === 0) return null;
+  if (s0 < s1) return sides[0];
+  if (s1 < s0) return sides[1];
+  return 'TIE';
+}
 
 // players: [{ id, team, handicap, netByHole:{holeNum->net} }]  (holeNum is 1-based)
 // manualPressHoles: array of 0-based hole indices AFTER which a manual press was added.

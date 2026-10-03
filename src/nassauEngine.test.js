@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeNassau, nassauSettlementSegments } from './nassauEngine';
+import { computeNassau, nassauSettlementSegments, nassauSides, nassauHoleWinner } from './nassauEngine';
 
 // sideNet[side][holeIdx] is the side's best net score on that hole; 0 means nobody has scored it.
 const blank = () => [Array(18).fill(0), Array(18).fill(0)];
@@ -214,5 +214,70 @@ describe('nassauSettlementSegments', () => {
     const { matches } = computeNassau({ sides: sideNames, sideNet, manualPressHoles: [1] });
     const segs = nassauSettlementSegments({ matches, sideNames, wager });
     expect(segs.some((s) => s.label === 'Front 9 press (after 2)')).toBe(true);
+  });
+});
+
+describe('nassauSides', () => {
+  // Gross: net is just the strokes, null when the hole has not been scored.
+  const gross = (strokes) => (strokes ? strokes : null);
+
+  it('reads the team from a saved player, which carries it in teams.team_name', () => {
+    // Exactly what the players insert and the join query return. There is no `team` field: reading
+    // it left both sides empty and the live status at "AS" all round (issue #12).
+    const players = [
+      { id: 'pat', player_name: 'Pat', teams: { team_name: 'P' } },
+      { id: 'bo', player_name: 'Bo', teams: { team_name: 'B' } },
+    ];
+    const scores = { pat: { 1: 4, 2: 5 }, bo: { 1: 5, 2: 4 } };
+    const { sides, sideNet } = nassauSides({ players, scores, netFor: gross });
+    expect(sides).toEqual(['P', 'B']);
+    expect(sideNet[0].slice(0, 3)).toEqual([4, 5, 0]);
+    expect(sideNet[1].slice(0, 3)).toEqual([5, 4, 0]);
+    expect(nassauHoleWinner({ sides, sideNet }, 0)).toBe('P');
+    expect(nassauHoleWinner({ sides, sideNet }, 1)).toBe('B');
+    expect(nassauHoleWinner({ sides, sideNet }, 2)).toBeNull();
+  });
+
+  it('feeds the match engine, so the front nine and the money follow the holes', () => {
+    const players = [
+      { id: 'pat', teams: { team_name: 'P' } },
+      { id: 'bo', teams: { team_name: 'B' } },
+    ];
+    const scores = { pat: { 1: 4, 2: 5, 3: 4 }, bo: { 1: 5, 2: 4, 3: 3 } };
+    const { sides, sideNet } = nassauSides({ players, scores, netFor: gross });
+    const { matches } = computeNassau({ sides, sideNet });
+    expect(find(matches, 'front').sideLead).toBe(-1); // B one up
+    expect(find(matches, 'overall').sideLead).toBe(-1);
+    expect(find(matches, 'back').throughHole).toBe(-1);
+  });
+
+  it('takes the best net on each side when a side has two golfers', () => {
+    const players = [
+      { id: 'a1', team: 'A' }, { id: 'a2', team: 'A' },
+      { id: 'b1', team_name: 'B' }, { id: 'b2', team_name: 'B' },
+    ];
+    const scores = { a1: { 1: 6 }, a2: { 1: 4 }, b1: { 1: 5 }, b2: {} };
+    const { sides, sideNet } = nassauSides({ players, scores, netFor: gross });
+    expect(sides).toEqual(['A', 'B']);
+    expect(sideNet[0][0]).toBe(4);
+    expect(sideNet[1][0]).toBe(5);
+    expect(nassauHoleWinner({ sides, sideNet }, 0)).toBe('A');
+  });
+
+  it('passes each golfer to netFor, so handicap strokes come off', () => {
+    const players = [
+      { id: 'hi', handicap: 18, teams: { team_name: 'H' } },
+      { id: 'lo', handicap: 0, teams: { team_name: 'L' } },
+    ];
+    const scores = { hi: { 1: 5 }, lo: { 1: 4 } };
+    const netFor = (strokes, h, p) => (strokes ? strokes - (p.handicap >= 18 ? 1 : 0) : null);
+    const { sides, sideNet } = nassauSides({ players, scores, netFor });
+    expect(nassauHoleWinner({ sides, sideNet }, 0)).toBe('TIE');
+  });
+
+  it('falls back to Team A and Team B when there are not two teams', () => {
+    const { sides, sideNet } = nassauSides({ players: [{ id: 'x' }], scores: {}, netFor: gross });
+    expect(sides).toEqual(['Team A', 'Team B']);
+    expect(sideNet[0].every((n) => n === 0)).toBe(true);
   });
 });

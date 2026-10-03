@@ -9,7 +9,8 @@ import { useWager } from './useWager';
 import { usePresses } from './usePresses';
 import { useScores } from './hooks/useScores';
 import { settleNassau, wagerHasStake } from './settlement';
-import { computeNassau, nassauSettlementSegments } from './nassauEngine';
+import { computeNassau, nassauSettlementSegments, nassauSides, nassauHoleWinner } from './nassauEngine';
+import { getPlayerTeam } from './lib/teams';
 
 export default function NassauGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
     const { scores, saveScore } = useScores(matchId);
@@ -38,30 +39,14 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
     };
 
 
-  const getHoleWinner = (holeIndex) => {
-    const teams = {};
-    players.forEach(p => {
-      if (!teams[p.team]) teams[p.team] = [];
-      const strokes = scores[p.id]?.[holeIndex + 1];
-      if (strokes) {
-        teams[p.team].push(calculateNetStrokes(strokes, holeIndex, p.handicap || p.hcp));
-      }
-    });
-    
-    const teamKeys = Object.keys(teams);
-    if (teamKeys.length < 2) return null;
-    
-    const t1 = teams[teamKeys[0]];
-    const t2 = teams[teamKeys[1]];
-    if (t1.length === 0 || t2.length === 0 || t1.includes(null) || t2.includes(null)) return null;
-    
-    const t1Best = Math.min(...t1);
-    const t2Best = Math.min(...t2);
-    
-    if (t1Best < t2Best) return teamKeys[0];
-    if (t2Best < t1Best) return teamKeys[1];
-    return "TIE";
-  };
+  // ---- Nassau engine: best-net per side per hole, then compute matches + settlement ----
+  const { sides, sideNet } = nassauSides({
+    players,
+    scores,
+    netFor: (strokes, holeIndex, p) => calculateNetStrokes(strokes, holeIndex, p.handicap ?? p.hcp ?? 0),
+  });
+  const [t1Name, t2Name] = sides;
+  const getHoleWinner = (holeIndex) => nassauHoleWinner({ sides, sideNet }, holeIndex);
 
   if (showSummary) {
     return (
@@ -81,10 +66,6 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
       />
     );
   }
-
-  const teamNames = [...new Set(players.map(p => p.team).filter(Boolean))];
-  const t1Name = teamNames[0] || "Team A";
-  const t2Name = teamNames[1] || "Team B";
 
   let frontPoints = { [t1Name]: 0, [t2Name]: 0 };
   let backPoints = { [t1Name]: 0, [t2Name]: 0 };
@@ -106,21 +87,6 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
     return "AS";
   };
 
-  // ---- Nassau engine: best-net per side per hole, then compute matches + settlement ----
-  const bestNetForTeam = (team, holeIndex) => {
-    let best = 0;
-    players.filter((p) => p.team === team).forEach((p) => {
-      const strokes = scores[p.id]?.[holeIndex + 1];
-      const net = calculateNetStrokes(strokes, holeIndex, p.handicap ?? p.hcp ?? 0);
-      if (net != null && (best === 0 || net < best)) best = net;
-    });
-    return best;
-  };
-  const sideNet = [[], []];
-  for (let h = 0; h < 18; h++) {
-    sideNet[0][h] = bestNetForTeam(t1Name, h);
-    sideNet[1][h] = bestNetForTeam(t2Name, h);
-  }
   const nassau = computeNassau({ sides: [t1Name, t2Name], sideNet, manualPressHoles: presses });
   const segments = nassauSettlementSegments({ matches: nassau.matches, sideNames: [t1Name, t2Name], wager });
   const settlement = settleNassau({ wager, teamNames: [t1Name, t2Name], segments });
@@ -135,7 +101,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
     const rows = players.map((p) => {
       const gross = scores[p.id]?.[holeNum] ?? null;
       const net = calculateNetStrokes(gross, holeIndex, p.handicap ?? p.hcp ?? 0);
-      return { name: (p.player_name || p.name), gross, net, note: `Team ${p.team}` };
+      return { name: (p.player_name || p.name), gross, net, note: `Team ${getPlayerTeam(p)}` };
     });
     const w = getHoleWinner(holeIndex);
     let summary = 'Not enough scores yet.';
@@ -263,7 +229,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
                   </td>
                   {[...Array(9)].map((_, i) => {
                     const holeNum = i + 1;
-                    const isWinningTeam = getHoleWinner(i) === player.team;
+                    const isWinningTeam = getHoleWinner(i) === getPlayerTeam(player);
                     const hasOneStroke = useHandicaps && playerHcp >= hcds[i];
                     const hasTwoStrokes = useHandicaps && playerHcp >= (hcds[i] + 18);
 
@@ -290,7 +256,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
                   {[...Array(9)].map((_, i) => {
                     const holeNum = i + 10;
                     const realIndex = i + 9;
-                    const isWinningTeam = getHoleWinner(realIndex) === player.team;
+                    const isWinningTeam = getHoleWinner(realIndex) === getPlayerTeam(player);
                     const hasOneStroke = useHandicaps && playerHcp >= hcds[realIndex];
                     const hasTwoStrokes = useHandicaps && playerHcp >= (hcds[realIndex] + 18);
 

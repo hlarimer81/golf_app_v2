@@ -59,6 +59,12 @@ the run's artifacts. The issues join the normal backlog and the coordinator tria
 Bugs and friction only — not feature ideas, not taste. A clean round files nothing, and that is a
 good result.
 
+The golfers work from a text snapshot of the page, which cannot show unreadable colours, overlap
+or cut-off text, so the prompt has them take and read screenshots at fixed points in the round.
+Whatever they see and decide not to report goes in the findings file's `noticed` list, which the
+run summary prints under "Noticed, not reported". An empty round with nothing noticed should be
+rare; several in a row is a reason to open the screenshots yourself.
+
 ## Playing a fix again
 
 A fix comes before the rotation. When a `from-tester` issue is closed as completed, the next round

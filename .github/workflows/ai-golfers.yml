@@ -180,7 +180,20 @@ jobs:
                Do NOT enter, change or clear any score on the second phone, and do not finish
                the round from it. Look only. Then go back to the first tab.
             7. Finish the round with the app's Finish Round button and read the summary screen.
-            8. Take a screenshot whenever something looks wrong, and one of the final summary.
+            8. LOOK AT THE SCREEN. The page snapshot you work from is text. It cannot show a
+               heading in a colour that cannot be read, a badge lying on top of a name, or a
+               column cut off at the edge of the phone. A golfer sees all of those, so take a
+               screenshot and look at the picture at each of these points, at least:
+                 - the setup screen, once the players and options are in
+                 - the scorecard after the first hole, and again about halfway
+                 - the scorecard with every score in, scrolled to the first holes and to the last
+                 - the summary screen after Finish Round
+               On each picture, read everything on it. Is any text too faint to read against
+               what is behind it? Does anything overlap, spill out of its box, or get cut off?
+               Does every number agree with what you set up and entered — each golfer's
+               handicap on the scorecard and on the summary against the one the app gave at
+               setup, the pars, the totals? Each of those is a finding, not a matter of taste.
+               Take a screenshot whenever something else looks wrong, too.
                Save screenshots in ${{ runner.temp }}/round/screenshots. That folder already
                exists, and the browser saves screenshots there by default: give
                browser_take_screenshot a bare file name, not a path. Never run mkdir or any shell
@@ -206,8 +219,18 @@ jobs:
             issue that still happens is also a finding: report it in "findings" as usual, and
             give the old issue's number in its title.
 
-            Report at most 4 findings, most serious first. If the round went cleanly, report none
-            and say so — an empty list is a good result, not a failure. Never invent a problem.
+            Report at most 4 findings, most serious first. Never invent a problem — but do not
+            talk yourself out of one either. If you saw it on the screen and a golfer would
+            stumble on it, it is a finding, however small; "low" is a severity, not a reason to
+            leave it out. Do not explain a wrong-looking number away as probably intended: you
+            cannot see the code, so report what the screen showed and let the people who can
+            decide.
+
+            Anything you noticed and decided NOT to report goes in "noticed", one line each,
+            with the reason: already an open issue, a matter of taste, or you could not see it
+            again. Nothing you noticed is left out of the file altogether. An empty "findings"
+            with an empty "noticed" means you looked at every screenshot above and saw nothing
+            wrong at all.
 
             Finish by writing ${{ runner.temp }}/round/findings.json, in exactly this shape:
 
@@ -235,6 +258,9 @@ jobs:
                   "suspected_cause": "your guess at why, or null",
                   "screenshot": "file name in the screenshots folder, or null"
                 }
+              ],
+              "noticed": [
+                "what you saw and where — why it is not a finding"
               ]
             }
 
@@ -330,6 +356,13 @@ jobs:
               echo "| # | Severity | Kind | Finding |"
               echo "|---|---|---|---|"
               jq -r '.findings | to_entries[] | "| \(.key + 1) | \(.value.severity // "") | \(.value.kind // "") | \(.value.title // "" | gsub("\\|"; "/")) |"' "$FINDINGS"
+            fi
+            # What the golfer saw and chose not to report. Printed so a dismissal is read by a
+            # person rather than lost.
+            if [ "$(jq '.noticed // [] | length' "$FINDINGS")" != "0" ]; then
+              echo
+              echo "**Noticed, not reported:**"
+              jq -r '.noticed[] | "- \(tostring)"' "$FINDINGS"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 

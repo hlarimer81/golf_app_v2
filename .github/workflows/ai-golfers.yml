@@ -22,7 +22,10 @@ name: AI golfers
 
 on:
   schedule:
-    - cron: '0 7 * * *' # 02:00 Central. The coordinator runs when an issue is filed.
+    # 21:23 Central (20:23 in winter), when real golfers are off the course. GitHub has been
+    # starting this repo's crons six to nine hours late, so the round lands in the small hours;
+    # on time, it is still after dark. The coordinator runs when an issue is filed.
+    - cron: '23 2 * * *'
   workflow_dispatch:
     inputs:
       scenario:

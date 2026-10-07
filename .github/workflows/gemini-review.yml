@@ -12,11 +12,19 @@ name: Gemini review
 # 2026-10-01). A reviewer needs none of that machinery. It has no tools, no checkout to trust and
 # no agent loop: text in, text out.
 #
-# No review is not a pass. `review` is a required check on main, so a pull request cannot merge
-# until this job has an approval:
-#   - no reply at all (Gemini down, bad key, retired model)  -> job fails; re-run it later
+# `review` is a required check on main, so a pull request cannot merge until this job passes:
+#   - Gemini busy or down after every retry (429, 5xx, no answer) -> job passes, and a comment
+#                                                               on the pull request says it was
+#                                                               NOT reviewed (H, 2026-10-07)
+#   - no reply for a reason that waiting will not fix (bad or  -> job fails; fix it and re-run
+#     missing key, retired model, an empty answer)
 #   - a reply that does not approve                          -> job fails AND the pull request
 #                                                               is taken off auto-merge for Harold
+#
+# The first case used to fail too. On 2026-10-07 Gemini answered 503 to eight tries over an hour
+# and a three-line fix sat blocked with nothing wrong with it. An outage at Google is not a
+# judgement on the change, so it no longer holds one. The other no-reply cases still fail: they
+# stay broken until someone fixes them, and passing them would switch the review off unnoticed.
 
 on:
   pull_request:
@@ -145,6 +153,11 @@ jobs:
           else
             echo "HTTP $CODE from ${GEMINI_MODEL}: $(jq -r '.error.message // empty' "$RUNNER_TEMP/response.json" 2>/dev/null | head -c 500)" \
               > "$RUNNER_TEMP/review-error.txt"
+            # Still busy or unreachable after every try: the next step lets the pull request
+            # through and says it was not reviewed.
+            case "$CODE" in
+              000|429|500|502|503|504) : > "$RUNNER_TEMP/review-unavailable" ;;
+            esac
           fi
 
           echo "review is $(wc -c < "$RUNNER_TEMP/review.md") bytes"
@@ -163,9 +176,20 @@ jobs:
             echo "**Errors:** ${ERRORS:-(none)}"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # No reply is the reviewer being broken or busy, not a judgement on the change. Fail the
-          # job, which blocks the merge because `review` is required, but leave auto-merge alone
-          # so that re-running this job later is all it takes.
+          # Gemini was busy or down through every retry. Pass, so the pull request is not stuck on
+          # Google's outage, and say on the pull request that nobody reviewed it. The comment does
+          # not say "approved": the after-the-fact review needs to know this one had only CI.
+          if [ -z "${REPLY//[[:space:]]/}" ] && [ -e "$RUNNER_TEMP/review-unavailable" ]; then
+            printf '**Not reviewed: Gemini was unavailable.** %s\n\nThe review check was passed so that this pull request is not held up by an outage. CI is the only check it has had.\n\n---\n*Posted by the Gemini review workflow. [Run](%s/%s/actions/runs/%s)*\n' \
+              "${ERRORS:-No error was reported.}" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+              | gh pr comment "$PR_NUMBER" --body-file -
+            echo "::warning::Gemini was unavailable — passed without a review. ${ERRORS}"
+            exit 0
+          fi
+
+          # No reply for any other reason is the reviewer being broken, not a judgement on the
+          # change. Fail the job, which blocks the merge because `review` is required, but leave
+          # auto-merge alone so that re-running this job after the fix is all it takes.
           if [ -z "${REPLY//[[:space:]]/}" ]; then
             echo "::error::Gemini returned no review — ${ERRORS:-no error was reported}"
             exit 1

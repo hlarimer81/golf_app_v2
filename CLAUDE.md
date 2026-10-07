@@ -114,7 +114,9 @@ These protect a live database that real players and deployed hardware depend on.
     suppressions, holds it too. The PR is opened, labelled `needs-human`, and not merged.
   - **The Gemini review does not approve.** "Needs changes", or no readable verdict, takes the PR
     off auto-merge and fails the review job. `review` is a required check on `main`, like
-    `build-and-test`, so a PR cannot merge before the review has run.
+    `build-and-test`, so a PR cannot merge before the review has run. One exception
+    (2026-10-07): if Gemini is still busy or down after every retry, the job passes and comments
+    that the PR was **not reviewed**. That PR has had CI only.
 
 **What that means for how you work.** For a PR that is not held, CI is the only thing standing
 between it and real golfers mid-round. The smoke tests are shallow; they will not catch a wrong

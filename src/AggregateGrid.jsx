@@ -144,7 +144,7 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
     return (
       <div style={{ background: '#121212', color: '#e0e0e0', minHeight: '100vh', padding: '20px', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <h1 style={{ margin: '0 0 5px 0', fontSize: '24px' }}>🏆 Round Complete</h1>
+          <h1 style={{ margin: '0 0 5px 0', fontSize: '24px', color: '#e0e0e0' }}>🏆 Round Complete</h1>
           <div style={{ color: '#888', fontSize: '14px' }}>2-Ball Aggregate {matchName}</div>
           <div style={{ display: 'inline-block', background: '#333', padding: '4px 12px', borderRadius: '4px', marginTop: '8px', fontSize: '12px', letterSpacing: '2px' }}>{matchCode}</div>
         </div>

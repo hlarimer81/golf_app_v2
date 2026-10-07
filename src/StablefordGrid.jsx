@@ -208,7 +208,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                           <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                             {player.player_name || player.name}
                             <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
-                              HCP: {playerHcp}
+                              {useHandicaps && `HCP: ${playerHcp}`}
                             </div>
                           </td>
                           {frontHoles.map(renderCell)}
@@ -286,7 +286,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                     <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                       {player.player_name || player.name}
                       <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
-                        HCP: {playerHcp}
+                        {useHandicaps && `HCP: ${playerHcp}`}
                       </div>
                     </td>
                     {frontHoles.map(renderCell)}

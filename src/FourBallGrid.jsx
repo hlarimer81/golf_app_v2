@@ -307,7 +307,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                         <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '8px 10px', fontWeight: 'bold', borderRight: '2px solid #333', whiteSpace: 'nowrap' }}>
                           {player.player_name || player.name}
                           <div style={{ fontSize: '8px', color: '#666', fontWeight: 'normal' }}>
-                            HCP: {playerHcp}
+                            {useHandicaps && `HCP: ${playerHcp}`}
                           </div>
                         </td>
                         {frontHoles.map((hNum) => {

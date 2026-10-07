@@ -584,7 +584,7 @@ export default function MatchSummary({
             <tr style={{ borderBottom: '2px solid #333' }}>
               {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'vegas' && <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>#</th>}
               <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>Player</th>
-              <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>HCP</th>
+              {useHandicaps && <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>HCP</th>}
               <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Gross</th>
               {gameType === 'singles' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Net</th>
@@ -617,7 +617,7 @@ export default function MatchSummary({
                     <div style={{ fontSize: '11px', color: teamColors[player.team] || '#666' }}>{player.team}</div>
                   )}
                 </td>
-                <td style={{ padding: '12px 10px', textAlign: 'center', color: '#888' }}>{player.handicap}</td>
+                {useHandicaps && <td style={{ padding: '12px 10px', textAlign: 'center', color: '#888' }}>{player.handicap}</td>}
                 <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: gameType === 'fourball' || gameType === 'chairman' || gameType === 'vegas' || (gameType === 'singles' && !useHandicaps) ? 'bold' : 'normal', fontSize: gameType === 'fourball' || gameType === 'chairman' || gameType === 'vegas' || (gameType === 'singles' && !useHandicaps) ? '18px' : '14px' }}>
                   {player.strokes || '-'}
                 </td>

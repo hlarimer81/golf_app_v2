@@ -110,6 +110,23 @@ test('the live Nassau status follows the holes as they are won', async ({ page }
   await expect(page.getByText('Team undefined')).toHaveCount(0);
 });
 
+// Nobody gets strokes in a gross round, so a handicap line could only ever read "HCP: 0" (#15).
+test('a gross round shows no handicap on the scorecard or the summary', async ({ page }) => {
+  await serveRound(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+  await page.getByPlaceholder('ABC123').fill('NASSAU');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+
+  await expect(page.getByText('FRONT 9', { exact: true })).toBeVisible();
+  await expect(page.getByText(/HCP/)).toHaveCount(0);
+
+  await page.getByRole('button', { name: /Finish Round/ }).click();
+  await expect(page.getByText(/Round Complete/)).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Gross' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'HCP' })).toHaveCount(0);
+});
+
 test('a net Nassau gives each golfer the strokes of their playing handicap', async ({ page }) => {
   await serveRound(page, { match: NET_MATCH, players: NET_PLAYERS, scores: NET_SCORES });
   await page.goto('/');

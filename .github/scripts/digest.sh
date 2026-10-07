@@ -13,6 +13,11 @@
 # runs that failed in the last 24 hours. Titles are written by whoever filed the issue, on a
 # public repository, so they are cut short and stripped of anything that would mention someone
 # or break the list.
+#
+# A failed run is left out once the same workflow has succeeded since for the same thing: the
+# same issue or pull request (they share a run title), the same branch for a push, or any later
+# scheduled or manual run. That failure has mended itself, for example a run GitHub never found
+# a runner for, and listing it only sends H to look at something that needs nothing.
 set -euo pipefail
 
 OUT="${1:?usage: digest.sh <file>}"
@@ -20,7 +25,7 @@ TMP="$(mktemp -d)"
 
 gh issue list --state open --limit 200 --json number,title,labels,createdAt > "$TMP/issues.json"
 gh pr list --state open --limit 100 --json number,title,labels,createdAt,isDraft > "$TMP/prs.json"
-gh run list --limit 200 --json workflowName,conclusion,createdAt,url > "$TMP/runs.json"
+gh run list --limit 200 --json workflowName,conclusion,createdAt,url,event,headBranch,displayTitle > "$TMP/runs.json"
 
 jq -rn --slurpfile issues "$TMP/issues.json" --slurpfile prs "$TMP/prs.json" --slurpfile runs "$TMP/runs.json" '
   def has($l): [.labels[].name] | index($l) != null;
@@ -28,12 +33,15 @@ jq -rn --slurpfile issues "$TMP/issues.json" --slurpfile prs "$TMP/prs.json" --s
   def age: ((now - (.createdAt | fromdateiso8601)) / 86400 | floor) as $d
     | if $d < 1 then "today" elif $d == 1 then "1 day" else "\($d) days" end;
   def line: "- #\(.number) \(.title | clean) — \(age)";
+  def about: if .event == "push" then "push \(.headBranch)" else .displayTitle end;
 
   ($issues[0] | map(select(has("digest") | not))) as $open
   | ($open | map(select(has("needs-human"))) | sort_by(.createdAt)) as $human
   | ($open | map(select(has("needs-info"))) | sort_by(.createdAt)) as $questions
   | ($prs[0] | map(select(.isDraft | not)) | sort_by(.createdAt)) as $stuck
   | ($runs[0] | map(select(.conclusion == "failure" and (now - (.createdAt | fromdateiso8601)) < 86400))
+      | map(select(. as $f | any($runs[0][]; .conclusion == "success" and .workflowName == $f.workflowName
+          and about == ($f | about) and .createdAt > $f.createdAt) | not))
       | group_by(.workflowName) | map({ name: .[0].workflowName, count: length, url: (sort_by(.createdAt) | last | .url) })) as $failed
   | (($human | length) + ($questions | length) + ($stuck | length) + ($failed | length)) as $total
   | [ "**Waiting on H: \($total)**", "" ]

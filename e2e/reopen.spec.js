@@ -84,3 +84,84 @@ test.describe('reopening a round', () => {
     await expectTheRoundAsSetUp(page);
   });
 });
+
+// Issue #19: a round opened from Previous Rounds and one joined by code used to list players in
+// whatever order Postgres happened to hand back an unordered SELECT - not necessarily the order
+// they were added at setup, and not necessarily the same order on both screens. The fix asks for
+// the players in `id` order explicitly; this mock only returns that order when the request says so,
+// so the test fails the way the bug did if either read path drops the `.order('id')`.
+const ORDER_MATCH = {
+  id: 'match-row-order',
+  match_code: 'ROWORD',
+  match_name: null,
+  game_type: 'singles',
+  play_mode: 'singles',
+  use_handicaps: false,
+  course_name: 'Test Links',
+  course_id: 'course-test-links',
+  tee_box_id: 'tee-white',
+  holes: 18,
+  start_hole: 1,
+  play_off_low: true,
+  handicap_allowance_pct: 100,
+  status: 'in_progress',
+  created_at: new Date().toISOString(),
+};
+
+// Added at setup in this order (and so given ids in this order): Hazard, Rough, Rake, Mulligan.
+const ORDER_PLAYERS_BY_ID = [
+  { id: 'mp-1', player_name: 'Hazard', handicap: 0, match_id: ORDER_MATCH.id, team_id: 't1', teams: { team_name: 'Hazard' } },
+  { id: 'mp-2', player_name: 'Rough', handicap: 0, match_id: ORDER_MATCH.id, team_id: 't2', teams: { team_name: 'Rough' } },
+  { id: 'mp-3', player_name: 'Rake', handicap: 0, match_id: ORDER_MATCH.id, team_id: 't3', teams: { team_name: 'Rake' } },
+  { id: 'mp-4', player_name: 'Mulligan', handicap: 0, match_id: ORDER_MATCH.id, team_id: 't4', teams: { team_name: 'Mulligan' } },
+];
+
+async function serveScrambledRound(page) {
+  await page.route('**/rest/v1/matches*', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const single = (route.request().headers()['accept'] || '').includes('vnd.pgrst.object');
+    return route.fulfill({ json: single ? ORDER_MATCH : [ORDER_MATCH] });
+  });
+  await page.route('**/rest/v1/players*', (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() !== 'GET' || url.searchParams.get('match_id') !== `eq.${ORDER_MATCH.id}`) {
+      return route.fallback();
+    }
+    // An unordered SELECT from Postgres - stands in for whatever physical order the rows happen
+    // to live in, which is not the order they were inserted.
+    const unordered = [ORDER_PLAYERS_BY_ID[2], ORDER_PLAYERS_BY_ID[0], ORDER_PLAYERS_BY_ID[3], ORDER_PLAYERS_BY_ID[1]];
+    const ordered = url.searchParams.get('order') === 'id.asc' ? ORDER_PLAYERS_BY_ID : unordered;
+    return route.fulfill({ json: ordered });
+  });
+}
+
+async function rowOrder(page) {
+  return page.locator('tbody tr td:first-child').allTextContents();
+}
+
+test.describe('scorecard row order', () => {
+  test.beforeEach(async ({ page }) => {
+    await serveScrambledRound(page);
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Start Round' })).toBeVisible();
+  });
+
+  test('from Previous Rounds, rows follow the order players were added, not the read order', async ({ page }) => {
+    await page.getByRole('button', { name: 'Previous Rounds' }).click();
+    await page.getByText('ROWORD').click();
+
+    await expect(page.locator('#score-1-0')).toBeVisible();
+    const names = (await rowOrder(page)).map(t => t.split('\n')[0].trim());
+    expect(names).toEqual(['Hazard', 'Rough', 'Rake', 'Mulligan']);
+  });
+
+  test('joined by code, rows are in the same order', async ({ page }) => {
+    await page.getByRole('button', { name: 'Join Round' }).click();
+    await page.getByPlaceholder('ABC123').fill('ROWORD');
+    await page.getByRole('button', { name: 'Join Round' }).click();
+
+    await expect(page.locator('#score-1-0')).toBeVisible();
+    const names = (await rowOrder(page)).map(t => t.split('\n')[0].trim());
+    expect(names).toEqual(['Hazard', 'Rough', 'Rake', 'Mulligan']);
+  });
+});

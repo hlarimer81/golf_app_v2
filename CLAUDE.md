@@ -103,6 +103,8 @@ These protect a live database that real players and deployed hardware depend on.
   PR. It never pushes to main.
 - Every PR gets two automatic passes: **CI** (lint, unit tests, build, smoke tests) and a **Gemini
   review** (`.github/workflows/gemini-review.yml`), which posts a verdict and findings as a comment.
+  The review waits for CI and is told its result (2026-10-08), so it does not guess whether a test
+  passes. The diff and CI's result are all it is shown, never an agent's account of its own work.
 - **The PR merges itself once CI passes**, and Vercel deploys `main` to production. Harold reviews
   after the fact, not before. This is a deliberate choice (2026-09-12) — the loop runs from filed
   issue to live app with no human in it.

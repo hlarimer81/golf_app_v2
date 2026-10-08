@@ -25,6 +25,12 @@ name: Gemini review
 # and a three-line fix sat blocked with nothing wrong with it. An outage at Google is not a
 # judgement on the change, so it no longer holds one. The other no-reply cases still fail: they
 # stay broken until someone fixes them, and passing them would switch the review off unnoticed.
+#
+# The reviewer is told what CI made of the commit (2026-10-08). It has no tools, so it used to
+# guess whether a test would pass: two findings said "this test will fail" about a test CI had
+# just passed, and a correct fix was held. The job waits for CI first, which is why its timeout
+# is long. The diff and CI's result are all it is ever shown — nothing an agent wrote about its
+# own work.
 
 on:
   pull_request:
@@ -41,10 +47,13 @@ jobs:
   review:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
+      # To read what CI made of the commit.
+      checks: read
+      actions: read
 
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -68,6 +77,20 @@ jobs:
           echo "changed files:"
           git diff --stat "$BASE...HEAD"
           echo "diff is $(wc -c < "$RUNNER_TEMP/pr.diff") bytes"
+
+      # The script is read from the base branch, like the verdict script below, so a pull request
+      # cannot bring its own account of CI.
+      - name: Wait for CI on this commit
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          if git cat-file -e "origin/$BASE_REF:.github/scripts/ci-result.sh" 2>/dev/null; then
+            bash <(git show "origin/$BASE_REF:.github/scripts/ci-result.sh") "$HEAD_SHA" > "$RUNNER_TEMP/ci.txt"
+          else
+            echo "CI's result is not known." > "$RUNNER_TEMP/ci.txt"
+          fi
+          cat "$RUNNER_TEMP/ci.txt"
 
       - name: Review the diff
         env:
@@ -95,10 +118,20 @@ jobs:
 
           Do not restate what the diff does — the author knows. Be specific or be brief.
 
+          Before the diff is what CI made of this exact commit. CI runs lint, the unit tests, the
+          build and the Playwright smoke tests at desktop and phone width, including every test
+          this diff adds. That result is a fact. Never predict, from reading a test, that it will
+          pass or fail: if CI passed, it passed. What CI cannot tell you is whether a test proves
+          anything. A test that would still pass without the change, or that asserts the wrong
+          thing, is a finding. So is behaviour that no test covers.
+
           PROMPT_EOF
 
           {
             cat "$RUNNER_TEMP/prompt.txt"
+            echo 'CI result:'
+            cat "$RUNNER_TEMP/ci.txt" 2>/dev/null || echo "CI's result is not known."
+            echo
             echo '```diff'
             cat "$RUNNER_TEMP/pr.diff"
             echo

@@ -303,11 +303,19 @@ jobs:
 
             Write only the JSON file. Do not run git or gh, do not edit code, and do not comment on
             issues yourself — the workflow does that from your decisions file.
+
+            Read the code yourself, with Read, Grep and Glob. This run ends the moment you stop,
+            so nothing can be waited for: write the decisions file before your last message.
+          # Agent and Task are the same tool under its new and old name: a helper the model hands
+          # work to. Since Claude Code 2.1.293 the helper runs in the background, and on Oct 8 the
+          # model started one, said it would wait to hear back, and stopped — which ends the run
+          # with no decisions written. allowedTools does not take a tool away; only
+          # disallowedTools does.
           claude_args: |
             --model claude-sonnet-5
             --max-turns 40
             --allowedTools "Read,Write,Glob,Grep,LS,TodoWrite,Bash"
-            --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit"
+            --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit,Agent,Task"
 
       # The model can finish without an error and still not have written its decisions. On Oct 8
       # it stopped after six turns with no file, and the log held nothing to say why.

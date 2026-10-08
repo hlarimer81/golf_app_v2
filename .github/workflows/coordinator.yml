@@ -309,12 +309,27 @@ jobs:
             --allowedTools "Read,Write,Glob,Grep,LS,TodoWrite,Bash"
             --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit"
 
+      # The model can finish without an error and still not have written its decisions. On Oct 8
+      # it stopped after six turns with no file, and the log held nothing to say why.
+      - name: Check the model wrote its decisions
+        id: wrote
+        if: steps.claude.outcome == 'success'
+        env:
+          GH_TOKEN: ''
+        run: |
+          if [ -f "$RUNNER_TEMP/triage.json" ]; then
+            echo "missing=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+          fi
+
       # The action's log stops at "is_error:true". This prints the message that came back, so a
-      # usage limit says so in the run instead of needing a person to go and find out. The script
-      # is read from the commit, not the working tree, and the step holds no token: it runs
-      # after a model that can write files.
+      # usage limit says so in the run instead of needing a person to go and find out. It also
+      # runs when the model finished but left no decisions: its last message is then the only
+      # account of what it did instead. The script is read from the commit, not the working
+      # tree, and the step holds no token: it runs after a model that can write files.
       - name: Say why the model stopped
-        if: always() && steps.claude.outcome == 'failure'
+        if: always() && (steps.claude.outcome == 'failure' || steps.wrote.outputs.missing == 'true')
         env:
           GH_TOKEN: ''
           TRANSCRIPT: ${{ steps.claude.outputs.execution_file }}

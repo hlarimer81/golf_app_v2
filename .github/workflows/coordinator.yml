@@ -59,8 +59,19 @@ permissions:
 # One at a time. Two issues filed together start two runs; the second waits, then triages
 # whatever the first did not see. Each run reads the whole backlog, so a run that GitHub drops
 # from the queue loses nothing.
+#
+# Only a run that will triage joins that queue. The queue holds one waiting run, and a newer one
+# replaces it — including a run for a comment the job below is about to skip. On Oct 8 two such
+# comments pushed out the run for a newly opened issue and then did nothing. A run that will be
+# skipped now gets a group of its own. The condition is the job's `if`, repeated: keep them the
+# same.
 concurrency:
-  group: coordinator
+  group: >-
+    ${{ (github.event_name != 'issue_comment' ||
+         (github.event.issue.pull_request == null &&
+          contains(github.event.issue.labels.*.name, 'needs-info') &&
+          !contains(github.event.comment.body, '<!-- coordinator:question -->')))
+        && 'coordinator' || format('coordinator-skipped-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:

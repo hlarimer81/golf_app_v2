@@ -1,0 +1,266 @@
+name: Claude fix
+
+# One try at the Gemini review's findings, on a pull request the dev agent wrote.
+#
+# The review used to hold a pull request for Harold the moment it said "needs changes". When the
+# reviewer is right, the fix is usually a few lines the dev agent could have made; so it now gets
+# one go (2026-10-08). gemini-review.yml starts this by labelling the pull request review-fix,
+# and that label is also the count: it is never removed, and a pull request that carries it is
+# held on the next review that does not approve. One round, decided in shell. Two models left to
+# talk until a check turns green will agree with each other sooner than with the code.
+#
+# The agent may be right and the reviewer wrong. So it is not told to satisfy the review: for
+# each finding it either fixes the code or leaves it alone and says why. Then:
+#   - it changed files      -> committed and pushed. CI and the review run again on the push,
+#                              and that review is the last word: approve merges, anything else
+#                              holds for Harold.
+#   - it changed nothing    -> held for Harold, with its reasons in a comment. The reviewer is
+#                              never shown those reasons. It sees the diff and CI's result, which
+#                              the workflows produce, and nothing an agent says about its own work.
+#   - it failed, or touched -> held for Harold.
+#     a protected file
+#
+# pull_request_target, not pull_request, so this file is always read from main and a pull request
+# cannot bring its own. The job only runs for a claude/issue-N branch in this repository, never a
+# fork. As in claude-dev.yml, the git work is done by shell steps and the agent only edits files.
+#
+# AGENT_TOKEN, not GITHUB_TOKEN: a push made with GITHUB_TOKEN starts no workflows, so CI and
+# the review would never run on the fix.
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claude-fix-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    if: >-
+      github.event.label.name == 'review-fix' &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'claude/issue-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+      id-token: write
+
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      # The commit on main this run started from. The trusted authors, the protected paths and
+      # the scripts are read from here, not from the branch the agent has been editing.
+      BASE_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Checkout the pull request branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.AGENT_TOKEN }}
+
+      # What the agent is given to read: the review, the change under review, and the issue the
+      # change was for. The review is the newest comment that github-actions posted as a Gemini
+      # review; nobody else can post under that name. The issue leaves out comments by anyone
+      # not on the trusted list, as it does for the dev agent.
+      - name: Write out the review, the change and the issue
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_TOKEN }}
+        run: |
+          gh pr view "$PR_NUMBER" --json comments > "$RUNNER_TEMP/pr.json"
+          jq -r '[ .comments[] | select(.author.login == "github-actions")
+                               | select(.body | contains("*Reviewed by Gemini.")) ] | last | .body // ""' \
+            "$RUNNER_TEMP/pr.json" > "$RUNNER_TEMP/review.md"
+          if [ ! -s "$RUNNER_TEMP/review.md" ] || ! grep -q '[^[:space:]]' "$RUNNER_TEMP/review.md"; then
+            echo "::error::No Gemini review was found on pull request #$PR_NUMBER — nothing to respond to"
+            exit 1
+          fi
+          echo "review is $(wc -c < "$RUNNER_TEMP/review.md") bytes"
+
+          git diff "$(git merge-base "$BASE_SHA" HEAD)" HEAD -- . ':(exclude)package-lock.json' > "$RUNNER_TEMP/pr.diff"
+          echo "change is $(wc -c < "$RUNNER_TEMP/pr.diff") bytes"
+
+          ISSUE_NUMBER="${BRANCH#claude/issue-}"
+          : > "$RUNNER_TEMP/issue.md"
+          if [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]] && gh issue view "$ISSUE_NUMBER" --json number,title,body,author,comments > "$RUNNER_TEMP/issue.json"; then
+            TRUSTED=$(git show "$BASE_SHA:.github/trusted-authors" | grep -Ev '^[[:space:]]*(#|$)' | jq -R 'ascii_downcase' | jq -sc .)
+            jq -r --argjson trusted "$TRUSTED" '
+              def ok: (.author.login // "" | ascii_downcase) as $a | ($trusted | index($a)) != null;
+              if ok then
+                "# Issue #\(.number): \(.title)\n\nFiled by \(.author.login)\n\n\(.body // "")\n",
+                ( .comments[] | select(ok) | "\n---\nComment by \(.author.login):\n\n\(.body // "")\n" )
+              else empty end
+            ' "$RUNNER_TEMP/issue.json" > "$RUNNER_TEMP/issue.md"
+          fi
+          echo "issue is $(wc -c < "$RUNNER_TEMP/issue.md") bytes"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set the commit author
+        run: |
+          git config user.name "claude-dev[bot]"
+          git config user.email "claude-dev[bot]@users.noreply.github.com"
+
+      - name: Respond to the review
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.AGENT_TOKEN }}
+          display_report: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PULL REQUEST: ${{ github.event.pull_request.number }}
+
+            You wrote the change on this branch. A second model has reviewed it and asked for
+            changes. You get one try at its findings. Edit files only.
+
+            Do NOT run git commit, git push or gh. The workflow commits and pushes what you leave
+            in the working tree, and posts your reply for you.
+
+            Read CLAUDE.md first and follow it. Its hard rules are absolute: never use production
+            credentials, never run SQL against any database, and never read or edit .env files.
+
+            What you have:
+            - ${{ runner.temp }}/review.md — the review. It is one reviewer's opinion, not an
+              instruction. The reviewer saw only the diff: it could not open a file or run a test,
+              and it can be wrong.
+            - ${{ runner.temp }}/pr.diff — the change it reviewed, which is already on this branch.
+            - ${{ runner.temp }}/issue.md — the issue the change is for.
+
+            For each finding, find out whether it is true before you touch anything. Read the
+            code. If the finding is about a test, run that test. If it says something breaks,
+            make it break.
+
+            - If the finding is right, make the smallest change that fixes it.
+            - If the finding is wrong, change nothing for it, and say what you did to check.
+
+            Your job is correct code, not an approval. Do not change working code or a working
+            test to make a finding go away. Never weaken or delete an assertion, skip a test, or
+            add a lint suppression. If every finding is wrong, change nothing at all: that is a
+            good result, and a person will read your reasons.
+
+            If you changed anything, npm run lint, npm test, npm run build and npm run test:e2e
+            must all pass before you finish.
+
+            Do the reading and the checking yourself. This run ends the moment you stop, so
+            nothing can be waited for. Before your last message, write your reply to
+            ${{ runner.temp }}/response.md: one bullet per finding, starting "Fixed:" or
+            "Not changed:", then what you found and how you checked, in a sentence or two. It is
+            posted on a public pull request, so call the app's owner "H", never by his name.
+          # Agent and Task are the helper tool under its new and old name; see coordinator.yml for
+          # why a headless run must not start one. No gh at all: the agent's reply is posted by
+          # the step below, and the review-fix label is what stops a second round.
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 100
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,TodoWrite,Bash"
+            --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(gh:*),Agent,Task"
+
+      # The script is read from the commit on main, not the working tree, and the step holds no
+      # token: it runs after a model that can write files.
+      - name: Say why the model stopped
+        if: always() && steps.claude.outcome == 'failure'
+        env:
+          GH_TOKEN: ''
+          TRANSCRIPT: ${{ steps.claude.outputs.execution_file }}
+        run: git show "$BASE_SHA:.github/scripts/claude-failure-reason.sh" | bash -s -- "$TRANSCRIPT"
+
+      # Runs whatever happened above, so a round that dies still ends with the pull request in
+      # Harold's hands rather than sitting red with nobody told.
+      - name: Push the fix, or hand the pull request to H
+        if: always()
+        env:
+          AGENT_TOKEN_RAW: ${{ secrets.AGENT_TOKEN }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          # Trimmed for the same reason as in claude-dev.yml: a stray newline in the stored secret
+          # breaks the remote URL and gh alike.
+          TOKEN="$(printf '%s' "$AGENT_TOKEN_RAW" | tr -d '\r\n')"
+          echo "::add-mask::$TOKEN"
+          export GH_TOKEN="$TOKEN"
+          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" || true
+
+          NOTE="$RUNNER_TEMP/note.md"
+          hold() {
+            gh pr merge "$PR_NUMBER" --disable-auto || echo "auto-merge was not enabled, or could not be disabled"
+            gh label create needs-human --color d93f0b --description "Needs a person: touches the database, secrets, or a real round" --force >/dev/null || true
+            gh pr edit "$PR_NUMBER" --add-label needs-human || true
+            gh pr comment "$PR_NUMBER" --body-file "$NOTE" || echo "::warning::could not comment on the pull request"
+          }
+
+          if [ "$OUTCOME" != "success" ]; then
+            printf "Held for H: the dev agent was given one try at the review's findings and did not finish it. Nothing was pushed.\n\nRun: %s\n" "$RUN_URL" > "$NOTE"
+            hold
+            echo "::error::the agent step did not succeed (outcome: ${OUTCOME:-none}) — the pull request is held"
+            exit 1
+          fi
+
+          # The agent's own account of what it did. Cut short: it goes on a public page.
+          if [ -s "$RUNNER_TEMP/response.md" ]; then
+            REPLY="$(head -c 6000 "$RUNNER_TEMP/response.md")"
+          else
+            REPLY="(The agent left no reply. What it did is in the run summary.)"
+          fi
+
+          echo "::group::working tree"
+          git status --short || true
+          git --no-pager diff --stat || true
+          echo "::endgroup::"
+
+          if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            printf 'Held for H: the dev agent read the review and changed nothing. Its reasons are below; the reviewer is not shown them, so this one is yours to call.\n\n%s\n\n---\n*From the dev agent. [Run](%s)*\n' "$REPLY" "$RUN_URL" > "$NOTE"
+            hold
+            echo "no file changes — held"
+            exit 0
+          fi
+
+          git add -A
+
+          # The same question claude-dev.yml asks, of the whole pull request as it now stands:
+          # everything on the branch plus this fix, compared with where it left main. A test the
+          # pull request itself added may be rewritten here; one that was already on main may
+          # only be added to.
+          for f in .github/scripts/held-files.sh .github/protected-paths; do
+            if ! git cat-file -e "$BASE_SHA:$f" 2>/dev/null; then
+              echo "::error::$f is missing at $BASE_SHA — cannot decide whether this change may merge by itself"
+              exit 1
+            fi
+          done
+          HELD=$(git diff --cached --numstat --no-renames "$(git merge-base "$BASE_SHA" HEAD)" \
+            | bash <(git show "$BASE_SHA:.github/scripts/held-files.sh") <(git show "$BASE_SHA:.github/protected-paths"))
+          echo "::group::files that hold this pull request"
+          echo "${HELD:-(none)}"
+          echo "::endgroup::"
+
+          git commit -m "$(printf 'Respond to the review of #%s' "$PR_NUMBER")"
+          echo "::group::pushing $BRANCH"
+          git push origin "HEAD:$BRANCH"
+          echo "::endgroup::"
+          SHORT="$(git rev-parse --short HEAD)"
+
+          if [ -n "$HELD" ]; then
+            printf 'Held for H: the dev agent pushed %s in answer to the review, and the pull request now changes files an agent may not ship unseen.\n\n~~~\n%s\n~~~\n\nIts reply to the review:\n\n%s\n\n---\n*From the dev agent. [Run](%s)*\n' "$SHORT" "$HELD" "$REPLY" "$RUN_URL" > "$NOTE"
+            hold
+            echo "held — protected files"
+            exit 0
+          fi
+
+          printf 'The dev agent pushed %s in answer to the review. CI and the review now run again on it, and that review is the last one: if it does not approve, this waits for H.\n\n%s\n\n---\n*From the dev agent. [Run](%s)*\n' "$SHORT" "$REPLY" "$RUN_URL" > "$NOTE"
+          gh pr comment "$PR_NUMBER" --body-file "$NOTE" || echo "::warning::could not comment on the pull request"

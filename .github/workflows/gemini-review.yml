@@ -20,6 +20,10 @@ name: Gemini review
 #     missing key, retired model, an empty answer)
 #   - a reply that does not approve                          -> job fails AND the pull request
 #                                                               is taken off auto-merge for Harold
+#   - "needs changes" on a dev-agent pull request, the first -> job fails, and the dev agent gets
+#     time only                                                 one try at the findings
+#                                                               (claude-fix.yml). The review of
+#                                                               what it pushes is the last word.
 #
 # The first case used to fail too. On 2026-10-07 Gemini answered 503 to eight tries over an hour
 # and a three-line fix sat blocked with nothing wrong with it. An outage at Google is not a
@@ -251,6 +255,26 @@ jobs:
           echo "::add-mask::$TOKEN"
           export GH_TOKEN="$TOKEN"
 
+          # One try at the findings before this goes to Harold (2026-10-08). Only for a pull
+          # request the dev agent wrote, only when the reviewer asked for changes, and only once:
+          # the review-fix label is the count, and it is never taken off. Labelling it starts
+          # claude-fix.yml. This job still fails, so nothing merges until the review of what the
+          # agent pushes approves; auto-merge is left on so that an approval is all it then takes.
+          # A pull request already held for a protected file gets no round: it waits for Harold
+          # either way. If the labels cannot be read, assume the round has been used.
+          if [ "$VERDICT" = "needs-changes" ] && [ "$SAME_REPO" = "true" ] && [[ "$HEAD_REF" =~ ^claude/issue-[0-9]+$ ]]; then
+            SEEN=$(gh pr view "$PR_NUMBER" --json state,labels -q '[.state] + [.labels[].name] | join(" ")') || SEEN="UNKNOWN review-fix"
+            echo "state and labels: $SEEN"
+            if [[ " $SEEN " == *" OPEN "* && " $SEEN " != *" review-fix "* && " $SEEN " != *" needs-human "* ]]; then
+              gh label create review-fix --color 5319e7 --description "The dev agent has had its one try at the review's findings" --force >/dev/null || true
+              if gh pr edit "$PR_NUMBER" --add-label review-fix; then
+                gh pr comment "$PR_NUMBER" --body "The review asked for changes. The dev agent gets one try at them. If the review of what it pushes does not approve either, this waits for H." || true
+                echo "::error::Gemini review verdict is '$VERDICT' — the dev agent has one try at the findings"
+                exit 1
+              fi
+            fi
+          fi
+
           gh pr merge "$PR_NUMBER" --disable-auto || echo "auto-merge was not enabled, or could not be disabled"
           gh label create needs-human --color d93f0b --description "Needs a person: touches the database, secrets, or a real round" --force >/dev/null || true
           gh pr edit "$PR_NUMBER" --add-label needs-human || true
@@ -269,3 +293,5 @@ jobs:
           exit 1
         env:
           AGENT_TOKEN_RAW: ${{ secrets.AGENT_TOKEN }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}

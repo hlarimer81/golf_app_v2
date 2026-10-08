@@ -94,6 +94,7 @@ These protect a live database that real players and deployed hardware depend on.
   | `duplicate` | Covered by another open issue. |
   | `digest` | The one standing issue, "Waiting on H", that the daily digest comments on. Not work: leave it open and unassigned. |
   | `retested` | A closed `from-tester` issue whose scenario the AI golfers have played again since the fix. Their comment says what they saw. |
+  | `review-fix` | On a PR: the review asked for changes and the dev agent has had its one try at them. |
 - **Harold hears about what is waiting once a day** (`.github/workflows/digest.yml`). The agents act
   through his own token, and GitHub notifies nobody of their own activity, so a `needs-human` label
   or a held PR told no one. The digest lists issues that need a person, PRs that have not merged,
@@ -119,6 +120,12 @@ These protect a live database that real players and deployed hardware depend on.
     `build-and-test`, so a PR cannot merge before the review has run. One exception
     (2026-10-07): if Gemini is still busy or down after every retry, the job passes and comments
     that the PR was **not reviewed**. That PR has had CI only.
+  - **The dev agent gets one try at "needs changes" first** (2026-10-08,
+    `.github/workflows/claude-fix.yml`). The first time the review asks for changes on a dev-agent
+    PR, the PR is labelled `review-fix` and the agent fixes each finding or leaves it and says
+    why. What it pushes is reviewed again, and that review is final. If it changes nothing, the PR
+    is held with its reasons in a comment. The label is the count: never remove it to get a
+    second round.
 
 **What that means for how you work.** For a PR that is not held, CI is the only thing standing
 between it and real golfers mid-round. The smoke tests are shallow; they will not catch a wrong

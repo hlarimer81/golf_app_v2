@@ -377,7 +377,8 @@ function App() {
           team_name
         )
       `)
-      .eq('match_id', matchData.id);
+      .eq('match_id', matchData.id)
+      .order('id', { ascending: true });
 
     if (playersError) {
       alert('Error loading players: ' + playersError.message);
@@ -488,7 +489,8 @@ function App() {
           teams (
             team_name
           )
-        `);
+        `)
+        .order('id', { ascending: true });
 
       if (pError) throw pError;
 
@@ -638,7 +640,8 @@ function App() {
           team_name
         )
       `)
-      .eq('match_id', match.id);
+      .eq('match_id', match.id)
+      .order('id', { ascending: true });
 
     if (playersError) {
       alert('Error loading players: ' + playersError.message);

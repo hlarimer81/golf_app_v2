@@ -7,6 +7,7 @@ export default function GolfScoreTile({
   hasTwoStrokes,
   wolfPoints,
   showStar,
+  vegasPoints,
   style = {},
   id,
   onChange,
@@ -196,6 +197,28 @@ export default function GolfScoreTile({
     </div>
   );
 
+  // Anchored to the tile itself, not the table cell, so it stays next to the score it describes:
+  // a cell is often much wider than this 38px tile (minWidth leaves slack), and a badge anchored to
+  // the cell's own edge can drift far enough from the tile to read as detached from any score, or
+  // to be the only part of a scrolled-off cell still peeking out from under a sticky column.
+  const vegasPointsBadge = vegasPoints > 0 && (
+    <div style={{
+      position: 'absolute',
+      bottom: '-4px',
+      right: '-4px',
+      fontSize: '10px',
+      fontWeight: '900',
+      color: '#E91E63',
+      background: 'rgba(0,0,0,0.4)',
+      padding: '0 2px',
+      borderRadius: '2px',
+      zIndex: 10,
+      pointerEvents: 'none'
+    }}>
+      +{vegasPoints}
+    </div>
+  );
+
   return (
     <div style={outerStyle}>
       {shapeDecorations}
@@ -210,6 +233,7 @@ export default function GolfScoreTile({
       {popDots}
       {wolfPointsContainer}
       {starContainer}
+      {vegasPointsBadge}
     </div>
   );
 }

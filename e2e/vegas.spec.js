@@ -10,6 +10,19 @@ import { test, expect } from './fixtures.js';
 // Rough rendered over their names in the PLAYER column). The fix gives the sticky column a higher
 // z-index (20) so it always wins, and adds overflow:hidden to each score cell so a badge can never
 // visually bleed into a neighbouring cell either.
+//
+// That overflow:hidden clips to the CELL, not the 38px score tile - and a cell is often much wider
+// (minWidth 55-64px) than the tile it holds, with slack space left over. The badge used to be
+// anchored to the cell's own right edge (right:4px off the cell, not the tile), so on a wide cell
+// it could sit closer to the cell boundary than the tile did. Scrolled behind the sticky column,
+// table column widths and the sticky offset round to sub-pixel values independently, so that badge
+// could still poke a sliver out from under the sticky column - sometimes after the tile holding its
+// own score had already scrolled fully out of sight - reading as a stray '+' or a truncated number
+// with no visible score next to it (issue #22, found by Mulligan: hole 18's '+18' badge read '+1',
+// and others were cut to a bare '+'). The fix anchors the badge to the GolfScoreTile itself
+// (GolfScoreTile's `vegasPoints` prop, alongside its existing `wolfPoints`/`showStar` corner
+// badges) instead of the cell, so it never drifts far from the score it describes regardless of
+// how much slack space the cell has around the tile.
 const MATCH = {
   id: 'match-vegas',
   match_code: 'VEGAS1',
@@ -103,4 +116,33 @@ test('a Vegas point badge never renders inside the next cell or over the sticky 
     { x: badge17Box.x + badge17Box.width / 2, y: badge17Box.y + badge17Box.height / 2, badge: await badge17.elementHandle() }
   );
   expect(badgeIsOnTop).toBe(false);
+});
+
+test('a Vegas point badge stays anchored to its own score tile, not the wider cell around it', async ({ page }) => {
+  await serveRound(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+  await page.getByPlaceholder('ABC123').fill('VEGAS1');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+
+  // Scores load after the join, so the badges that depend on them aren't there on the first
+  // paint - wait for one before counting.
+  await expect(page.getByText('+12', { exact: true }).first()).toBeVisible();
+
+  // A score cell (min-width 55-64px) is often much wider than the 38px score tile it holds. A
+  // badge anchored to the cell's own edge can sit well clear of the tile; one anchored to the tile
+  // itself should always track within a small margin of it, however much slack the cell has.
+  const MARGIN = 8;
+  const cellsWithBadges = page.locator('tbody td').filter({ has: page.locator('div', { hasText: /^\+\d+$/ }) });
+  const count = await cellsWithBadges.count();
+  expect(count).toBeGreaterThan(0);
+
+  for (let i = 0; i < count; i++) {
+    const cell = cellsWithBadges.nth(i);
+    const badgeBox = await cell.locator('div', { hasText: /^\+\d+$/ }).first().boundingBox();
+    const tileBox = await cell.locator('input').boundingBox();
+    expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(tileBox.x + tileBox.width + MARGIN);
+    expect(badgeBox.x).toBeGreaterThanOrEqual(tileBox.x - MARGIN);
+    expect(badgeBox.y + badgeBox.height).toBeLessThanOrEqual(tileBox.y + tileBox.height + MARGIN);
+  }
 });

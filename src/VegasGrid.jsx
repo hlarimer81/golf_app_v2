@@ -189,7 +189,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                         padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a',
                         backgroundColor: holeNum % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px', overflow: 'hidden'
                       }}>
-                        <GolfScoreTile 
+                        <GolfScoreTile
                           id={`score-${holeNum}-${globalIdx}`}
                           type="tel"
                           inputMode="numeric"
@@ -197,14 +197,10 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                           par={pars[i]}
                           hasOneStroke={hasOneStroke}
                           hasTwoStrokes={hasTwoStrokes}
+                          vegasPoints={isWinningTeam && playerScores[holeNum] > 0 ? pts[getPlayerTeam(player)] : 0}
                           onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
                         />
-                        {isWinningTeam && playerScores[holeNum] > 0 && (
-                          <div style={{ position: 'absolute', bottom: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: '#E91E63', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
-                            +{pts[getPlayerTeam(player)]}
-                          </div>
-                        )}
                       </td>
                     );
                   })}
@@ -227,7 +223,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                         padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a',
                         backgroundColor: holeNum % 2 === 0 ? '#1a1a1a' : '#1e1e1e', position: 'relative', minWidth: '55px', overflow: 'hidden'
                       }}>
-                        <GolfScoreTile 
+                        <GolfScoreTile
                           id={`score-${holeNum}-${globalIdx}`}
                           type="tel"
                           inputMode="numeric"
@@ -235,14 +231,10 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                           par={pars[realIndex]}
                           hasOneStroke={hasOneStroke}
                           hasTwoStrokes={hasTwoStrokes}
+                          vegasPoints={isWinningTeam && playerScores[holeNum] > 0 ? pts[getPlayerTeam(player)] : 0}
                           onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
                         />
-                        {isWinningTeam && playerScores[holeNum] > 0 && (
-                          <div style={{ position: 'absolute', bottom: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: '#E91E63', background: 'rgba(0,0,0,0.4)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
-                            +{pts[getPlayerTeam(player)]}
-                          </div>
-                        )}
                       </td>
                     );
                   })}

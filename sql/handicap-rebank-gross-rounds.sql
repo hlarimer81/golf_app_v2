@@ -30,69 +30,74 @@
 -- SAFE TO RE-RUN: the second run finds adjusted_gross already equal and changes nothing.
 --
 -- PREVIEW FIRST: query 3 at the bottom of sql/handicap-gross-course-handicap.sql counts the rows
--- this will change. Run it, then this. The Supabase SQL editor shows only the LAST result of a
--- script, so the per-player and before/after tables below are visible only when run statement by
--- statement (e.g. in psql). Running it whole is still safe: the guard aborts the transaction, with
--- nothing changed, if any round would go down.
+-- this will change. Run it, then this.
+--
+-- NO TEMP TABLES, NO BEGIN/COMMIT. The Supabase SQL editor does not hold a script in one
+-- transaction, so a temp table made ON COMMIT DROP vanishes the moment it is created (the first
+-- version of this file failed with 42P01 "relation regross does not exist", changing nothing).
+-- Instead: a guard that raises before anything is written, then ONE statement that updates and
+-- returns what it changed - one statement is atomic on its own, and its result is the one the
+-- editor shows.
 -- =============================================================================================
 
-BEGIN;
-
-CREATE TEMP TABLE regross ON COMMIT DROP AS
-SELECT rd.id,
-       rd.canonical_name,
-       rd.adjusted_gross                                           AS old_adjusted,
-       rd.differential                                             AS old_differential,
-       ag.adjusted                                                 AS new_adjusted,
-       golf_differential(ag.adjusted, rd.course_rating, rd.slope, rd.par_total) AS new_differential
-  FROM round_differential rd
-  JOIN matches m ON m.id = rd.match_id AND m.use_handicaps IS NOT TRUE
-  JOIN players p ON p.match_id = m.id AND p.player_name = rd.player_name
-  CROSS JOIN LATERAL golf_adjusted_gross(m.id, p.id) ag
- WHERE p.course_handicap IS NULL                   -- recorded after the fix: already banked right
-   AND ag.raw = rd.gross                           -- the scores are the ones that were banked
-   AND ag.adjusted IS DISTINCT FROM rd.adjusted_gross;
-
--- Nothing in here should go down. If something does, the assumptions above are wrong: stop.
+-- 1. GUARD. Nothing should go down; if anything would, the assumptions above are wrong. Raising
+--    here stops the script before step 2 runs.
 DO $$
 DECLARE lowered int;
 BEGIN
-    SELECT count(*) INTO lowered FROM regross WHERE new_adjusted < old_adjusted;
+    SELECT count(*) INTO lowered
+      FROM round_differential rd
+      JOIN matches m ON m.id = rd.match_id AND m.use_handicaps IS NOT TRUE
+      JOIN players p ON p.match_id = m.id AND p.player_name = rd.player_name
+      CROSS JOIN LATERAL golf_adjusted_gross(m.id, p.id) ag
+     WHERE p.course_handicap IS NULL
+       AND ag.raw = rd.gross
+       AND ag.adjusted < rd.adjusted_gross;
     IF lowered > 0 THEN
         RAISE EXCEPTION '% round(s) would get a LOWER adjusted score - not expected, nothing changed', lowered;
     END IF;
 END $$;
 
--- What changes, per player, before it is written.
-SELECT canonical_name,
-       count(*)                              AS rounds_rescored,
-       sum(new_adjusted - old_adjusted)      AS strokes_added,
-       round(avg(new_differential - old_differential), 2) AS avg_differential_change
-  FROM regross
- GROUP BY canonical_name
- ORDER BY canonical_name;
+-- 2. RE-SCORE, and show per player what changed. An empty result means there was nothing to do
+--    (or it has already been run).
+WITH regross AS (
+    SELECT rd.id,
+           ag.adjusted AS new_adjusted,
+           golf_differential(ag.adjusted, rd.course_rating, rd.slope, rd.par_total) AS new_differential
+      FROM round_differential rd
+      JOIN matches m ON m.id = rd.match_id AND m.use_handicaps IS NOT TRUE
+      JOIN players p ON p.match_id = m.id AND p.player_name = rd.player_name
+      CROSS JOIN LATERAL golf_adjusted_gross(m.id, p.id) ag
+     WHERE p.course_handicap IS NULL               -- recorded after the fix: already banked right
+       AND ag.raw = rd.gross                       -- the scores are the ones that were banked
+       AND ag.adjusted IS DISTINCT FROM rd.adjusted_gross
+),
+old AS (
+    SELECT rd.id, rd.canonical_name, rd.adjusted_gross, rd.differential
+      FROM round_differential rd JOIN regross r ON r.id = rd.id
+),
+updated AS (
+    UPDATE round_differential rd
+       SET adjusted_gross = r.new_adjusted,
+           differential   = r.new_differential
+      FROM regross r
+     WHERE rd.id = r.id
+    RETURNING rd.id, rd.adjusted_gross, rd.differential
+)
+SELECT o.canonical_name,
+       count(*)                                         AS rounds_rescored,
+       sum(u.adjusted_gross - o.adjusted_gross)         AS strokes_added,
+       round(avg(u.differential - o.differential), 2)   AS avg_differential_change
+  FROM updated u JOIN old o ON o.id = u.id
+ GROUP BY o.canonical_name
+ ORDER BY o.canonical_name;
 
--- Index before, for comparison with the verify query below.
-CREATE TEMP TABLE index_before ON COMMIT DROP AS
-SELECT canonical_name, handicap_index FROM handicap_summary;
 
-UPDATE round_differential rd
-   SET adjusted_gross = r.new_adjusted,
-       differential   = r.new_differential
-  FROM regross r
- WHERE rd.id = r.id;
+-- =============================================================================================
+-- VERIFY, run separately afterwards.
+-- =============================================================================================
 
--- VERIFY, inside the transaction so the before table is still here. Every index that moved should
--- have moved UP: differentials only rise, and an index is an average of the lowest of them.
-SELECT s.canonical_name, b.handicap_index AS index_before, s.handicap_index AS index_after
-  FROM handicap_summary s
-  JOIN index_before b USING (canonical_name)
- WHERE s.handicap_index IS DISTINCT FROM b.handicap_index
- ORDER BY s.canonical_name;
-
-COMMIT;
-
--- After commit: a re-run finds nothing to change. Expect 0.
+-- A re-run finds nothing left to change. Expect 0.
 SELECT count(*) AS still_to_rescore
   FROM round_differential rd
   JOIN matches m ON m.id = rd.match_id AND m.use_handicaps IS NOT TRUE
@@ -101,3 +106,10 @@ SELECT count(*) AS still_to_rescore
  WHERE p.course_handicap IS NULL
    AND ag.raw = rd.gross
    AND ag.adjusted IS DISTINCT FROM rd.adjusted_gross;
+
+-- Current indexes. Compare with Players & Handicaps before you ran this: anything that moved
+-- should have moved UP - differentials only rise, and an index averages the lowest of them.
+SELECT canonical_name, handicap_index, rounds_used, rounds_available, method
+  FROM handicap_summary
+ WHERE handicap_index IS NOT NULL
+ ORDER BY canonical_name;

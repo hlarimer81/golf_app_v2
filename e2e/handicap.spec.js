@@ -14,15 +14,18 @@ const selectWithPlaceholder = (page, placeholder) =>
 const selectLabelled = (page, label) =>
   page.locator('div').filter({ has: page.locator(`label:text-is("${label}")`) }).last().locator('select');
 
-async function setUp(page, { holes, playOffLow }) {
+async function setUp(page, { holes, playOffLow, scoring = 'net' }) {
   await page.goto('/');
   await selectWithPlaceholder(page, 'Select Course').selectOption({ label: 'Test Links' });
   await selectLabelled(page, 'Holes').selectOption(String(holes));
   await selectWithPlaceholder(page, 'Select Game Type').selectOption('stableford');
   await selectWithPlaceholder(page, 'Play Mode').selectOption('singles');
-  await selectWithPlaceholder(page, 'Scoring Mode').selectOption('net');
-  const offLow = page.getByLabel(/Play Off Low/);
-  if ((await offLow.isChecked()) !== playOffLow) await offLow.click();
+  await selectWithPlaceholder(page, 'Scoring Mode').selectOption(scoring);
+  // Play Off Low is only offered in a net round.
+  if (scoring === 'net') {
+    const offLow = page.getByLabel(/Play Off Low/);
+    if ((await offLow.isChecked()) !== playOffLow) await offLow.click();
+  }
 
   await page.getByRole('button', { name: 'Start Round' }).click();
   await expect(page.getByRole('heading', { name: '2. Assign Players' })).toBeVisible();
@@ -70,4 +73,24 @@ test.describe('handicaps from setup to scorecard', () => {
     await expect(page.getByText('HCP: 0', { exact: true })).toBeVisible();
     await expect(page.getByText('HCP: 10', { exact: true })).toBeVisible();
   });
+});
+
+// A gross round saved everyone's handicap as 0 - right for the games, which give no strokes - and
+// banking capped every hole at net double bogey from that 0, so each gross round was banked as if
+// everyone were scratch. The course handicap shown at setup is now saved alongside, for banking.
+test('a gross round still saves each course handicap, for banking', async ({ page }) => {
+  await setUp(page, { holes: 18, scoring: 'gross' });
+
+  const saved = page.waitForRequest((req) =>
+    req.method() === 'POST' && new URL(req.url()).pathname === '/rest/v1/players');
+  await startScoring(page);
+  const rows = (await saved).postDataJSON();
+
+  expect(rows.map(({ player_name, handicap, course_handicap }) => ({ player_name, handicap, course_handicap })))
+    .toEqual([
+      { player_name: 'Pat Par', handicap: 0, course_handicap: 11 },
+      { player_name: 'Sandy Trap', handicap: 0, course_handicap: 21 },
+    ]);
+  // ...and the games still play it gross.
+  await expect(page.getByText(/HCP: [1-9]/)).toHaveCount(0);
 });

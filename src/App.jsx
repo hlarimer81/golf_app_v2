@@ -537,7 +537,11 @@ function App() {
         player_name: p.name,
         team_id: teamData.find(t => t.team_name === teamMapping[p.team]).id,
         physical_group: null,
-        handicap: useHandicaps ? p.hcp : 0
+        // What the games play off: nobody gets strokes in a gross round.
+        handicap: useHandicaps ? p.hcp : 0,
+        // What banking caps holes from (net double bogey), in every round. Without it a gross
+        // round banked everyone as scratch. sql/handicap-gross-course-handicap.sql
+        course_handicap: p.hcp
       }));
 
       const { data: savedPlayers, error: pError } = await supabase

@@ -45,6 +45,21 @@ const generateMatchCode = () => {
   return code;
 };
 
+// The code of the round currently on screen, so a reload mid-round can offer to resume it instead
+// of landing on a blank setup screen with no sign anything was in progress. Set once the round is
+// actually being scored (not while still assigning players) and cleared when the round is finished
+// via onNewMatch.
+const ACTIVE_MATCH_KEY = '4play.activeMatch.v1';
+const readActiveMatchCode = () => {
+  try { return window.localStorage.getItem(ACTIVE_MATCH_KEY); } catch { return null; }
+};
+const writeActiveMatchCode = (code) => {
+  try { window.localStorage.setItem(ACTIVE_MATCH_KEY, code); } catch { /* private browsing, etc. */ }
+};
+const removeActiveMatchCode = () => {
+  try { window.localStorage.removeItem(ACTIVE_MATCH_KEY); } catch { /* private browsing, etc. */ }
+};
+
 function App() {
   const [matchId, setMatchId] = useState(null);
   const [matchCode, setMatchCode] = useState(null);
@@ -75,6 +90,10 @@ function App() {
   // Recent matches state
   const [recentMatches, setRecentMatches] = useState([]);
   const [showRecentMatches, setShowRecentMatches] = useState(false);
+
+  // Code of a round left in progress on this device, read once at startup. Drives the resume
+  // banner on the setup screen; see ACTIVE_MATCH_KEY above.
+  const [activeMatchCode, setActiveMatchCode] = useState(() => readActiveMatchCode());
 
   // Course request/issue state
   const [showRequestCourse, setShowRequestCourse] = useState(false);
@@ -112,6 +131,13 @@ function App() {
     fetchHandicapIndexes().then(setHandicapIndexes);
     fetchRoundParticipation().then(setParticipation);
   }, []);
+
+  // Remember the round being scored so a reload lands back on it instead of a blank setup screen.
+  // Deliberately keyed off showScorer rather than matchId: a match row exists as soon as it's
+  // created, before players are assigned, and there's nothing worth resuming until then.
+  useEffect(() => {
+    if (showScorer && matchCode) writeActiveMatchCode(matchCode);
+  }, [showScorer, matchCode]);
 
   // Course handicap suggested for a player, from their computed index and the selected tee.
   // Returns null when they have fewer than three banked rounds, which is a real answer - the
@@ -349,26 +375,17 @@ function App() {
     setLoading(false);
   };
 
-  const joinMatch = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    const codeUpper = joinCode.toUpperCase().trim();
-    
-    // Find match by code
+  // The match row and its players for a round code. Shared by Join Round and the resume banner so
+  // both look a round up the same way.
+  const fetchMatchAndPlayers = async (code) => {
     const { data: matchData, error: matchError } = await supabase
       .from('matches')
       .select('*')
-      .eq('match_code', codeUpper)
+      .eq('match_code', code)
       .single();
 
-    if (matchError || !matchData) {
-      alert('Match not found. Check the code and try again.');
-      setLoading(false);
-      return;
-    }
+    if (matchError || !matchData) return { matchError: matchError || new Error('Match not found') };
 
-    // Get players for this match
     const { data: playersData, error: playersError } = await supabase
       .from('players')
       .select(`
@@ -380,6 +397,24 @@ function App() {
       .eq('match_id', matchData.id)
       .order('id', { ascending: true });
 
+    if (playersError) return { playersError };
+
+    return { matchData, playersData };
+  };
+
+  const joinMatch = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const codeUpper = joinCode.toUpperCase().trim();
+    const { matchData, playersData, matchError, playersError } = await fetchMatchAndPlayers(codeUpper);
+
+    if (matchError) {
+      alert('Match not found. Check the code and try again.');
+      setLoading(false);
+      return;
+    }
+
     if (playersError) {
       alert('Error loading players: ' + playersError.message);
       setLoading(false);
@@ -388,6 +423,30 @@ function App() {
 
     openMatch(matchData, playersData);
     setLoading(false);
+  };
+
+  // One-tap resume for the banner on the setup screen. If the round can no longer be found (past
+  // the 30-day window, or otherwise gone) stop offering it rather than failing silently again.
+  const resumeActiveMatch = async () => {
+    if (!activeMatchCode) return;
+    setLoading(true);
+    const { matchData, playersData, matchError, playersError } = await fetchMatchAndPlayers(activeMatchCode);
+
+    if (matchError || playersError) {
+      removeActiveMatchCode();
+      setActiveMatchCode(null);
+      alert('That round could not be found anymore.');
+      setLoading(false);
+      return;
+    }
+
+    openMatch(matchData, playersData);
+    setLoading(false);
+  };
+
+  const dismissActiveMatch = () => {
+    removeActiveMatchCode();
+    setActiveMatchCode(null);
   };
 
   // Put an existing round on screen, exactly as it was set up. Joining by code and opening from
@@ -586,6 +645,8 @@ function App() {
           startHole={startHole}
           initialIsTeamPlay={playMode === 'team'}
           onNewMatch={() => {
+            removeActiveMatchCode();
+            setActiveMatchCode(null);
             setMatchId(null);
             setMatchCode(null);
             setMatchName('');
@@ -804,6 +865,35 @@ function App() {
 
       {!matchId ? (
         <>
+          {/* Active round banner: a reload mid-round used to land here with no sign the round was
+              still going, leaving the golfer to retype the code or dig through Previous Rounds. */}
+          {activeMatchCode && (
+            <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', padding: '12px 14px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+              <div style={{ fontSize: '13px', color: '#856404' }}>
+                <strong>Round in progress:</strong> {activeMatchCode}
+              </div>
+              <div style={{ display: 'flex', gap: '14px', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={resumeActiveMatch}
+                  disabled={loading}
+                  style={{ padding: '12px 18px', minHeight: '44px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  Resume
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissActiveMatch}
+                  aria-label="Dismiss"
+                  title="Dismiss"
+                  style={{ padding: '12px', minWidth: '44px', minHeight: '44px', background: 'transparent', border: '1px solid #856404', color: '#856404', borderRadius: '5px', cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Recent Matches Overlay */}
           {showRecentMatches && (
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', boxSizing: 'border-box' }}

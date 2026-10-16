@@ -384,7 +384,7 @@ function App() {
       .eq('match_code', code)
       .single();
 
-    if (matchError || !matchData) return { matchError };
+    if (matchError || !matchData) return { matchError: matchError || new Error('Match not found') };
 
     const { data: playersData, error: playersError } = await supabase
       .from('players')
@@ -872,12 +872,12 @@ function App() {
               <div style={{ fontSize: '13px', color: '#856404' }}>
                 <strong>Round in progress:</strong> {activeMatchCode}
               </div>
-              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: '14px', flexShrink: 0 }}>
                 <button
                   type="button"
                   onClick={resumeActiveMatch}
                   disabled={loading}
-                  style={{ padding: '8px 14px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
+                  style={{ padding: '12px 18px', minHeight: '44px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   Resume
                 </button>
@@ -886,7 +886,7 @@ function App() {
                   onClick={dismissActiveMatch}
                   aria-label="Dismiss"
                   title="Dismiss"
-                  style={{ padding: '8px 10px', background: 'transparent', border: '1px solid #856404', color: '#856404', borderRadius: '5px', cursor: 'pointer' }}
+                  style={{ padding: '12px', minWidth: '44px', minHeight: '44px', background: 'transparent', border: '1px solid #856404', color: '#856404', borderRadius: '5px', cursor: 'pointer' }}
                 >
                   ✕
                 </button>

@@ -586,7 +586,8 @@ export default function MatchSummary({
               <th style={{ padding: '10px', textAlign: 'left', color: '#888' }}>Player</th>
               {useHandicaps && <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>HCP</th>}
               <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Gross</th>
-              {gameType === 'singles' && (
+              {/* A gross round plays everyone off 0, so a Net column would only repeat Gross (#23). */}
+              {gameType === 'singles' && useHandicaps && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Net</th>
               )}
               {gameType === 'fourball' && (
@@ -621,8 +622,8 @@ export default function MatchSummary({
                 <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: gameType === 'fourball' || gameType === 'chairman' || gameType === 'vegas' || (gameType === 'singles' && !useHandicaps) ? 'bold' : 'normal', fontSize: gameType === 'fourball' || gameType === 'chairman' || gameType === 'vegas' || (gameType === 'singles' && !useHandicaps) ? '18px' : '14px' }}>
                   {player.strokes || '-'}
                 </td>
-                {gameType === 'singles' && (
-                  <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: useHandicaps ? 'bold' : 'normal', fontSize: useHandicaps ? '18px' : '14px', color: useHandicaps ? '#4CAF50' : '#e0e0e0' }}>
+                {gameType === 'singles' && useHandicaps && (
+                  <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#4CAF50' }}>
                     {player.netStrokes || '-'}
                   </td>
                 )}

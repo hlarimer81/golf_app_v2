@@ -47,7 +47,7 @@ export const GAMES = {
     label: 'Singles',
     recentLabel: 'Singles',
     banner: '#9C27B0',
-    description: 'Individual stroke play. No teams, just you vs the course. Keeps track of gross and net scores.',
+    description: 'Individual stroke play. No teams, just you vs the course. Ranked on gross, or on net when Scoring Mode is Net.',
   },
   nassau: {
     label: 'Nassau',

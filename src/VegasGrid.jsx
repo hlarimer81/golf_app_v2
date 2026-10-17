@@ -98,6 +98,9 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
           <span style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>
             🎰 Vegas Leaderboard
           </span>
+          <span style={{ fontSize: '9px', color: '#666' }}>
+            <span style={{ color: '#E91E63', fontWeight: '900' }}>+N</span> on a tile = Vegas points won that hole
+          </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
           {activeTeams(players).map(tName => {

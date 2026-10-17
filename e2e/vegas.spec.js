@@ -118,6 +118,16 @@ test('a Vegas point badge never renders inside the next cell or over the sticky 
   expect(badgeIsOnTop).toBe(false);
 });
 
+test('the Vegas leaderboard explains what the +N badge on a tile means', async ({ page }) => {
+  await serveRound(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+  await page.getByPlaceholder('ABC123').fill('VEGAS1');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+
+  await expect(page.getByText('= Vegas points won that hole')).toBeVisible();
+});
+
 test('a Vegas point badge stays anchored to its own score tile, not the wider cell around it', async ({ page }) => {
   await serveRound(page);
   await page.goto('/');

@@ -202,19 +202,21 @@ export default function GolfScoreTile({
   // the cell's own edge can drift far enough from the tile to read as detached from any score, or
   // to be the only part of a scrolled-off cell still peeking out from under a sticky column.
   const vegasPointsBadge = vegasPoints > 0 && (
-    <div style={{
-      position: 'absolute',
-      bottom: '-4px',
-      right: '-4px',
-      fontSize: '10px',
-      fontWeight: '900',
-      color: '#E91E63',
-      background: 'rgba(0,0,0,0.4)',
-      padding: '0 2px',
-      borderRadius: '2px',
-      zIndex: 10,
-      pointerEvents: 'none'
-    }}>
+    <div
+      aria-label={`Vegas points won on this hole: ${vegasPoints}`}
+      style={{
+        position: 'absolute',
+        bottom: '-4px',
+        right: '-4px',
+        fontSize: '10px',
+        fontWeight: '900',
+        color: '#E91E63',
+        background: 'rgba(0,0,0,0.4)',
+        padding: '0 2px',
+        borderRadius: '2px',
+        zIndex: 10,
+        pointerEvents: 'none'
+      }}>
       +{vegasPoints}
     </div>
   );

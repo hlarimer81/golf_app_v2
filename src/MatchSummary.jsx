@@ -1,4 +1,5 @@
 import React from 'react';
+import { computeRanks } from './lib/golf';
 
 export default function MatchSummary({ 
   matchName, 
@@ -408,6 +409,16 @@ export default function MatchSummary({
     return b.points - a.points; // Higher points is better
   });
 
+  // Rank key matching the sort above, so tied players share a place instead of a list position
+  const rankKey = (player) => {
+    if (gameType === 'fourball' || gameType === 'chairman') return player.strokes;
+    if (gameType === 'singles') return useHandicaps ? player.netStrokes : player.strokes;
+    if (gameType === 'ninepoint') return player.ninePoints;
+    if (gameType === 'wolf') return player.wolfPoints;
+    return player.points;
+  };
+  const individualRanks = computeRanks(sortedPlayerStats.map(rankKey));
+
   // Calculate 4-Ball team standings (match play points)
   const activeTeams = activeTeamsList.filter(t => getTeamPlayers(t).length > 0);
 
@@ -605,11 +616,13 @@ export default function MatchSummary({
             </tr>
           </thead>
           <tbody>
-            {sortedPlayerStats.map((player, idx) => (
+            {sortedPlayerStats.map((player, idx) => {
+              const rank = individualRanks[idx];
+              return (
               <tr key={player.id || idx} style={{ borderBottom: '1px solid #2a2a2a' }}>
                 {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'vegas' && (
-                  <td style={{ padding: '12px 10px', fontWeight: 'bold', color: idx < 3 ? '#FFD700' : '#666' }}>
-                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                  <td style={{ padding: '12px 10px', fontWeight: 'bold', color: rank <= 3 ? '#FFD700' : '#666' }}>
+                    {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}
                   </td>
                 )}
                 <td style={{ padding: '12px 10px' }}>
@@ -648,7 +661,8 @@ export default function MatchSummary({
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

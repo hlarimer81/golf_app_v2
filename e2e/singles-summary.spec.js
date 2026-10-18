@@ -33,6 +33,13 @@ const NET_MATCH = {
   handicap_allowance_pct: 100,
 };
 
+// Rough and Rake both shot 82 (issue #30) - here, both shoot gross 16 over the same four holes.
+const TIE_MATCH = {
+  ...GROSS_MATCH,
+  id: 'match-singles-tie',
+  match_code: 'STIE01',
+};
+
 const playersFor = (match, patHcp) => [
   { id: `${match.id}-pat`, player_name: 'Pat Par', handicap: patHcp, match_id: match.id, team_id: 't1', teams: { team_name: 'P' } },
   { id: `${match.id}-bo`, player_name: 'Bo Birdie', handicap: 0, match_id: match.id, team_id: 't2', teams: { team_name: 'B' } },
@@ -43,7 +50,12 @@ const scoresFor = (match) => [1, 2, 3, 4].flatMap((hole) => [
   { match_id: match.id, player_id: `${match.id}-bo`, hole_number: hole, strokes: 4 },
 ]);
 
-async function finishRound(page, match, patHcp) {
+const tiedScoresFor = (match) => [1, 2, 3, 4].flatMap((hole) => [
+  { match_id: match.id, player_id: `${match.id}-pat`, hole_number: hole, strokes: 4 },
+  { match_id: match.id, player_id: `${match.id}-bo`, hole_number: hole, strokes: 4 },
+]);
+
+async function finishRound(page, match, patHcp, scoresFn = scoresFor) {
   await page.route('**/rest/v1/matches*', (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
     const single = (route.request().headers()['accept'] || '').includes('vnd.pgrst.object');
@@ -58,7 +70,7 @@ async function finishRound(page, match, patHcp) {
   });
   await page.route('**/rest/v1/scores*', (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
-    return route.fulfill({ json: scoresFor(match) });
+    return route.fulfill({ json: scoresFn(match) });
   });
 
   await page.goto('/');
@@ -70,6 +82,7 @@ async function finishRound(page, match, patHcp) {
 }
 
 const patRow = (page) => page.getByRole('row').filter({ hasText: 'Pat Par' });
+const boRow = (page) => page.getByRole('row').filter({ hasText: 'Bo Birdie' });
 
 test('a gross Singles summary has no Net column', async ({ page }) => {
   await finishRound(page, GROSS_MATCH, 0);
@@ -83,4 +96,11 @@ test('a net Singles summary shows Net after handicap strokes', async ({ page }) 
   await expect(page.getByRole('columnheader', { name: 'Net' })).toBeVisible();
   await expect(patRow(page).getByRole('cell', { name: '20', exact: true })).toBeVisible();
   await expect(patRow(page).getByRole('cell', { name: '18', exact: true })).toBeVisible();
+});
+
+test('two players tied on gross score both show 1st, not 1st/2nd (issue #30)', async ({ page }) => {
+  await finishRound(page, TIE_MATCH, 0, tiedScoresFor);
+  await expect(patRow(page).getByRole('cell', { name: '🥇', exact: true })).toBeVisible();
+  await expect(boRow(page).getByRole('cell', { name: '🥇', exact: true })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '🥈', exact: true })).toHaveCount(0);
 });

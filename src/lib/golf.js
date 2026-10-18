@@ -87,6 +87,23 @@ export function holeLayout(holesCount = 18, startHole = 1) {
 }
 
 /**
+ * Standard competition ranking ("1224") for a list of scores already sorted best-first.
+ * Equal scores share the same place; the next distinct score skips ahead by the number
+ * of players tied ahead of it (two tied for 1st -> the next player is 3rd, not 2nd).
+ * A null/undefined score (no round played) never ties with another and keeps its own place.
+ */
+export function computeRanks(sortedScores) {
+  let rank = 1;
+  return sortedScores.map((score, idx) => {
+    if (idx > 0 && score != null && score === sortedScores[idx - 1]) {
+      return rank;
+    }
+    rank = idx + 1;
+    return rank;
+  });
+}
+
+/**
  * Color for a net score relative to par (shared by grids/summary).
  */
 export function scoreColor(net, par) {

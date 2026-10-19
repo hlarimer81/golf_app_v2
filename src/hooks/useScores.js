@@ -28,8 +28,11 @@ export function useScores(matchId) {
     // that score off the screen (issue #29).
     const fetchScores = async () => {
       const thisFetch = ++latestFetch;
-      const { data } = await supabase.from('scores').select('*').eq('match_id', matchId);
+      const { data, error } = await supabase.from('scores').select('*').eq('match_id', matchId);
       if (cancelled || thisFetch !== latestFetch) return;
+      // A failed refetch (no signal out on the course) says nothing about the scores; keep the ones
+      // on screen rather than blanking every confirmed score.
+      if (error) return;
       const map = {};
       data?.forEach((s) => {
         (map[s.player_id] ??= {})[s.hole_number] = s.strokes;

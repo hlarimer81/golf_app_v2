@@ -98,3 +98,16 @@ test('an older refetch that comes back last does not wipe a confirmed score', as
 
   await expect(patHoleOne(page)).toHaveValue('4');
 });
+
+test('a refetch that fails does not wipe the scores on screen', async ({ page }) => {
+  const { realtime, heldReads } = await joinRound(page);
+  await enterConfirmedScore(page);
+
+  // Another phone's change arrives, and the refetch it starts finds no signal.
+  await realtime.change('scores');
+  await expect.poll(() => heldReads.length).toBe(1);
+  await heldReads[0].abort('internetdisconnected');
+  await settle(page);
+
+  await expect(patHoleOne(page)).toHaveValue('4');
+});

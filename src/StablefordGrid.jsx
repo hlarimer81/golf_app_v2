@@ -3,6 +3,7 @@ import { finishRound } from './lib/handicap';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
+import { focusNextScore } from './lib/scoreEntry';
 import {
   PAR_FALLBACK,
   HCP_FALLBACK,
@@ -170,7 +171,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                         saveScore(player.id, holeNum, val);
                         if (val.length === 1) {
                           const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
-                          if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                          focusNextScore(nextInput);
                         }
                       };
 
@@ -248,7 +249,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                   saveScore(player.id, holeNum, val);
                   if (val.length === 1) {
                     const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
-                    if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                    focusNextScore(nextInput);
                   }
                 };
 

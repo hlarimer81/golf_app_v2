@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { finishRound } from './lib/handicap';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
+import { focusNextScore } from './lib/scoreEntry';
 
 // 2-Ball Aggregate: teams of 2. Each hole a team's score is the SUM of both partners'
 // net scores. Teams are compared pairwise per hole (2 half-points for a win, 1 each for
@@ -273,7 +274,7 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
                       saveScore(player.id, holeNum, val);
                       if (val.length === 1) {
                         const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
-                        if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                        focusNextScore(nextInput);
                       }
                     };
 

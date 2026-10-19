@@ -6,6 +6,7 @@ import MoneyModal from './MoneyModal';
 import WagerConfig from './WagerConfig';
 import { useWager } from './useWager';
 import { useScores } from './hooks/useScores';
+import { focusNextScore } from './lib/scoreEntry';
 import { settleSkins, wagerHasStake } from './settlement';
 import {
   PAR_FALLBACK,
@@ -205,7 +206,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
                 saveScore(player.id, holeNum, val);
                 if (val.length === 1) {
                   const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
-                  if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                  focusNextScore(nextInput);
                 }
               };
 

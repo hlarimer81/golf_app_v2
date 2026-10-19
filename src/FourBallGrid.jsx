@@ -3,6 +3,7 @@ import { finishRound } from './lib/handicap';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
+import { focusNextScore } from './lib/scoreEntry';
 
 export default function FourBallGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
   const { scores, saveScore } = useScores(matchId);
@@ -298,7 +299,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                         saveScore(player.id, holeNum, val);
                         if (val.length === 1) {
                           const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
-                          if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                          focusNextScore(nextInput);
                         }
                       };
 

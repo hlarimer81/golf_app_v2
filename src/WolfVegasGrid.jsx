@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { finishRound } from './lib/handicap';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
+import { focusNextScore } from './lib/scoreEntry';
 import { useWolfVegasState } from './useWolfVegasState';
 
 // Wolf Vegas: 4 or 5 players. Each hole one player is the "Wolf" (rotates; tees last). The
@@ -369,7 +370,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                 saveScore(player.id, holeNum, val);
                 if (val.length === 1) {
                   const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
-                  if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                  focusNextScore(nextInput);
                 }
               };
 

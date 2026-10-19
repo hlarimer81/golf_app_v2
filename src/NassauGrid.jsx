@@ -8,6 +8,7 @@ import HoleInfoModal from './HoleInfoModal';
 import { useWager } from './useWager';
 import { usePresses } from './usePresses';
 import { useScores } from './hooks/useScores';
+import { focusNextScore } from './lib/scoreEntry';
 import { settleNassau, wagerHasStake } from './settlement';
 import { computeNassau, nassauSettlementSegments, nassauSides, nassauHoleWinner } from './nassauEngine';
 import { getPlayerTeam } from './lib/teams';
@@ -205,7 +206,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
                 saveScore(player.id, holeNum, val);
                 if (val.length === 1) {
                   const nextInput = document.getElementById(`score-${holeNum}-${globalIdx + 1}`);
-                  if (nextInput) setTimeout(() => nextInput.focus(), 10);
+                  focusNextScore(nextInput);
                 }
               };
 

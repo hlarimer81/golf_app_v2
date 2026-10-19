@@ -5,6 +5,7 @@ import {
   strokesReceived,
   pointsUpToHole,
   holeLayout,
+  computeRanks,
 } from './golf';
 
 // Stroke index 1 is the hardest hole, 18 the easiest. A player receives a stroke on every hole
@@ -133,5 +134,28 @@ describe('holeLayout', () => {
     // This is the shape that matters for handicaps: a nine started on 10 stores scores on
     // holes 10-18, and par must be read from those holes, not 1-9.
     expect(holeLayout(9, 10).holeNumbers).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18]);
+  });
+});
+
+describe('computeRanks', () => {
+  it('gives distinct places when every score differs', () => {
+    expect(computeRanks([70, 72, 75])).toEqual([1, 2, 3]);
+  });
+
+  it('gives two tied scores the same place and skips ahead for the next one', () => {
+    // Rough and Rake both shot 82: both 1st, the next player is 3rd, not 2nd (issue #30).
+    expect(computeRanks([82, 82, 85])).toEqual([1, 1, 3]);
+  });
+
+  it('handles a tie further down the board', () => {
+    expect(computeRanks([70, 75, 75, 80])).toEqual([1, 2, 2, 4]);
+  });
+
+  it('handles every player tied', () => {
+    expect(computeRanks([80, 80, 80])).toEqual([1, 1, 1]);
+  });
+
+  it('never ties a missing score with another missing score', () => {
+    expect(computeRanks([70, null, null])).toEqual([1, 2, 3]);
   });
 });

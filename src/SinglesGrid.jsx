@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { finishRound } from './lib/handicap';
+import { computeRanks } from './lib/golf';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
@@ -115,6 +116,7 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
       const scoreB = useHandicaps ? (b.netTotal ?? 999) : (b.grossTotal ?? 999);
       return scoreA - scoreB;
     });
+    const ranks = computeRanks(sortedPlayers.map(p => useHandicaps ? p.netTotal : p.grossTotal));
 
     return (
       <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -129,12 +131,13 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
           <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
             {sortedPlayers.map((player, idx) => {
               const score = useHandicaps ? player.netTotal : player.grossTotal;
+              const rank = ranks[idx];
               return (
                 <div key={player.id} style={{ flex: 1, minWidth: '80px' }}>
                   <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : ''}{player.name}
+                    {rank === 1 ? '🥇 ' : rank === 2 ? '🥈 ' : rank === 3 ? '🥉 ' : ''}{player.name}
                   </div>
-                  <div style={{ fontSize: '24px', fontWeight: '900', color: idx === 0 ? '#FFD700' : idx === 1 ? '#C0C0C0' : idx === 2 ? '#CD7F32' : '#2196F3' }}>
+                  <div style={{ fontSize: '24px', fontWeight: '900', color: rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : '#2196F3' }}>
                     {score ?? '-'}
                   </div>
                 </div>

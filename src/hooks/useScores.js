@@ -20,10 +20,16 @@ export function useScores(matchId) {
   useEffect(() => {
     if (!matchId) return;
     let cancelled = false;
+    let latestFetch = 0;
 
+    // Every saved score triggers a refetch, so several are often in flight at once and can come
+    // back out of order. Only the newest may set the scores: an older one can predate a save that
+    // has since been confirmed (and so is no longer in the outbox to lay over it), and would wipe
+    // that score off the screen (issue #29).
     const fetchScores = async () => {
+      const thisFetch = ++latestFetch;
       const { data } = await supabase.from('scores').select('*').eq('match_id', matchId);
-      if (cancelled) return;
+      if (cancelled || thisFetch !== latestFetch) return;
       const map = {};
       data?.forEach((s) => {
         (map[s.player_id] ??= {})[s.hole_number] = s.strokes;

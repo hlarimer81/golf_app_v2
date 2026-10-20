@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect, useRef } from 'react';
 import { finishRound } from './lib/handicap';
 import { computeRanks } from './lib/golf';
 import MatchSummary from './MatchSummary';
@@ -9,7 +9,17 @@ import { focusNextScore } from './lib/scoreEntry';
 export default function SinglesGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
     const { scores, saveScore } = useScores(matchId);
     const [showSummary, setShowSummary] = useState(false);
-    
+
+    // The sticky PLAYER column's width isn't fixed - minWidth is only a floor, and a long player
+    // name pushes it wider. Horizontal scroll-snap needs to reserve exactly that width (see
+    // scrollPaddingLeft below) so a hole column never comes to rest half-covered by it (issue #32).
+    const playerColRef = useRef(null);
+    const [playerColWidth, setPlayerColWidth] = useState(127);
+    useLayoutEffect(() => {
+      const width = playerColRef.current?.getBoundingClientRect().width;
+      if (width && width !== playerColWidth) setPlayerColWidth(width);
+    }, [players, playerColWidth]);
+
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
 
@@ -148,32 +158,39 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
         </div>
 
         {/* --- SCROLLABLE GRID --- */}
-        <div style={{ flexGrow: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '8px', border: '1px solid #333', background: '#1a1a1a' }}>
+        {/* Horizontal scrolling has no natural stopping point, so a swipe or momentum scroll can
+            rest with a hole column half-covered by the sticky PLAYER column instead of fully
+            behind it - the visible sliver of that column's score tile (its bogey/eagle border is
+            bright, unlike a plain par cell) reads as debris leaking out from under the sticky
+            column (issue #32). Snapping each hole to the left edge, with scroll-padding reserving
+            the sticky column's own width, means a scroll always rests with holes either fully
+            shown or fully hidden, never straddling the boundary. */}
+        <div style={{ flexGrow: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '8px', border: '1px solid #333', background: '#1a1a1a', scrollSnapType: 'x mandatory', scrollPaddingLeft: `${playerColWidth}px` }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 100 }}>
               <tr style={{ backgroundColor: '#252525' }}>
-                <th style={{ position: 'sticky', left: 0, top: 0, zIndex: 110, backgroundColor: '#252525', padding: '12px', minWidth: '100px', textAlign: 'left', borderRight: '3px solid #00BCD4' }}>PLAYER</th>
+                <th ref={playerColRef} style={{ position: 'sticky', left: 0, top: 0, zIndex: 110, backgroundColor: '#252525', padding: '12px', minWidth: '100px', textAlign: 'left', borderRight: '3px solid #00BCD4' }}>PLAYER</th>
                 {frontHoles.map((hNum) => (
-                  <th key={`f-${hNum}`} style={{ padding: '8px', minWidth: '45px', borderLeft: '1px solid #333', backgroundColor: hNum % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
+                  <th key={`f-${hNum}`} style={{ padding: '8px', minWidth: '45px', borderLeft: '1px solid #333', backgroundColor: hNum % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90, scrollSnapAlign: 'start' }}>
                       {hNum}<br/><span style={{fontSize: '9px', color: '#666'}}>P{pars[hNum-1]}</span>
                   </th>
                 ))}
                 {is18 && (
-                  <th style={{ padding: '8px', minWidth: '45px', borderLeft: '3px solid #00BCD4', borderRight: '3px solid #00BCD4', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>
+                  <th style={{ padding: '8px', minWidth: '45px', borderLeft: '3px solid #00BCD4', borderRight: '3px solid #00BCD4', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888', scrollSnapAlign: 'start' }}>
                     OUT
                   </th>
                 )}
                 {backHoles.map((hNum) => (
-                  <th key={`b-${hNum}`} style={{ padding: '8px', minWidth: '45px', borderLeft: '1px solid #333', backgroundColor: hNum % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90 }}>
+                  <th key={`b-${hNum}`} style={{ padding: '8px', minWidth: '45px', borderLeft: '1px solid #333', backgroundColor: hNum % 2 === 0 ? '#252525' : '#2a2a2a', position: 'sticky', top: 0, zIndex: 90, scrollSnapAlign: 'start' }}>
                       {hNum}<br/><span style={{fontSize: '9px', color: '#666'}}>P{pars[hNum-1]}</span>
                   </th>
                 ))}
                 {is18 && (
-                  <th style={{ padding: '8px', minWidth: '45px', borderLeft: '3px solid #00BCD4', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888' }}>
+                  <th style={{ padding: '8px', minWidth: '45px', borderLeft: '3px solid #00BCD4', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, color: '#888', scrollSnapAlign: 'start' }}>
                     IN
                   </th>
                 )}
-                <th style={{ padding: '8px', minWidth: '50px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90 }}>
+                <th style={{ padding: '8px', minWidth: '50px', borderLeft: '1px solid #333', backgroundColor: '#252525', position: 'sticky', top: 0, zIndex: 90, scrollSnapAlign: 'start' }}>
                   TOT
                 </th>
               </tr>

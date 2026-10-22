@@ -130,6 +130,11 @@ jobs:
             The app: ${{ env.APP_URL }}
             You have a browser the size of a phone, through the playwright tools. One phone, held
             by one golfer, scoring for the whole group — that is how the app is really used.
+            Change the page only the way a thumb would: click, type and press keys. To clear a
+            cell, click it, select all and press Backspace. Never use browser_evaluate or any
+            script to set a value or click something: the app does not see a value set by
+            script, so it looks like a bug no golfer can hit (issue #34). If a tap or key does not
+            do what you expect, that is a finding; report it rather than working round it.
 
             Tonight's round is described in ${{ runner.temp }}/round/scenario.json. Read it first.
             You are writing up the round as: ${{ steps.scenario.outputs.reporter }}.

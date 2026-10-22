@@ -32,12 +32,15 @@ issue is #14, the digest.
 | **Handicaps: gross rounds banked as scratch** | Gross rounds save every handicap as 0, and banking capped each hole at net double bogey from it, so every gross round banked at par + 2 a hole and indexes came out low. `sql/handicap-gross-course-handicap.sql` adds `players.course_handicap`, which `golf_adjusted_gross()` caps from (older net rounds fall back to `handicap`, older gross rounds to par + 5). `bbc9d6a`: the app writes it in every round. `sql/handicap-rebank-gross-rounds.sql` (optional) re-scores gross rounds already banked, and aborts if any round would go down; its first version failed harmlessly in the SQL editor (temp table, 42P01) and was rewritten in `5b79bf0`. |
 | **Fast score entry (#29)** | Three causes, each with an e2e test that fails on the old code at both widths. **Touches saving.** `f8660be`: the 10ms jump to the next golfer only fires if the typed-in cell still has focus (all 11 grids). `2be0435`: only the newest scores refetch is applied, so an older one answered late can't wipe a confirmed score. `8d522ac`: a failed refetch (no signal) leaves the scores on screen instead of blanking every confirmed one. `e2e/realtime.js` stands in for Realtime. |
 
-**Not known from the repo — check and note here:**
-- Whether `sql/handicap-gross-course-handicap.sql` is applied. `bbc9d6a` needs it and the golfers'
-  rounds since have saved, so probably yes.
-- Whether the rewritten `sql/handicap-rebank-gross-rounds.sql` was run, and what it reported.
-- Whether a monthly spend limit is set in the Anthropic Console.
-- Whether a Nassau press has fired in a live round.
+**Confirmed by Harold, Oct 22:**
+- `sql/handicap-gross-course-handicap.sql` is **applied** on production.
+- `sql/handicap-rebank-gross-rounds.sql` (the rewritten one) was **run**. Its per-player output
+  wasn't kept; Harold recalls it was what was expected.
+- A monthly spend limit **is set** in the Anthropic Console, and has since been raised. The
+  amount isn't recorded here.
+- **No Nassau press has fired live.** Of the golfer runs whose logs are still on GitHub, only
+  four played a Nassau: three `nassau-18-gross` (no wager) and one `nassau-18-net-wager-press`
+  (5MALKY, nobody went 2 down). `nassau-18-net-90-two-presses` has not been played.
 
 **From the Oct 3 list, now seen working:** the retest round and its comment and `retested` label,
 the `issues: opened` coordinator trigger, foursome rounds, #12 and #13 labelled `retested`.
@@ -46,16 +49,17 @@ the `issues: opened` coordinator trigger, foursome rounds, #12 and #13 labelled 
 1. **Read tonight's round.** The retest queue picks #34, the first round with `browser_evaluate`
    blocked. Check that scores still go in and that the golfers report a key that doesn't work
    rather than giving up. #35 follows the night after.
-2. **Settle the four unknowns above** and write the answers here.
-3. **Measure a foursome's cost** from the Oct golfer runs, then decide rounds per night.
-4. **A press, live**, if none has fired: `nassau-18-net-90-two-presses`.
-5. **Designer, step 1** — measured layout checks in CI. Five of the golfers' bugs this month were
+2. **A press, live.** Run `nassau-18-net-90-two-presses` by hand (Run workflow, scenario id), or
+   wait for its turn. Check that the press is saved and reads back on the second phone.
+3. **Measure a foursome's cost** from the Oct golfer runs, then decide rounds per night against
+   the raised spend limit.
+4. **Designer, step 1** — measured layout checks in CI. Five of the golfers' bugs this month were
    visual (#16, #18, #22, #27, #32).
-6. **A way for friends to report things** without a GitHub account.
-7. **Renew `AGENT_TOKEN` before about Dec 10**, and the `gh` read-only token on the dev server
+5. **A way for friends to report things** without a GitHub account.
+6. **Renew `AGENT_TOKEN` before about Dec 10**, and the `gh` read-only token on the dev server
    (about Dec 31).
-8. **Buy a domain**, then custom SMTP, before inviting anyone (warning at the top).
-9. Still open from Oct 3: a playing handicap above 36 gets no third stroke; a course with no
+7. **Buy a domain**, then custom SMTP, before inviting anyone (warning at the top).
+8. Still open from Oct 3: a playing handicap above 36 gets no third stroke; a course with no
    stroke indexes gives Nassau index 10 on every hole; Wolf Vegas with five players is untested;
    the 3 denied tool calls per golfer round. Plus the items under "Still open on the team".
 

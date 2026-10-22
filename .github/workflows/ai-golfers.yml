@@ -298,7 +298,7 @@ jobs:
             --add-dir ${{ runner.temp }}/round
             --mcp-config '{"mcpServers":{"playwright":{"command":"npx","args":["-y","@playwright/mcp@latest","--headless","--isolated","--device","Pixel 7","--output-dir","${{ runner.temp }}/round/screenshots"]}}}'
             --allowedTools "mcp__playwright,Read,Write,Glob,Grep,LS,TodoWrite,Bash(node:*)"
-            --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit,WebFetch,WebSearch"
+            --disallowedTools "Bash(gh:*),Bash(git:*),Edit,MultiEdit,WebFetch,WebSearch,mcp__playwright__browser_evaluate"
 
       # The action's log stops at "is_error:true". This prints the message that came back, so a
       # usage limit says so in the run instead of needing a person to go and find out. The script

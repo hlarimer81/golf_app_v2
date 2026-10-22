@@ -1,16 +1,19 @@
 import React from 'react';
 import { computeRanks } from './lib/golf';
+import { skinsStandings } from './lib/skinsStandings';
 
-export default function MatchSummary({ 
-  matchName, 
-  matchCode, 
-  gameType, 
-  players, 
-  scores, 
-  useHandicaps, 
- 
+export default function MatchSummary({
+  matchName,
+  matchCode,
+  gameType,
+  players,
+  scores,
+  useHandicaps,
+
   courseData,
   stablefordMode,
+  skinTotals,
+  settlement,
   onBack,
   onNewMatch,
   holesCount = 18,
@@ -392,22 +395,25 @@ export default function MatchSummary({
   // Get all player stats
   const playerStats = players.map(getPlayerStats);
   
-  // Sort by strokes for 4-ball or chairman, by net/gross for singles, by 9-point points for ninepoint, by stableford points for others
-  const sortedPlayerStats = [...playerStats].sort((a, b) => {
-    if (gameType === 'fourball' || gameType === 'chairman') {
-      return a.strokes - b.strokes; // Lower strokes is better
-    }
-    if (gameType === 'singles') {
-      return useHandicaps ? a.netStrokes - b.netStrokes : a.strokes - b.strokes; // Lower strokes is better
-    }
-    if (gameType === 'ninepoint') {
-      return b.ninePoints - a.ninePoints; // Higher nine points is better
-    }
-    if (gameType === 'wolf') {
-      return b.wolfPoints - a.wolfPoints; // Higher wolf points is better
-    }
-    return b.points - a.points; // Higher points is better
-  });
+  // Sort by strokes for 4-ball or chairman, by net/gross for singles, by 9-point points for
+  // ninepoint, by skins actually won for skins, by stableford points for others
+  const sortedPlayerStats = gameType === 'skins'
+    ? skinsStandings(playerStats, skinTotals, settlement)
+    : [...playerStats].sort((a, b) => {
+        if (gameType === 'fourball' || gameType === 'chairman') {
+          return a.strokes - b.strokes; // Lower strokes is better
+        }
+        if (gameType === 'singles') {
+          return useHandicaps ? a.netStrokes - b.netStrokes : a.strokes - b.strokes; // Lower strokes is better
+        }
+        if (gameType === 'ninepoint') {
+          return b.ninePoints - a.ninePoints; // Higher nine points is better
+        }
+        if (gameType === 'wolf') {
+          return b.wolfPoints - a.wolfPoints; // Higher wolf points is better
+        }
+        return b.points - a.points; // Higher points is better
+      });
 
   // Rank key matching the sort above, so tied players share a place instead of a list position
   const rankKey = (player) => {
@@ -415,9 +421,16 @@ export default function MatchSummary({
     if (gameType === 'singles') return useHandicaps ? player.netStrokes : player.strokes;
     if (gameType === 'ninepoint') return player.ninePoints;
     if (gameType === 'wolf') return player.wolfPoints;
+    if (gameType === 'skins') return player.skinsWon;
     return player.points;
   };
   const individualRanks = computeRanks(sortedPlayerStats.map(rankKey));
+  const hasSkinsMoney = gameType === 'skins' && (settlement?.entities?.length || 0) > 0;
+  const fmtSigned = (amt) => {
+    if (amt > 0.005) return `+$${amt.toFixed(2)}`;
+    if (amt < -0.005) return `-$${Math.abs(amt).toFixed(2)}`;
+    return '$0.00';
+  };
 
   // Calculate 4-Ball team standings (match play points)
   const activeTeams = activeTeamsList.filter(t => getTeamPlayers(t).length > 0);
@@ -604,7 +617,7 @@ export default function MatchSummary({
               {gameType === 'fourball' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#4CAF50' }}>Holes Contributed</th>
               )}
-              {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'vegas' && (
+              {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'vegas' && gameType !== 'skins' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Points</th>
               )}
               {gameType === 'ninepoint' && (
@@ -612,6 +625,12 @@ export default function MatchSummary({
               )}
               {gameType === 'wolf' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#607D8B' }}>Wolf Pts</th>
+              )}
+              {gameType === 'skins' && (
+                <th style={{ padding: '10px', textAlign: 'center', color: '#FFD700' }}>Skins</th>
+              )}
+              {hasSkinsMoney && (
+                <th style={{ padding: '10px', textAlign: 'center', color: '#4CAF50' }}>Net $</th>
               )}
             </tr>
           </thead>
@@ -640,7 +659,7 @@ export default function MatchSummary({
                     {player.netStrokes || '-'}
                   </td>
                 )}
-                {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'vegas' && (
+                {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'vegas' && gameType !== 'skins' && (
                   <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#4CAF50' }}>
                     {player.points}
                   </td>
@@ -653,6 +672,16 @@ export default function MatchSummary({
                 {gameType === 'wolf' && (
                   <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#607D8B' }}>
                     {player.wolfPoints || 0}
+                  </td>
+                )}
+                {gameType === 'skins' && (
+                  <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#FFD700' }}>
+                    {player.skinsWon}
+                  </td>
+                )}
+                {hasSkinsMoney && (
+                  <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: player.moneyNet > 0.005 ? '#4CAF50' : player.moneyNet < -0.005 ? '#EF5350' : '#888' }}>
+                    {player.moneyNet == null ? '-' : fmtSigned(player.moneyNet)}
                   </td>
                 )}
                 {gameType === 'fourball' && (

@@ -1,4 +1,4 @@
-# Golf App Progress - October 3, 2026 (Updated, daytime session)
+# Golf App Progress - October 22, 2026
 
 > ⚠️ **BEFORE INVITING ANY OTHER GOLFER TO SIGN IN: a domain may be required, not optional.**
 > Sign-in codes go out through Supabase's built-in email sender. Supabase's documentation has said
@@ -8,7 +8,58 @@
 > arrives, buy the domain and set up custom SMTP before inviting anyone (steps under "Auth: where
 > it stops for now" below). Remove this note once custom SMTP is live.
 
-## Latest Session (Oct 3, daytime) - both Nassau retests clean, a foursome, and a loop that needs Harold less ✅
+## Latest Sessions (Oct 3–22) - the loop runs on its own, the golfers find real bugs, and gross rounds bank right ✅
+
+Nineteen days written up at once from the commits, issues and runs; the log was not updated as
+they happened. Issue numbers are GitHub's.
+
+**The loop, end to end.** Golfers filed #15–#35. Every one is closed, every one before #34 has been
+replayed by the golfers and labelled `retested`, and the dev agent shipped most of the fixes on its
+own (PRs #17, #20, #21, #24, #26, #28, #31, #33, #36 merged themselves). On Oct 22 the only open
+issue is #14, the digest.
+
+| Area | Where it ended |
+|---|---|
+| Digest | `3be63bf`: once a day, a comment on #14 "Waiting on H" lists `needs-human` issues, open PRs, `needs-info` questions and failed runs, posted as `github-actions` so it notifies. `8c8007d`: a failed run is dropped once the same workflow has since succeeded. |
+| Golfers, what they report | `70945c0`: five rounds filed nothing while their own screenshots showed real visual bugs. They now read screenshots at fixed points, don't explain a wrong number away, and list what they saw but didn't file under "noticed" in the run summary. |
+| Golfers, when | `e130be2`: GitHub started this repo's crons 6–9 hours late, so the 02:00 round ran mid-morning. Now scheduled 21:23 Central; late starts land in the small hours. |
+| Golfers, no scripts | #34 ("a cleared cell still counts") was not an app bug: the golfer emptied the cell with `browser_evaluate`, which React never sees. Clearing with keys works. `63bf26b` tells them to use taps and keys only; `e398e58` blocks `browser_evaluate` outright; `e1a7b17` adds a smoke test for clearing a score. |
+| Gemini review | `592ac21`: if Gemini is still busy or down after every retry, the job passes and comments that the PR was **not reviewed** (PR #17 sat blocked an hour on 503s). A bad key or retired model still fails. `2188fc7`: the review waits for CI and is told its result, after it held PR #21 predicting a test would fail that CI had already passed. |
+| Dev agent, review fix | `cc1e50e`: on the first "needs changes", the PR is labelled `review-fix` and `claude-fix.yml` gives the agent one try. The second review is final. First used on PR #26. |
+| Coordinator | Oct 8, three fixes after every run that day failed: a skipped comment run no longer pushes a real run out of the queue (`d8c71fa`); the last message is printed when the model ends without `triage.json` (`cd65dd7`); the background helper agent (new in Claude Code 2.1.293) is disallowed, because starting one and "waiting" ends a headless run (`423b5f1`). |
+| Display fixes (agent) | Round Complete heading readable (#16); scorecard row order the same live and reopened (#19); Vegas point badges not clipped on a phone (#18, again #22) and labelled (#27); reloading mid-round offers the round back (#25); tied players shown tied (#30); over-par cell border no longer bleeds under the sticky Player column (#32); Skins summary ranks by money won (#35). |
+| Gross rounds, display | `5d7768e` (#15): the HCP line and summary column hidden in gross rounds in every game (they could only read 0). `72768b1` (#23): Singles summary shows Net only in a net round. Display only. |
+| **Handicaps: gross rounds banked as scratch** | Gross rounds save every handicap as 0, and banking capped each hole at net double bogey from it, so every gross round banked at par + 2 a hole and indexes came out low. `sql/handicap-gross-course-handicap.sql` adds `players.course_handicap`, which `golf_adjusted_gross()` caps from (older net rounds fall back to `handicap`, older gross rounds to par + 5). `bbc9d6a`: the app writes it in every round. `sql/handicap-rebank-gross-rounds.sql` (optional) re-scores gross rounds already banked, and aborts if any round would go down; its first version failed harmlessly in the SQL editor (temp table, 42P01) and was rewritten in `5b79bf0`. |
+| **Fast score entry (#29)** | Three causes, each with an e2e test that fails on the old code at both widths. **Touches saving.** `f8660be`: the 10ms jump to the next golfer only fires if the typed-in cell still has focus (all 11 grids). `2be0435`: only the newest scores refetch is applied, so an older one answered late can't wipe a confirmed score. `8d522ac`: a failed refetch (no signal) leaves the scores on screen instead of blanking every confirmed one. `e2e/realtime.js` stands in for Realtime. |
+
+**Not known from the repo — check and note here:**
+- Whether `sql/handicap-gross-course-handicap.sql` is applied. `bbc9d6a` needs it and the golfers'
+  rounds since have saved, so probably yes.
+- Whether the rewritten `sql/handicap-rebank-gross-rounds.sql` was run, and what it reported.
+- Whether a monthly spend limit is set in the Anthropic Console.
+- Whether a Nassau press has fired in a live round.
+
+**From the Oct 3 list, now seen working:** the retest round and its comment and `retested` label,
+the `issues: opened` coordinator trigger, foursome rounds, #12 and #13 labelled `retested`.
+
+**START HERE next time**, in rough order of value:
+1. **Read tonight's round.** The retest queue picks #34, the first round with `browser_evaluate`
+   blocked. Check that scores still go in and that the golfers report a key that doesn't work
+   rather than giving up. #35 follows the night after.
+2. **Settle the four unknowns above** and write the answers here.
+3. **Measure a foursome's cost** from the Oct golfer runs, then decide rounds per night.
+4. **A press, live**, if none has fired: `nassau-18-net-90-two-presses`.
+5. **Designer, step 1** — measured layout checks in CI. Five of the golfers' bugs this month were
+   visual (#16, #18, #22, #27, #32).
+6. **A way for friends to report things** without a GitHub account.
+7. **Renew `AGENT_TOKEN` before about Dec 10**, and the `gh` read-only token on the dev server
+   (about Dec 31).
+8. **Buy a domain**, then custom SMTP, before inviting anyone (warning at the top).
+9. Still open from Oct 3: a playing handicap above 36 gets no third stroke; a course with no
+   stroke indexes gives Nassau index 10 on every hole; Wolf Vegas with five players is untested;
+   the 3 denied tool calls per golfer round. Plus the items under "Still open on the team".
+
+## Previous Session (Oct 3, daytime) - both Nassau retests clean, a foursome, and a loop that needs Harold less ✅
 
 | Area | Where it ended |
 |---|---|
@@ -38,7 +89,9 @@ subscription token, the failure-reason step, a foursome round, the Wolf and Vega
 against the real setup screens, and "Ro"/"Ra" on a live round. The 02:00 round on Oct 4 exercises
 most of them at once.
 
-**START HERE next time**, in rough order of value:
+*This list was replaced by the one in the Oct 3–22 section.*
+
+**START HERE next time** (as of Oct 3), in rough order of value:
 0. **Read the Oct 4 02:00 run.** It should be the retest of #11 on `singles-9-back-nine`, as a
    foursome. Check: the "retesting [11]" line in "Pick tonight's scenario"; all four golfers found;
    sides saved as H, Ro, Ra, M; a comment and the `retested` label on #11. If it files anything,

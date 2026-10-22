@@ -108,8 +108,10 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
         players={players}
         scores={scores}
         useHandicaps={useHandicaps}
-        
+
         courseData={courseData}
+        skinTotals={skinTotals}
+        settlement={settlement}
         holesCount={holesCount}
         startHole={startHole}
         onBack={() => setShowSummary(false)}

@@ -75,6 +75,7 @@ function App() {
   const [hcpAllowance, setHcpAllowance] = useState(100);
   const [loading, setLoading] = useState(false);
   const [showScorer, setShowScorer] = useState(false);
+  const [matchCompleted, setMatchCompleted] = useState(false);
   const [finalPlayers, setFinalPlayers] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedTeeBoxId, setSelectedTeeBoxId] = useState("");
@@ -467,6 +468,7 @@ function App() {
     setPlayOffLow(match.play_off_low ?? true);
     setHcpAllowance(match.handicap_allowance_pct || 100);
     setFinalPlayers(matchPlayers);
+    setMatchCompleted(match.status === 'completed');
     setShowScorer(true);
   };
 
@@ -558,6 +560,7 @@ function App() {
       if (pError) throw pError;
 
       setFinalPlayers(savedPlayers);
+      setMatchCompleted(false);
       setShowScorer(true);
     } catch (error) {
       alert('Error: ' + error.message);
@@ -648,6 +651,7 @@ function App() {
           holesCount={holesCount}
           startHole={startHole}
           initialIsTeamPlay={playMode === 'team'}
+          initialShowSummary={matchCompleted}
           onNewMatch={() => {
             removeActiveMatchCode();
             setActiveMatchCode(null);
@@ -655,6 +659,7 @@ function App() {
             setMatchCode(null);
             setMatchName('');
             setShowScorer(false);
+            setMatchCompleted(false);
             setFinalPlayers([]);
             setSelectedCourseId('');
             setSelectedTeeBoxId('');

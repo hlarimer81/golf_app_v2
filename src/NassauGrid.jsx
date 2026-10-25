@@ -14,9 +14,9 @@ import { computeNassau, nassauSettlementSegments, nassauSides, nassauHoleWinner 
 import { getPlayerTeam } from './lib/teams';
 import { netScore, strokesReceived } from './lib/golf';
 
-export default function NassauGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function NassauGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
-    const [showSummary, setShowSummary] = useState(false);
+    const [showSummary, setShowSummary] = useState(initialShowSummary);
     const [showMoney, setShowMoney] = useState(false);
     const [showWager, setShowWager] = useState(false);
     const [holeInfo, setHoleInfo] = useState(null);

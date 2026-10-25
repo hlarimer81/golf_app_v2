@@ -6,9 +6,9 @@ import { getPlayerTeam, activeTeams } from './lib/teams';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 
-export default function VegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function VegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
-    const [showSummary, setShowSummary] = useState(false);
+    const [showSummary, setShowSummary] = useState(initialShowSummary);
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);

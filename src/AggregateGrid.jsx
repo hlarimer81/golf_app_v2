@@ -8,9 +8,9 @@ import { focusNextScore } from './lib/scoreEntry';
 // net scores. Teams are compared pairwise per hole (2 half-points for a win, 1 each for
 // a tie) plus a per-nine bonus comparing each nine's total aggregate net. Points are
 // tracked as "half points" internally (2 = 1 full point) exactly like the firmware.
-export default function AggregateGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function AggregateGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const { scores, saveScore } = useScores(matchId);
-  const [showSummary, setShowSummary] = useState(false);
+  const [showSummary, setShowSummary] = useState(initialShowSummary);
 
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);

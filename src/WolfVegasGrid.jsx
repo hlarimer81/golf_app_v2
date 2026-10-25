@@ -15,9 +15,9 @@ import { useWolfVegasState } from './useWolfVegasState';
 // swings mag*(wolf count) — always zero-sum. The Lone/Blind multiplier and the per-hole
 // hammer (x2 per hammer, stacking) scale both sides equally. Birdie uses net strokes by
 // default, or gross when "Gross birdies" is on. Winners gain, losers lose.
-export default function WolfVegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function WolfVegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const { scores, saveScore } = useScores(matchId);
-  const [showSummary, setShowSummary] = useState(false);
+  const [showSummary, setShowSummary] = useState(initialShowSummary);
   // Wolf decisions, hammers, and the birdie option are persisted per-match (survive refresh
   // and sync across devices). decisions[holeNum] = partner playerId | 'lone' | 'blind';
   // hammers[holeNum] = hammer count (each doubles: 0->x1, 1->x2...); grossBirdies default false.

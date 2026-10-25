@@ -250,7 +250,9 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
             </tr>
           </thead>
           <tbody>
-            {activeTeams.map(teamName => {
+            {(() => {
+              const renderedPlayersList = activeTeams.flatMap(t => getTeamPlayers(t));
+              return activeTeams.map(teamName => {
               const teamPlayers = getTeamPlayers(teamName);
               return (
                 <React.Fragment key={teamName}>
@@ -264,7 +266,7 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
                   {teamPlayers.map((player, tIdx) => {
                     const playerScores = scores[player.id] || {};
                     const playerHcp = player.handicap ?? player.hcp ?? 0;
-                    const globalIdx = players.findIndex(p => p.id === player.id);
+                    const globalIdx = renderedPlayersList.findIndex(p => p.id === player.id);
 
                     let outStrokes = 0, inStrokes = 0;
                     frontHoles.forEach(h => { if (playerScores[h]) outStrokes += playerScores[h]; });
@@ -336,7 +338,8 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
                   </tr>
                 </React.Fragment>
               );
-            })}
+              });
+            })()}
           </tbody>
         </table>
       </div>

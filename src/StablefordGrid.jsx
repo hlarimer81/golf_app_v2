@@ -143,11 +143,12 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
             </tr>
           </thead>
           <tbody>
-            {isTeamPlay ? (
-              activeTeams.map(teamName => {
+            {isTeamPlay ? (() => {
+              const renderedPlayersList = activeTeams.flatMap(t => getTeamPlayers(t));
+              return activeTeams.map(teamName => {
                 const teamPlayers = getTeamPlayers(teamName);
                 const color = teamColors[teamName] || '#4CAF50';
-                
+
                 return (
                   <React.Fragment key={teamName}>
                     <tr>
@@ -156,7 +157,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                       </td>
                     </tr>
                     {teamPlayers.map(player => {
-                      const globalIdx = players.findIndex(p => p.id === player.id);
+                      const globalIdx = renderedPlayersList.findIndex(p => p.id === player.id);
                       const playerScores = scores[player.id] || {};
                       const playerHcp = player.handicap ?? player.hcp ?? 0;
                       const quotaGoal = 36 - playerHcp;
@@ -232,8 +233,8 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
                     })}
                   </React.Fragment>
                 );
-              })
-            ) : (
+              });
+            })() : (
               players.map((player, globalIdx) => {
                 const playerScores = scores[player.id] || {};
                 const playerHcp = player.handicap ?? player.hcp ?? 0;

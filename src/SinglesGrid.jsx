@@ -6,9 +6,9 @@ import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 
-export default function SinglesGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function SinglesGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
-    const [showSummary, setShowSummary] = useState(false);
+    const [showSummary, setShowSummary] = useState(initialShowSummary);
 
     // The sticky PLAYER column's width isn't fixed - minWidth is only a floor, and a long player
     // name pushes it wider. Horizontal scroll-snap needs to reserve exactly that width (see

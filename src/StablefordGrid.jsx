@@ -14,8 +14,8 @@ import {
 } from './lib/golf';
 import { activeTeams as getActiveTeams, getTeamPlayers as teamPlayersOf, teamColorMap } from './lib/teams';
 
-export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, initialIsTeamPlay = true, holesCount = 18, startHole = 1 }) {
-    const [showSummary, setShowSummary] = React.useState(false);
+export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, initialIsTeamPlay = true, holesCount = 18, startHole = 1, initialShowSummary = false }) {
+    const [showSummary, setShowSummary] = React.useState(initialShowSummary);
     const { scores, saveScore } = useScores(matchId);
 
     const pars = courseData?.pars || PAR_FALLBACK;

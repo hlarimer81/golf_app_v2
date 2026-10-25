@@ -5,9 +5,9 @@ import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 
-export default function WolfGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1 }) {
+export default function WolfGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
-    const [showSummary, setShowSummary] = useState(false);
+    const [showSummary, setShowSummary] = useState(initialShowSummary);
     // wolfChoices[holeNum] = { wolf: playerId, partner: playerId | 'lone' | null }
     const [wolfChoices, setWolfChoices] = useState({});
     

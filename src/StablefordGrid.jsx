@@ -16,6 +16,7 @@ import { activeTeams as getActiveTeams, getTeamPlayers as teamPlayersOf, teamCol
 
 export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, initialIsTeamPlay = true, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const [showSummary, setShowSummary] = React.useState(initialShowSummary);
+    const [isBanked, setIsBanked] = React.useState(initialShowSummary);
     const { scores, saveScore } = useScores(matchId);
 
     const pars = courseData?.pars || PAR_FALLBACK;
@@ -51,7 +52,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         stablefordMode={isTeamPlay ? 'team' : 'singles'}
         holesCount={holesCount}
         startHole={startHole}
-        onBack={() => setShowSummary(false)}
+        onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
       />
     );
@@ -325,7 +326,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         zIndex: 200
       }}>
         <button
-          onClick={() => { finishRound(matchId); setShowSummary(true); }}
+          onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); }}
           style={{
             padding: '15px',
             backgroundColor: '#4CAF50',

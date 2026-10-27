@@ -106,3 +106,23 @@ test.describe('reopening an already-completed round', () => {
     await expectReadOnlySummary(page);
   });
 });
+
+test.describe('finishing a round in the same session', () => {
+  // Issue #41: the Resume/Previous Rounds/Join fixes above only guarded the routes that *reopen* an
+  // already-banked round. Finishing live never re-checks anything - MatchSummary's own 'Back to
+  // Scorecard' button just flips local state back to the editable grid, so a round just banked by
+  // Finish Round could be reopened and resaved over from its own summary screen.
+  test('the summary has no Back to Scorecard button, so the just-banked round cannot be reopened', async ({ page }) => {
+    const inProgress = { ...MATCH, status: 'in_progress' };
+    await serveCompletedRound(page, inProgress);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Join Round' }).click();
+    await page.getByPlaceholder('ABC123').fill(MATCH.match_code);
+    await page.getByRole('button', { name: 'Join Round' }).click();
+    await expect(page.locator('#score-1-0')).toBeVisible();
+
+    await page.getByRole('button', { name: /Finish Round/ }).click();
+    await expectReadOnlySummary(page);
+    await expect(page.getByRole('button', { name: /Back to Scorecard/ })).toHaveCount(0);
+  });
+});

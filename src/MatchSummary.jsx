@@ -698,21 +698,23 @@ export default function MatchSummary({
 
       {/* Buttons */}
       <div style={{ display: 'flex', gap: '10px' }}>
-        <button 
-          onClick={onBack}
-          style={{ 
-            flex: 1,
-            padding: '15px', 
-            backgroundColor: '#333', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '8px', 
-            fontSize: '16px',
-            cursor: 'pointer'
-          }}
-        >
-          ← Back to Scorecard
-        </button>
+        {onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              flex: 1,
+              padding: '15px',
+              backgroundColor: '#333',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              cursor: 'pointer'
+            }}
+          >
+            ← Back to Scorecard
+          </button>
+        )}
         {onNewMatch && (
           <button 
             onClick={onNewMatch}

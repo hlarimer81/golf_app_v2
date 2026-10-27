@@ -20,6 +20,7 @@ import {
 
 export default function SkinsGrid({ matchId, matchName, matchCode, players, useHandicaps, useCarryover, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const [showSummary, setShowSummary] = useState(initialShowSummary);
+  const [isBanked, setIsBanked] = useState(initialShowSummary);
   const [showMoney, setShowMoney] = useState(false);
   const [showWager, setShowWager] = useState(false);
   const { wager, saveWager } = useWager(matchId);
@@ -114,7 +115,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
         settlement={settlement}
         holesCount={holesCount}
         startHole={startHole}
-        onBack={() => setShowSummary(false)}
+        onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
       />
     );
@@ -285,7 +286,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
         zIndex: 200
       }}>
         <button
-          onClick={() => { finishRound(matchId); setShowSummary(true); }}
+          onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); }}
           style={{
             padding: '15px',
             backgroundColor: '#FFD700',

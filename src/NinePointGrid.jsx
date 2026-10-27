@@ -8,6 +8,7 @@ import { focusNextScore } from './lib/scoreEntry';
 export default function NinePointGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const { scores, saveScore } = useScores(matchId);
   const [showSummary, setShowSummary] = useState(initialShowSummary);
+  const [isBanked, setIsBanked] = useState(initialShowSummary);
 
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -140,7 +141,7 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
         courseData={courseData}
         holesCount={holesCount}
         startHole={startHole}
-        onBack={() => setShowSummary(false)}
+        onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
       />
     );
@@ -326,7 +327,7 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
         zIndex: 200
       }}>
         <button
-          onClick={() => { finishRound(matchId); setShowSummary(true); }}
+          onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); }}
           style={{
             padding: '15px',
             backgroundColor: '#00BCD4',

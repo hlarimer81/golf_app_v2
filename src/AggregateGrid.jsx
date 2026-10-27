@@ -11,6 +11,7 @@ import { focusNextScore } from './lib/scoreEntry';
 export default function AggregateGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const { scores, saveScore } = useScores(matchId);
   const [showSummary, setShowSummary] = useState(initialShowSummary);
+  const [isBanked, setIsBanked] = useState(initialShowSummary);
 
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -201,7 +202,9 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => setShowSummary(false)} style={{ flex: 1, padding: '15px', backgroundColor: '#333', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: 'pointer' }}>← Back to Scorecard</button>
+          {!isBanked && (
+            <button onClick={() => setShowSummary(false)} style={{ flex: 1, padding: '15px', backgroundColor: '#333', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: 'pointer' }}>← Back to Scorecard</button>
+          )}
           {onNewMatch && (
             <button onClick={onNewMatch} style={{ flex: 1, padding: '15px', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>🆕 New Round</button>
           )}
@@ -345,7 +348,7 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
       </div>
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '10px', background: 'linear-gradient(transparent, #121212 30%)', zIndex: 200 }}>
-        <button onClick={() => { finishRound(matchId); setShowSummary(true); }} style={{ padding: '15px', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
+        <button onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); }} style={{ padding: '15px', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
       </div>
       <div style={{ height: '70px', flexShrink: 0 }} />
     </div>

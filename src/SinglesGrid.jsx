@@ -9,6 +9,7 @@ import { focusNextScore } from './lib/scoreEntry';
 export default function SinglesGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
     const [showSummary, setShowSummary] = useState(initialShowSummary);
+    const [isBanked, setIsBanked] = useState(initialShowSummary);
 
     // The sticky PLAYER column's width isn't fixed - minWidth is only a floor, and a long player
     // name pushes it wider. Horizontal scroll-snap needs to reserve exactly that width (see
@@ -44,7 +45,7 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
           courseData={courseData}
           holesCount={holesCount}
         startHole={startHole}
-        onBack={() => setShowSummary(false)}
+        onBack={isBanked ? undefined : () => setShowSummary(false)}
           onNewMatch={onNewMatch}
         />
       );
@@ -309,7 +310,7 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
           zIndex: 200
         }}>
           <button
-            onClick={() => { finishRound(matchId); setShowSummary(true); }}
+            onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); }}
             style={{
               padding: '15px',
               backgroundColor: '#00BCD4',

@@ -652,6 +652,7 @@ function App() {
           startHole={startHole}
           initialIsTeamPlay={playMode === 'team'}
           initialShowSummary={matchCompleted}
+          onRoundFinished={dismissActiveMatch}
           onNewMatch={() => {
             removeActiveMatchCode();
             setActiveMatchCode(null);

@@ -14,7 +14,7 @@ import {
 } from './lib/golf';
 import { activeTeams as getActiveTeams, getTeamPlayers as teamPlayersOf, teamColorMap } from './lib/teams';
 
-export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, initialIsTeamPlay = true, holesCount = 18, startHole = 1, initialShowSummary = false }) {
+export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, initialIsTeamPlay = true, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const [showSummary, setShowSummary] = React.useState(initialShowSummary);
     const [isBanked, setIsBanked] = React.useState(initialShowSummary);
     const { scores, saveScore } = useScores(matchId);
@@ -326,7 +326,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         zIndex: 200
       }}>
         <button
-          onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); }}
+          onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); onRoundFinished?.(); }}
           style={{
             padding: '15px',
             backgroundColor: '#4CAF50',

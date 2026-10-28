@@ -6,7 +6,7 @@ import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 
-export default function SinglesGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
+export default function SinglesGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
     const [showSummary, setShowSummary] = useState(initialShowSummary);
     const [isBanked, setIsBanked] = useState(initialShowSummary);
@@ -310,7 +310,7 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
           zIndex: 200
         }}>
           <button
-            onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); }}
+            onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); onRoundFinished?.(); }}
             style={{
               padding: '15px',
               backgroundColor: '#00BCD4',

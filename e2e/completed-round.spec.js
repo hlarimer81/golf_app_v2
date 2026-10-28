@@ -125,4 +125,26 @@ test.describe('finishing a round in the same session', () => {
     await expectReadOnlySummary(page);
     await expect(page.getByRole('button', { name: /Back to Scorecard/ })).toHaveCount(0);
   });
+
+  // Issue #44: Finish Round banked the round and showed the summary, but never cleared the
+  // 'active round' code that drives the home screen's Resume banner - only the summary's own New
+  // Round button did that. A round finished and banked kept reading 'Round in progress' forever,
+  // surviving even a reload.
+  test('finishing a round clears the home screen Resume banner, including after a reload', async ({ page }) => {
+    const inProgress = { ...MATCH, status: 'in_progress' };
+    await serveCompletedRound(page, inProgress);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Join Round' }).click();
+    await page.getByPlaceholder('ABC123').fill(MATCH.match_code);
+    await page.getByRole('button', { name: 'Join Round' }).click();
+    await expect(page.locator('#score-1-0')).toBeVisible();
+
+    await page.getByRole('button', { name: /Finish Round/ }).click();
+    await expectReadOnlySummary(page);
+
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Start Round' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Resume' })).toHaveCount(0);
+    await expect(page.getByText(MATCH.match_code)).toHaveCount(0);
+  });
 });

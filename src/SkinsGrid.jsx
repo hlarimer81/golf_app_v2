@@ -18,7 +18,7 @@ import {
   scoreColor,
 } from './lib/golf';
 
-export default function SkinsGrid({ matchId, matchName, matchCode, players, useHandicaps, useCarryover, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
+export default function SkinsGrid({ matchId, matchName, matchCode, players, useHandicaps, useCarryover, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const [showSummary, setShowSummary] = useState(initialShowSummary);
   const [isBanked, setIsBanked] = useState(initialShowSummary);
   const [showMoney, setShowMoney] = useState(false);
@@ -286,7 +286,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
         zIndex: 200
       }}>
         <button
-          onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); }}
+          onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); onRoundFinished?.(); }}
           style={{
             padding: '15px',
             backgroundColor: '#FFD700',

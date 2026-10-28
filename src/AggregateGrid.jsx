@@ -8,7 +8,7 @@ import { focusNextScore } from './lib/scoreEntry';
 // net scores. Teams are compared pairwise per hole (2 half-points for a win, 1 each for
 // a tie) plus a per-nine bonus comparing each nine's total aggregate net. Points are
 // tracked as "half points" internally (2 = 1 full point) exactly like the firmware.
-export default function AggregateGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, holesCount = 18, startHole = 1, initialShowSummary = false }) {
+export default function AggregateGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const { scores, saveScore } = useScores(matchId);
   const [showSummary, setShowSummary] = useState(initialShowSummary);
   const [isBanked, setIsBanked] = useState(initialShowSummary);
@@ -348,7 +348,7 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
       </div>
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '10px', background: 'linear-gradient(transparent, #121212 30%)', zIndex: 200 }}>
-        <button onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); }} style={{ padding: '15px', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
+        <button onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); onRoundFinished?.(); }} style={{ padding: '15px', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
       </div>
       <div style={{ height: '70px', flexShrink: 0 }} />
     </div>

@@ -87,3 +87,60 @@ test('a wolf badge never renders on top of the sticky PLAYER column once its hol
   );
   expect(badgeIsOnTop).toBe(false);
 });
+
+// Issue #49 (recurrence of #47): the zIndex fix above stops a badge from winning a paint-order
+// fight with the sticky column, but that was never the only way one could appear to sit on top of
+// it. The badge was positioned relative to its *cell* (top/right of a 55px-wide <td>), not the
+// ~38px score tile centered inside it. As a hole's cell scrolls almost, but not quite, entirely
+// behind the sticky PLAYER column, a few pixels of the cell's trailing edge — exactly where the
+// cell-edge-anchored badge sits — are the last thing still on screen, long after the score tile
+// itself has disappeared. The result: a wolf/handshake icon with no score next to it, pressed up
+// against the sticky column's border, which reads exactly like the bleed-through #47 described.
+// The fix anchors the badge to the tile (GolfScoreTile's wolfTurn/partnerTurn props) instead of the
+// cell, the same fix already applied to the Vegas points badge for the identical reason (see
+// GolfScoreTile.jsx and issue #18).
+test('a wolf badge is not still visible once its own cell is reduced to a sliver behind the sticky column', async ({ page }) => {
+  await page.route('**/rest/v1/matches*', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const single = (route.request().headers()['accept'] || '').includes('vnd.pgrst.object');
+    return route.fulfill({ json: single ? MATCH : [MATCH] });
+  });
+  await page.route('**/rest/v1/players*', (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() !== 'GET' || url.searchParams.get('match_id') !== `eq.${MATCH.id}`) {
+      return route.fallback();
+    }
+    return route.fulfill({ json: PLAYERS });
+  });
+  await page.route('**/rest/v1/scores*', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: [] });
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+  await page.getByPlaceholder('ABC123').fill('WOLF01');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+  await expect(page.locator('tbody tr').first()).toBeVisible();
+
+  const badge = page.locator('tbody tr').first().getByText('🐺', { exact: true }).first();
+  await expect(badge).toBeVisible();
+
+  const scrollContainer = page.locator('table').locator('xpath=..');
+  const stickyCell = page.locator('tbody tr').first().locator('td').first();
+  const hole1Cell = page.locator('tbody tr').first().locator('td').nth(1);
+  const stickyBoxBefore = await stickyCell.boundingBox();
+  const hole1BoxBefore = await hole1Cell.boundingBox();
+
+  // Leave only a few pixels of hole 1's cell peeking out past the sticky column — the window
+  // where a cell-edge-anchored badge would still be on screen with its score tile already hidden.
+  // Computed from hole 1's own unscrolled position (not the sticky column's width) because the
+  // page's own padding offsets the two by a few pixels that don't cancel out at this precision.
+  const scrollLeft = (hole1BoxBefore.x + hole1BoxBefore.width) - (stickyBoxBefore.x + stickyBoxBefore.width) - 6;
+  await scrollContainer.evaluate((el, left) => { el.scrollTo({ left, behavior: 'instant' }); }, scrollLeft);
+
+  const stickyBox = await stickyCell.boundingBox();
+  const badgeBox = await badge.boundingBox();
+  const badgeVisible = badgeBox && badgeBox.x + badgeBox.width > stickyBox.x + stickyBox.width;
+  expect(badgeVisible).toBe(false);
+});

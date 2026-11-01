@@ -8,6 +8,8 @@ export default function GolfScoreTile({
   wolfPoints,
   showStar,
   vegasPoints,
+  wolfTurn,
+  partnerTurn,
   style = {},
   id,
   onChange,
@@ -221,6 +223,21 @@ export default function GolfScoreTile({
     </div>
   );
 
+  // Anchored to the tile, same reasoning as vegasPointsBadge above: a cell is often much wider
+  // than this 38px tile, and a badge anchored to the cell's own edge can be the only part of a
+  // scrolled-off cell still peeking out from under a sticky column.
+  const wolfTurnBadge = wolfTurn && (
+    <div style={{ position: 'absolute', top: '-6px', right: '-2px', fontSize: '10px', zIndex: 7, pointerEvents: 'none' }}>
+      🐺
+    </div>
+  );
+
+  const partnerTurnBadge = partnerTurn && (
+    <div style={{ position: 'absolute', top: '-6px', left: '-2px', fontSize: '10px', zIndex: 7, pointerEvents: 'none' }}>
+      🤝
+    </div>
+  );
+
   return (
     <div style={outerStyle}>
       {shapeDecorations}
@@ -236,6 +253,8 @@ export default function GolfScoreTile({
       {wolfPointsContainer}
       {starContainer}
       {vegasPointsBadge}
+      {wolfTurnBadge}
+      {partnerTurnBadge}
     </div>
   );
 }

@@ -290,9 +290,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
 
                     return (
                       <td key={`f-${holeNum}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: cellBg, position: 'relative', minWidth: '55px', overflow: 'hidden' }}>
-                        {isWolf && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', zIndex: 10 }}>🐺</div>}
-                        {isPartner && <div style={{ position: 'absolute', top: '1px', left: '3px', fontSize: '8px', zIndex: 10 }}>🤝</div>}
-                        <GolfScoreTile 
+                        <GolfScoreTile
                           id={`score-${holeNum}-${globalIdx}`}
                           type="tel"
                           inputMode="numeric"
@@ -300,6 +298,8 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                           par={pars[i]}
                           hasOneStroke={hasOneStroke}
                           hasTwoStrokes={hasTwoStrokes}
+                          wolfTurn={isWolf}
+                          partnerTurn={isPartner}
                           onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
                         />
@@ -323,9 +323,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
 
                     return (
                       <td key={`b-${holeNum}`} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: cellBg, position: 'relative', minWidth: '55px', overflow: 'hidden' }}>
-                        {isWolf && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', zIndex: 10 }}>🐺</div>}
-                        {isPartner && <div style={{ position: 'absolute', top: '1px', left: '3px', fontSize: '8px', zIndex: 10 }}>🤝</div>}
-                        <GolfScoreTile 
+                        <GolfScoreTile
                           id={`score-${holeNum}-${globalIdx}`}
                           type="tel"
                           inputMode="numeric"
@@ -333,6 +331,8 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                           par={pars[realIndex]}
                           hasOneStroke={hasOneStroke}
                           hasTwoStrokes={hasTwoStrokes}
+                          wolfTurn={isWolf}
+                          partnerTurn={isPartner}
                           onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                           style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
                         />

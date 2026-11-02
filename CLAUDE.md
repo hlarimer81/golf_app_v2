@@ -90,7 +90,7 @@ These protect a live database that real players and deployed hardware depend on.
   | `ready-for-dev` | Approved — the dev agent builds it, and the PR merges itself unless it is held (below). |
   | `queued` | Approved, but the daily limit was reached. The coordinator starts it when there is room. |
   | `needs-info` | Too vague to build as written; a question is waiting on the issue. Answer in a comment and the coordinator reads the issue again. |
-  | `needs-human` | Touches the database, migrations, secrets, auth, the firmware bucket, or maths that can't be verified with a test. Harold does these. Also put on an issue from an untrusted author, and on a PR that is held. |
+  | `needs-human` | Touches the database, migrations, secrets, auth, the firmware bucket, handicap maths, how money is settled, or scoring that can't be verified with a test. Harold does these. A scoring, points or standings bug a test can prove is shipped instead (2026-11-02). Also put on an issue from an untrusted author, and on a PR that is held. |
   | `duplicate` | Covered by another open issue. |
   | `digest` | The one standing issue, "Waiting on H", that the daily digest comments on. Not work: leave it open and unassigned. |
   | `retested` | A closed `from-tester` issue whose scenario the AI golfers have played again since the fix. Their comment says what they saw. |
@@ -112,8 +112,9 @@ These protect a live database that real players and deployed hardware depend on.
 - **Two things hold a PR for Harold instead** (2026-10-01). Both are decided in shell, not by a
   prompt:
   - **It touches a protected file.** The list is `.github/protected-paths`: the workflows and this
-    file, `sql/`, `supabase/`, dependencies and check configuration, the scoring, settlement and
-    handicap maths, saving, and sign-in. Removing lines from an existing test, or adding lint
+    file, `sql/`, `supabase/`, dependencies and check configuration, the handicap maths, saving,
+    and sign-in. Scoring and settlement (`golf.js`, `settlement.js`, `nassauEngine.js`) are not on
+    it since 2026-11-02: their tests hold them. Removing lines from an existing test, or adding lint
     suppressions, holds it too. The PR is opened, labelled `needs-human`, and not merged.
   - **The Gemini review does not approve.** "Needs changes", or no readable verdict, takes the PR
     off auto-merge and fails the review job. `review` is a required check on `main`, like

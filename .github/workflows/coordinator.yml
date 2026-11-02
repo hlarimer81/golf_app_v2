@@ -244,9 +244,10 @@ jobs:
             Issues labelled "from-tester" were filed by one of the four AI golfers, who play a
             real round on the live app each night (testers/README.md). Treat each one as a single
             golfer's report: it can be wrong. Check that what it describes exists in the code
-            before choosing ship. If it says a score, a point total, a skin, a press or a sum of
-            money is wrong, choose needs-human unless the fix can be proven by a unit test — and
-            say so in the reason.
+            before choosing ship. If it says a score, a point total, a skin count or a standing is
+            wrong, and you can name the test that would fail today and pass once it is fixed, choose
+            ship and name that test in the reason. Choose needs-human only if no such test can be
+            written.
 
             An issue marked "answered": true is one you asked a question on earlier, and someone
             has since replied. Your question and the reply are in its comments. Decide again
@@ -279,8 +280,11 @@ jobs:
             - **duplicate** — another open issue already covers it. Give its number.
             - **needs-human** — anything touching the database or migrations (sql/, supabase/),
               secrets, the firmware storage bucket, authentication, or anything needing a real round
-              on a course. Also anything where being wrong costs money: scoring, settlement or
-              handicap maths that you cannot see how to verify with a test.
+              on a course. Also handicap maths (indexes, differentials, course handicaps), and
+              changes to how money is settled between players: wagers, presses, payouts.
+              Scoring, points and standings bugs are NOT needs-human when a unit or smoke test can
+              prove the fix (since 2026-11-02: these have shipped well). Choose ship and say which
+              test in the reason.
             - **skip** — nothing to do: already has an open pull request, already labelled
               ready-for-dev, or it is a question rather than a request.
 
@@ -296,7 +300,8 @@ jobs:
               store that, which means a migration, which means a person.
             - Several golfers reporting the same friction is strong evidence. One person's feature
               idea is weak evidence.
-            - Money rides on the scoring. Be conservative near it.
+            - Money rides on the scoring. Ship a scoring fix when a test can prove it; when you
+              cannot see how one would, that is the case for needs-human.
 
             In every "reason" and "comment" you write, call the app's owner "H", never by his name:
             those are posted on a public repository.

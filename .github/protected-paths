@@ -30,11 +30,10 @@
 ^vitest\.config\.js$
 ^playwright\.config\.js$
 
-# Money: scoring, settlement and handicap maths.
-^src/lib/golf\.js$
+# Handicap maths: a wrong index follows a golfer into every round after it.
+# Scoring and settlement (golf.js, settlement.js, nassauEngine.js) merge on CI and the review since
+# 2026-11-02; their tests are what hold them, and removing lines from a test still holds a PR.
 ^src/lib/handicap\.js$
-^src/settlement\.js$
-^src/nassauEngine\.js$
 
 # Saving a round.
 ^src/lib/outbox\.js$

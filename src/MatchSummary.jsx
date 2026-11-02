@@ -1,6 +1,7 @@
 import React from 'react';
 import { computeRanks } from './lib/golf';
 import { skinsStandings } from './lib/skinsStandings';
+import { wolfPoints } from './lib/wolf';
 
 export default function MatchSummary({
   matchName,
@@ -14,6 +15,7 @@ export default function MatchSummary({
   stablefordMode,
   skinTotals,
   settlement,
+  wolfDecisions,
   onBack,
   onNewMatch,
   holesCount = 18,
@@ -306,16 +308,10 @@ export default function MatchSummary({
   };
   const chairmanTeamPoints = gameType === 'chairman' ? calculateChairman() : {};
 
-  // Calculate Wolf points (singles game)
-  // Note: Wolf choices (partner selections) are not stored in the database,
-  // so we can't recalculate exact Wolf points in the summary.
-  // This is a limitation - Wolf game should store wolf_choices in the database.
-  // For now, we'll just show individual stroke scores in the summary.
-  const wolfPlayerPoints = {};
-  if (gameType === 'wolf') {
-    // Placeholder - cannot calculate without wolf choices data
-    players.forEach(p => { wolfPlayerPoints[p.id] = 0; });
-  }
+  // Wolf points from the saved partner picks (matches.wolf), the same sum the live panel shows
+  const wolfPlayerPoints = gameType === 'wolf'
+    ? wolfPoints({ players, scores, decisions: wolfDecisions, holeNumbers, hcds, useHandicaps })
+    : {};
 
   // Get player stats
   const getPlayerStats = (player) => {
@@ -513,19 +509,6 @@ export default function MatchSummary({
         }}>
           {matchCode}
         </div>
-        {gameType === 'wolf' && (
-          <div style={{
-            background: '#FFA50033',
-            border: '1px solid #FFA500',
-            borderRadius: '8px',
-            padding: '12px',
-            marginTop: '12px',
-            fontSize: '13px',
-            color: '#FFA500'
-          }}>
-            ⚠️ Note: Wolf points shown are estimates only. Partner selections are not saved, so exact Wolf scoring cannot be recalculated.
-          </div>
-        )}
       </div>
 
       {/* Team Standings - only show for stableford (if team play), fourball, chairman, vegas, and nassau games */}

@@ -4,13 +4,15 @@ import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
+import { useWolfState } from './useWolfState';
+import { wolfIndex, wolfPoints as calcWolfPoints } from './lib/wolf';
 
 export default function WolfGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
     const [showSummary, setShowSummary] = useState(initialShowSummary);
     const [isBanked, setIsBanked] = useState(initialShowSummary);
-    // wolfChoices[holeNum] = { wolf: playerId, partner: playerId | 'lone' | null }
-    const [wolfChoices, setWolfChoices] = useState({});
+    // decisions[holeNum] = partnerPlayerId | 'lone', saved to matches.wolf so every view sees them
+    const { decisions, setDecision } = useWolfState(matchId);
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -22,110 +24,13 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
     const frontHoles = is18 ? holeNumbers.slice(0, 9) : holeNumbers;
     const backHoles = is18 ? holeNumbers.slice(9) : [];
 
-    // Wolf rotation: each played hole the wolf rotates through the players.
-    // Use the index within the played sequence (not raw hole number) so a
-    // 9-hole back-nine round still rotates starting from the first played hole.
-    const getWolfIndex = (holeNum) => {
-      const seqIdx = holeNumbers.indexOf(holeNum);
-      const i = seqIdx >= 0 ? seqIdx : (holeNum - 1);
-      return i % players.length;
-    };
+    const getWolfIndex = (holeNum) => wolfIndex(holeNumbers, holeNum, players.length);
     const getWolfPlayer = (holeNum) => players[getWolfIndex(holeNum)];
-  
-    const calculateNetStrokes = (strokes, holeIndex, playerHandicap) => {
-      if (!strokes || strokes === 0) return null;
-      let netStrokes = parseInt(strokes);
-      
-      if (useHandicaps) {
-        const holeDifficulty = hcds[holeIndex];
-        const hcp = parseInt(playerHandicap) || 0;
-        if (hcp >= holeDifficulty) netStrokes -= 1;
-        if (hcp >= holeDifficulty + 18) netStrokes -= 1;
-      }
-      return netStrokes;
-    };
 
-    // Calculate net score for a player on a hole
-    const getNetScore = (playerId, holeNum) => {
-      const strokes = scores[playerId]?.[holeNum];
-      if (!strokes) return null;
-      const player = players.find(p => p.id === playerId);
-      if (!player) return strokes;
-      return calculateNetStrokes(strokes, holeNum - 1, player.handicap ?? player.hcp ?? 0);
-    };
-
-    // Calculate Wolf game points for each player across all holes
-    const calculateWolfPoints = () => {
-      const points = {};
-      players.forEach(p => { points[p.id] = 0; });
-
-      for (const hole of holeNumbers) {
-        const choice = wolfChoices[hole];
-        if (!choice || !choice.wolf) continue;
-
-        const wolfId = choice.wolf;
-        const isLoneWolf = choice.partner === 'lone';
-        const partnerId = !isLoneWolf ? choice.partner : null;
-
-        // Get all net scores for this hole
-        const holeScores = {};
-        let allScored = true;
-        players.forEach(p => {
-          const ns = getNetScore(p.id, hole);
-          if (ns === null) allScored = false;
-          holeScores[p.id] = ns;
-        });
-
-        if (!allScored) continue;
-
-        if (isLoneWolf) {
-          // Lone Wolf: wolf vs all others. Points doubled (2 per opponent beaten)
-          const wolfScore = holeScores[wolfId];
-          const others = players.filter(p => p.id !== wolfId);
-          const bestOther = Math.min(...others.map(p => holeScores[p.id]));
-
-          if (wolfScore < bestOther) {
-            // Wolf wins: gets 4 points (doubled since lone wolf)
-            points[wolfId] += 4;
-          } else if (wolfScore > bestOther) {
-            // Others win: each gets 2 points
-            others.forEach(p => { points[p.id] += 2; });
-          }
-          // Tie = no points
-        } else if (partnerId) {
-          // Wolf + Partner vs Others
-          const wolfTeam = [wolfId, partnerId];
-          const otherTeam = players.filter(p => !wolfTeam.includes(p.id)).map(p => p.id);
-
-          const bestWolfTeam = Math.min(...wolfTeam.map(id => holeScores[id]));
-          const bestOtherTeam = Math.min(...otherTeam.map(id => holeScores[id]));
-
-          if (bestWolfTeam < bestOtherTeam) {
-            // Wolf team wins
-            wolfTeam.forEach(id => { points[id] += 2; });
-          } else if (bestOtherTeam < bestWolfTeam) {
-            // Other team wins
-            otherTeam.forEach(id => { points[id] += 2; });
-          }
-          // Tie = no points
-        }
-      }
-      return points;
-    };
-
-    const wolfPoints = calculateWolfPoints();
+    const wolfPoints = calcWolfPoints({ players, scores, decisions, holeNumbers, hcds, useHandicaps });
 
 
-  const handleWolfChoice = (holeNum, partnerId) => {
-    const wolfPlayer = getWolfPlayer(holeNum);
-    setWolfChoices(prev => ({
-      ...prev,
-      [holeNum]: {
-        wolf: wolfPlayer.id,
-        partner: partnerId
-      }
-    }));
-  };
+  const handleWolfChoice = (holeNum, partnerId) => setDecision(holeNum, partnerId);
 
   if (showSummary) {
     return (
@@ -133,6 +38,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
         matchName={matchName}
         matchCode={matchCode}
         gameType="wolf"
+        wolfDecisions={decisions}
         players={players}
         scores={scores}
         useHandicaps={useHandicaps}
@@ -169,7 +75,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
         // Find the first played hole without a wolf choice
         let nextHole = null;
         for (const h of holeNumbers) {
-          if (!wolfChoices[h] || !wolfChoices[h].partner) {
+          if (!decisions[h]) {
             nextHole = h;
             break;
           }
@@ -179,7 +85,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
         const wolfPlayer = getWolfPlayer(nextHole);
         const wolfName = (wolfPlayer.player_name || wolfPlayer.name || '').split(' ')[0];
         const otherPlayers = players.filter(p => p.id !== wolfPlayer.id);
-        const choice = wolfChoices[nextHole];
+        const choice = decisions[nextHole];
 
         return (
           <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '12px', borderRadius: '8px', marginBottom: '10px' }}>
@@ -189,7 +95,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {otherPlayers.map(op => {
                 const opName = (op.player_name || op.name || '').split(' ')[0];
-                const isSelected = choice?.partner === op.id;
+                const isSelected = choice === op.id;
                 return (
                   <button
                     key={op.id}
@@ -214,9 +120,9 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                 style={{
                   padding: '8px 16px',
                   fontSize: '13px',
-                  fontWeight: choice?.partner === 'lone' ? 'bold' : 'normal',
-                  background: choice?.partner === 'lone' ? '#FF5722' : '#333',
-                  color: choice?.partner === 'lone' ? '#fff' : '#aaa',
+                  fontWeight: choice === 'lone' ? 'bold' : 'normal',
+                  background: choice === 'lone' ? '#FF5722' : '#333',
+                  color: choice === 'lone' ? '#fff' : '#aaa',
                   border: 'none',
                   borderRadius: '6px',
                   cursor: 'pointer'
@@ -279,8 +185,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                   {frontHoles.map((holeNum) => {
                     const i = holeNum - 1;
                     const isWolf = getWolfIndex(holeNum) === globalIdx;
-                    const choice = wolfChoices[holeNum];
-                    const isPartner = choice?.partner === player.id;
+                    const isPartner = decisions[holeNum] === player.id;
                     const hasOneStroke = useHandicaps && playerHcp >= hcds[i];
                     const hasTwoStrokes = useHandicaps && playerHcp >= (hcds[i] + 18);
 
@@ -312,8 +217,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                   {backHoles.map((holeNum) => {
                     const realIndex = holeNum - 1;
                     const isWolf = getWolfIndex(holeNum) === globalIdx;
-                    const choice = wolfChoices[holeNum];
-                    const isPartner = choice?.partner === player.id;
+                    const isPartner = decisions[holeNum] === player.id;
                     const hasOneStroke = useHandicaps && playerHcp >= hcds[realIndex];
                     const hasTwoStrokes = useHandicaps && playerHcp >= (hcds[realIndex] + 18);
 

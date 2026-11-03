@@ -15,7 +15,8 @@ name: Gemini review
 # `review` is a required check on main, so a pull request cannot merge until this job passes:
 #   - Gemini busy or down after every retry (429, 5xx, no answer) -> job passes, and a comment
 #                                                               on the pull request says it was
-#                                                               NOT reviewed (H, 2026-10-07)
+#                                                               NOT reviewed (H, 2026-10-07).
+#                                                               Posted as H, so no email.
 #   - no reply for a reason that waiting will not fix (bad or  -> job fails; fix it and re-run
 #     missing key, retired model, an empty answer)
 #   - a reply that does not approve                          -> job fails AND the pull request
@@ -213,6 +214,16 @@ jobs:
             echo "**Errors:** ${ERRORS:-(none)}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # Every comment and label below goes through AGENT_TOKEN, which is H's own account, so
+          # GitHub sends him no email for it (2026-11-03). A comment from github-actions on a pull
+          # request he authored emailed him even when it said "approved" or "not reviewed", and
+          # neither needs him. When a pull request is held he still hears: this job fails, which
+          # GitHub emails, and the daily digest lists it. A pull request from a fork has no
+          # AGENT_TOKEN and falls back to github-actions.
+          TOKEN="$(printf '%s' "${AGENT_TOKEN_RAW:-$GH_TOKEN}" | tr -d '\r\n')"
+          echo "::add-mask::$TOKEN"
+          export GH_TOKEN="$TOKEN"
+
           # Gemini was busy or down through every retry. Pass, so the pull request is not stuck on
           # Google's outage, and say on the pull request that nobody reviewed it. The comment does
           # not say "approved": the after-the-fact review needs to know this one had only CI.
@@ -250,10 +261,6 @@ jobs:
           if [ "$VERDICT" = "approve" ]; then
             exit 0
           fi
-
-          TOKEN="$(printf '%s' "${AGENT_TOKEN_RAW:-$GH_TOKEN}" | tr -d '\r\n')"
-          echo "::add-mask::$TOKEN"
-          export GH_TOKEN="$TOKEN"
 
           # One try at the findings before this goes to Harold (2026-10-08). Only for a pull
           # request the dev agent wrote, only when the reviewer asked for changes, and only once:

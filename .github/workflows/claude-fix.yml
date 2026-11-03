@@ -70,15 +70,17 @@ jobs:
           token: ${{ secrets.AGENT_TOKEN }}
 
       # What the agent is given to read: the review, the change under review, and the issue the
-      # change was for. The review is the newest comment that github-actions posted as a Gemini
-      # review; nobody else can post under that name. The issue leaves out comments by anyone
-      # not on the trusted list, as it does for the dev agent.
+      # change was for. The review is the newest Gemini review comment posted by github-actions
+      # or by the AGENT_TOKEN account; the review workflow posts as the latter since 2026-11-03 so
+      # that it emails nobody. Nobody else can post under either name. The issue leaves out
+      # comments by anyone not on the trusted list, as it does for the dev agent.
       - name: Write out the review, the change and the issue
         env:
           GH_TOKEN: ${{ secrets.AGENT_TOKEN }}
         run: |
           gh pr view "$PR_NUMBER" --json comments > "$RUNNER_TEMP/pr.json"
-          jq -r '[ .comments[] | select(.author.login == "github-actions")
+          AGENT_LOGIN=$(gh api user -q .login)
+          jq -r --arg agent "$AGENT_LOGIN" '[ .comments[] | select(.author.login == "github-actions" or .author.login == $agent)
                                | select(.body | contains("*Reviewed by Gemini.")) ] | last | .body // ""' \
             "$RUNNER_TEMP/pr.json" > "$RUNNER_TEMP/review.md"
           if [ ! -s "$RUNNER_TEMP/review.md" ] || ! grep -q '[^[:space:]]' "$RUNNER_TEMP/review.md"; then

@@ -98,7 +98,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                 const isSelected = choice === op.id;
                 return (
                   <button
-                    key={op.id}
+                    key={`${nextHole}-${op.id}`}
                     onClick={() => handleWolfChoice(nextHole, op.id)}
                     style={{
                       padding: '8px 16px',
@@ -116,6 +116,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                 );
               })}
               <button
+                key={`lone-${nextHole}`}
                 onClick={() => handleWolfChoice(nextHole, 'lone')}
                 style={{
                   padding: '8px 16px',

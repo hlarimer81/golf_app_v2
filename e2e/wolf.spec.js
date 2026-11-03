@@ -104,3 +104,43 @@ test('picking a Wolf partner saves it to the round', async ({ page }) => {
   // The panel moves on to the 6th, where Bo is Wolf.
   await expect(page.getByText(/HOLE 6 — 🐺 Bo IS THE WOLF/)).toBeVisible();
 });
+
+test('the next hole\'s panel does not carry over the previous hole\'s picked button (issue #51)', async ({ page }) => {
+  // Same match, but with no picks yet, so the panel starts on hole 1 (Pat is Wolf, Bo is on hole 2).
+  const freshMatch = { ...MATCH, id: 'match-wolf-fresh', match_code: 'WOLFFR', wolf: { decisions: {} } };
+  const freshPlayers = PLAYERS.map(p => ({ ...p, match_id: freshMatch.id }));
+
+  await page.route('**/rest/v1/matches*', (route) => {
+    if (route.request().method() === 'PATCH') return route.fulfill({ json: [{ id: freshMatch.id }] });
+    if (route.request().method() !== 'GET') return route.fallback();
+    const single = (route.request().headers()['accept'] || '').includes('vnd.pgrst.object');
+    return route.fulfill({ json: single ? freshMatch : [freshMatch] });
+  });
+  await page.route('**/rest/v1/players*', (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() !== 'GET' || url.searchParams.get('match_id') !== `eq.${freshMatch.id}`) {
+      return route.fallback();
+    }
+    return route.fulfill({ json: freshPlayers });
+  });
+  await page.route('**/rest/v1/scores*', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: [] });
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+  await page.getByPlaceholder('ABC123').fill(freshMatch.match_code);
+  await page.getByRole('button', { name: 'Join Round' }).click();
+
+  await expect(page.getByText(/HOLE 1 — 🐺 Pat IS THE WOLF/)).toBeVisible();
+  // Sandy is a valid partner on both hole 1 (Pat is Wolf) and hole 2 (Bo is Wolf).
+  await page.getByRole('button', { name: 'Sandy', exact: true }).click();
+  await expect(page.getByText(/HOLE 2 — 🐺 Bo IS THE WOLF/)).toBeVisible();
+
+  // Clicking a button focuses it. Hole 2 is a fresh choice, so nothing on it should still be
+  // the focused element left over from hole 1's click.
+  const sandyButton = page.getByRole('button', { name: 'Sandy', exact: true });
+  await expect(sandyButton).toBeVisible();
+  await expect.poll(() => sandyButton.evaluate((el) => el === document.activeElement)).toBe(false);
+});

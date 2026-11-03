@@ -84,6 +84,8 @@ test('the Finish Round summary ranks the Wolf leader first, not a four-way tie (
   await expect(sandyRow.getByRole('cell', { name: '🥇', exact: true })).toBeVisible();
   await expect(page.getByRole('cell', { name: '🥇', exact: true })).toHaveCount(1);
   await expect(page.getByText(/Partner selections are not saved/)).toHaveCount(0);
+  // The generic 'Points' column duplicated Wolf Pts but disagreed with it and the medals (issue #52).
+  await expect(page.getByRole('columnheader', { name: 'Points' })).toHaveCount(0);
 });
 
 test('picking a Wolf partner saves it to the round', async ({ page }) => {

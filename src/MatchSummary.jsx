@@ -600,7 +600,7 @@ export default function MatchSummary({
               {gameType === 'fourball' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#4CAF50' }}>Holes Contributed</th>
               )}
-              {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'vegas' && gameType !== 'skins' && (
+              {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'vegas' && gameType !== 'skins' && gameType !== 'wolf' && (
                 <th style={{ padding: '10px', textAlign: 'center', color: '#888' }}>Points</th>
               )}
               {gameType === 'ninepoint' && (
@@ -642,7 +642,7 @@ export default function MatchSummary({
                     {player.netStrokes || '-'}
                   </td>
                 )}
-                {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'vegas' && gameType !== 'skins' && (
+                {gameType !== 'fourball' && gameType !== 'chairman' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'vegas' && gameType !== 'skins' && gameType !== 'wolf' && (
                   <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#4CAF50' }}>
                     {player.points}
                   </td>

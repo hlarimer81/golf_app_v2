@@ -75,6 +75,38 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
     return half;
   };
 
+  // Each nine compared for the per-nine bonus below (18 holes -> front/back; otherwise the
+  // whole round counts as a single nine, same as the firmware).
+  const nines = is18 ? [frontHoles, backHoles] : [holeNumbers];
+
+  // Half-points a team earns from the per-nine bonus (comparing that nine's total aggregate
+  // net against every other team's), for one nine. Returns -1 if the team hasn't completed
+  // the nine. Shared by calculateStandings and the Per-Hole Points table so the two can never
+  // disagree about the bonus.
+  const nineBonusPoints = (teamName, nine) => {
+    let sum = 0;
+    for (const holeNum of nine) {
+      const a = teamAggregateNet(teamName, holeNum);
+      if (a <= 0) return -1;
+      sum += a;
+    }
+    let half = 0;
+    for (const other of activeTeams) {
+      if (other === teamName) continue;
+      let otherSum = 0;
+      let otherComplete = true;
+      for (const holeNum of nine) {
+        const a = teamAggregateNet(other, holeNum);
+        if (a <= 0) { otherComplete = false; break; }
+        otherSum += a;
+      }
+      if (!otherComplete) continue;
+      if (sum < otherSum) half += 2;
+      else if (sum === otherSum) half += 1;
+    }
+    return half;
+  };
+
   // Full standings: per-hole pairwise half-points + per-nine bonus.
   const calculateStandings = () => {
     const half = {};
@@ -97,31 +129,11 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
     }
 
     // Per-nine bonus
-    const nines = is18 ? [frontHoles, backHoles] : [holeNumbers];
     for (const nine of nines) {
-      const total = {};
-      const done = {};
       activeTeams.forEach(t => {
-        let sum = 0;
-        let complete = true;
-        for (const holeNum of nine) {
-          const a = teamAggregateNet(t, holeNum);
-          if (a <= 0) { complete = false; break; }
-          sum += a;
-        }
-        total[t] = sum;
-        done[t] = complete;
+        const bonus = nineBonusPoints(t, nine);
+        if (bonus > 0) half[t] += bonus;
       });
-      for (let i = 0; i < activeTeams.length; i++) {
-        for (let j = i + 1; j < activeTeams.length; j++) {
-          const t1 = activeTeams[i];
-          const t2 = activeTeams[j];
-          if (!done[t1] || !done[t2]) continue;
-          if (total[t1] < total[t2]) half[t1] += 2;
-          else if (total[t2] < total[t1]) half[t2] += 2;
-          else { half[t1] += 1; half[t2] += 1; }
-        }
-      }
     }
     return half;
   };
@@ -192,6 +204,21 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
                       <td key={t} style={{ padding: '8px', textAlign: 'center', color: hp > 0 ? teamColors[t] : '#555', fontWeight: hp > 0 ? 'bold' : 'normal' }}>
                         {hp < 0 ? '-' : formatHalf(hp)}
                         {net > 0 && <span style={{ fontSize: '9px', color: '#555', display: 'block' }}>({net})</span>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {nines.map((nine, idx) => (
+                <tr key={`bonus-${idx}`} style={{ borderTop: '2px solid #333', backgroundColor: '#181818' }}>
+                  <td colSpan={2} style={{ padding: '8px', fontWeight: 'bold', color: '#888', fontSize: '11px', textTransform: 'uppercase' }}>
+                    {nines.length > 1 ? (idx === 0 ? 'OUT Bonus' : 'IN Bonus') : 'Nine Bonus'}
+                  </td>
+                  {activeTeams.map(t => {
+                    const bonus = nineBonusPoints(t, nine);
+                    return (
+                      <td key={t} style={{ padding: '8px', textAlign: 'center', color: bonus > 0 ? teamColors[t] : '#555', fontWeight: bonus > 0 ? 'bold' : 'normal' }}>
+                        {bonus < 0 ? '-' : formatHalf(bonus)}
                       </td>
                     );
                   })}

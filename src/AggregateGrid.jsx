@@ -173,7 +173,7 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
                 <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>{isLeader ? '🥇 ' : ''}{tName}</div>
                 <div style={{ fontSize: '34px', fontWeight: '900', color: isLeader ? '#FFD700' : tc }}>{formatHalf(standings[tName])}</div>
                 <div style={{ fontSize: '11px', color: '#666' }}>points</div>
-                <div style={{ fontSize: '13px', color: '#aaa', marginTop: '6px' }}>{teamNetTotal(tName)} net</div>
+                <div style={{ fontSize: '13px', color: '#aaa', marginTop: '6px' }}>{teamNetTotal(tName)} {useHandicaps ? 'net' : 'gross'}</div>
               </div>
             );
           })}
@@ -353,7 +353,7 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
                   })}
                   {/* Team aggregate net row */}
                   <tr style={{ backgroundColor: '#161616' }}>
-                    <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#161616', padding: '6px 12px', fontSize: '10px', color: '#888', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>AGG NET</td>
+                    <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#161616', padding: '6px 12px', fontSize: '10px', color: '#888', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>{useHandicaps ? 'AGG NET' : 'AGG GROSS'}</td>
                     {frontHoles.map(holeNum => {
                       const net = teamAggregateNet(teamName, holeNum);
                       return <td key={`agg-f-${holeNum}`} style={{ padding: '4px', textAlign: 'center', fontSize: '11px', color: teamColors[teamName] || ACCENT, fontWeight: 'bold', backgroundColor: '#161616' }}>{net > 0 ? net : '-'}</td>;

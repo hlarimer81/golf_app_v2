@@ -286,19 +286,17 @@ export default function AggregateGrid({ matchId, matchName, matchCode, players, 
               const teamPlayers = getTeamPlayers(teamName);
               return (
                 <React.Fragment key={teamName}>
-                  {/* Team header row. The team-name cell is its own (narrow) sticky column — a
-                      single cell spanning the whole row has no room to slide within its own
-                      containing block, so `position: sticky` on it is a no-op and the name
-                      scrolls off with the holes (issue #59). */}
+                  {/* Team header row. The team-name-and-points cell is its own (narrow) sticky
+                      column — a single cell spanning the whole row has no room to slide within
+                      its own containing block, so `position: sticky` on it is a no-op and the
+                      name scrolls off with the holes (issue #59). The second cell is an empty
+                      filler so the tinted row background still reaches the far-right columns. */}
                   <tr style={{ backgroundColor: (teamColors[teamName] || ACCENT) + '22' }}>
                     <td data-testid={`team-name-${teamName}`}
-                      style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '6px 12px', fontWeight: 'bold', color: teamColors[teamName] || ACCENT, fontSize: '12px', letterSpacing: '1px', whiteSpace: 'nowrap', borderRight: `3px solid ${teamColors[teamName] || ACCENT}` }}>
-                      {teamName}
+                      style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: (teamColors[teamName] || ACCENT) + '22', padding: '6px 12px', fontWeight: 'bold', color: teamColors[teamName] || ACCENT, fontSize: '12px', letterSpacing: '1px', whiteSpace: 'nowrap', borderRight: `3px solid ${teamColors[teamName] || ACCENT}` }}>
+                      {teamName} — {formatHalf(standings[teamName] || 0)} pts
                     </td>
-                    <td colSpan={frontHoles.length + backHoles.length + (is18 ? 3 : 1)}
-                      style={{ padding: '6px 12px', fontWeight: 'bold', color: teamColors[teamName] || ACCENT, fontSize: '12px', letterSpacing: '1px' }}>
-                      — {formatHalf(standings[teamName] || 0)} pts
-                    </td>
+                    <td colSpan={frontHoles.length + backHoles.length + (is18 ? 3 : 1)} />
                   </tr>
                   {teamPlayers.map((player, tIdx) => {
                     const playerScores = scores[player.id] || {};

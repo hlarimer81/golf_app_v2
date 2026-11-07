@@ -88,8 +88,11 @@ test('Team name stays pinned on the team header row when the scorecard is scroll
 
   const beforeBox = await teamNameCell.boundingBox();
   await container.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
+  const scrollLeft = await container.evaluate((el) => el.scrollLeft);
   const afterBox = await teamNameCell.boundingBox();
 
+  // Make sure the table actually scrolled, otherwise the position assertion below passes trivially.
+  expect(scrollLeft).toBeGreaterThan(0);
   // The team name's on-screen position shouldn't move when the table scrolls horizontally.
   expect(afterBox.x).toBeCloseTo(beforeBox.x, 0);
   await expect(teamNameCell).toBeInViewport();

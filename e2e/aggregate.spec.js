@@ -79,3 +79,21 @@ test('Net-mode aggregate round still labels the team row AGG NET', async ({ page
   await expect(page.getByText('AGG NET')).toHaveCount(2);
   await expect(page.getByText('AGG GROSS')).toHaveCount(0);
 });
+
+test('Team name stays pinned on the team header row when the scorecard is scrolled right (issue #59)', async ({ page }) => {
+  await joinRound(page, GROSS_MATCH);
+
+  const teamNameCell = page.getByTestId('team-name-Team A');
+  const container = page.locator('table').locator('..');
+
+  const beforeBox = await teamNameCell.boundingBox();
+  await container.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
+  const scrollLeft = await container.evaluate((el) => el.scrollLeft);
+  const afterBox = await teamNameCell.boundingBox();
+
+  // Make sure the table actually scrolled, otherwise the position assertion below passes trivially.
+  expect(scrollLeft).toBeGreaterThan(0);
+  // The team name's on-screen position shouldn't move when the table scrolls horizontally.
+  expect(afterBox.x).toBeCloseTo(beforeBox.x, 0);
+  await expect(teamNameCell).toBeInViewport();
+});

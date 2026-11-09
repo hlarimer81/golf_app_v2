@@ -58,7 +58,8 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
     const par = pars[holeIndex];
     
     // Numbers and birdie flips: vegasHoleNumbers in lib/golf.js.
-    const { a: t1Score, b: t2Score } = vegasHoleNumbers(t1, t2, par, false);
+    // Only a natural (gross) birdie flips the other side.
+    const { a: t1Score, b: t2Score } = vegasHoleNumbers(t1, t2, par, true);
     
     if (t1Score < t2Score) return { [teamKeys[0]]: t2Score - t1Score, [teamKeys[1]]: 0, t1Score, t2Score };
     if (t2Score < t1Score) return { [teamKeys[1]]: t1Score - t2Score, [teamKeys[0]]: 0, t1Score, t2Score };

@@ -14,15 +14,15 @@ import { settleWolfVegasHole } from './lib/golf';
 // numbers. Awarding: equal-sized sides settle the difference once each; unequal sides settle
 // per opposing player, so each wolf-side player swings mag*(opp count) and each opponent
 // swings mag*(wolf count) — always zero-sum. The Lone/Blind multiplier and the per-hole
-// hammer (x2 per hammer, stacking) scale both sides equally. Birdie uses net strokes by
-// default, or gross when "Gross birdies" is on. Winners gain, losers lose.
+// hammer (x2 per hammer, stacking) scale both sides equally. Only a natural (gross) birdie flips
+// by default; the "Birdies" toggle switches to net. Winners gain, losers lose.
 export default function WolfVegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const { scores, saveScore } = useScores(matchId);
   const [showSummary, setShowSummary] = useState(initialShowSummary);
   const [isBanked, setIsBanked] = useState(initialShowSummary);
   // Wolf decisions, hammers, and the birdie option are persisted per-match (survive refresh
   // and sync across devices). decisions[holeNum] = partner playerId | 'lone' | 'blind';
-  // hammers[holeNum] = hammer count (each doubles: 0->x1, 1->x2...); grossBirdies default false.
+  // hammers[holeNum] = hammer count (each doubles: 0->x1, 1->x2...); grossBirdies default true.
   const { decisions, hammers, grossBirdies, setDecision, adjustHammer, cycleHammer, toggleGrossBirdies } = useWolfVegasState(matchId);
 
   const pars = courseData?.pars || Array(18).fill(4);

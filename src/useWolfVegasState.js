@@ -12,7 +12,9 @@ import { outbox, queueMatchSave, pendingMatchValue } from './lib/saves';
 //
 // Saves go through the outbox (lib/saves.js), which resends until the database confirms them.
 // =====================================================================================
-const EMPTY = { decisions: {}, hammers: {}, grossBirdies: false };
+// Birdies default to gross (natural). A round saved before 2026-11-09 carries its own grossBirdies,
+// so one that was on net stays on net.
+const EMPTY = { decisions: {}, hammers: {}, grossBirdies: true };
 
 export function useWolfVegasState(matchId) {
   const [state, setState] = useState(EMPTY);

@@ -7,10 +7,9 @@ import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 import { vegasHoleNumbers } from './lib/golf';
 import { useVegasState } from './useVegasState';
-import WagerConfig from './WagerConfig';
-import MoneyModal from './MoneyModal';
-import { useWager } from './useWager';
-import { settleVegas, wagerHasStake } from './settlement';
+import BetControls from './components/BetControls';
+import { useBet } from './useBet';
+import { settleVegas } from './settlement';
 
 export default function VegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
@@ -19,9 +18,8 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
     // Which birdies flip the other side's number, saved per round (matches.vegas).
     const { grossBirdies, toggleGrossBirdies } = useVegasState(matchId);
     // The bet: $ per point, saved to matches.wager like Skins and Nassau.
-    const { wager, saveWager } = useWager(matchId);
-    const [showWager, setShowWager] = useState(false);
-    const [showMoney, setShowMoney] = useState(false);
+    const bet = useBet(matchId);
+    const { wager } = bet;
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -87,34 +85,9 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
     wager,
     teams: teamNames.map(t => ({ name: t, points: teamTotals[t], players: getTeamPlayers(players, t) })),
   });
-  const hasStake = wagerHasStake(wager);
 
   const betButtons = (
-    <>
-      <button onClick={() => setShowWager(true)}
-        style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap', border: '1px solid #E91E63', background: 'transparent', color: '#ddd', cursor: 'pointer' }}>
-        💵 {hasStake ? `$${wager.per_point.toFixed(2)}/pt` : 'Wager'}
-      </button>
-      {hasStake && (
-        <button onClick={() => setShowMoney(true)}
-          style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap', border: 'none', background: '#E91E63', color: '#fff', cursor: 'pointer' }}>
-          💰 Money
-        </button>
-      )}
-    </>
-  );
-  const moneyModals = (
-    <>
-      {showWager && (
-        <WagerConfig gameType="vegas" wager={wager} accent="#E91E63"
-          onClose={() => setShowWager(false)}
-          onSave={(w) => { saveWager(w); setShowWager(false); }} />
-      )}
-      {showMoney && (
-        <MoneyModal settlement={settlement} gameName="Vegas" accent="#E91E63"
-          onClose={() => setShowMoney(false)} />
-      )}
-    </>
+    <BetControls bet={bet} settlement={settlement} gameType="vegas" gameName="Vegas" accent="#E91E63" />
   );
 
   // Show summary screen
@@ -133,7 +106,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
         startHole={startHole}
         onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
-        actions={<div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>{betButtons}{moneyModals}</div>}
+        actions={<div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>{betButtons}</div>}
       />
     );
   }
@@ -335,7 +308,6 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
         </button>
       </div>
       <div style={{ height: '70px', flexShrink: 0 }} />
-      {moneyModals}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import GolfScoreTile from './GolfScoreTile';
 import { getPlayerTeam, activeTeams } from './lib/teams';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
+import { vegasHoleNumbers } from './lib/golf';
 
 export default function VegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
@@ -42,7 +43,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
       if (!teams[teamName]) teams[teamName] = [];
       const strokes = scores[p.id]?.[holeIndex + 1];
       if (strokes) {
-        teams[teamName].push(calculateNetStrokes(strokes, holeIndex, p.handicap || p.hcp));
+        teams[teamName].push({ gross: strokes, net: calculateNetStrokes(strokes, holeIndex, p.handicap || p.hcp) });
       }
     });
     
@@ -52,20 +53,12 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
     const t1 = teams[teamKeys[0]].slice(0, 2);
     const t2 = teams[teamKeys[1]].slice(0, 2);
     
-    if (t1.length < 2 || t1.includes(null) || t2.length < 2 || t2.includes(null)) return { t1: 0, t2: 0 };
+    if (t1.length < 2 || t1.some(m => m.net === null) || t2.length < 2 || t2.some(m => m.net === null)) return { t1: 0, t2: 0 };
     
     const par = pars[holeIndex];
     
-    const t1Lo = Math.min(...t1);
-    const t1Hi = Math.max(...t1);
-    const t2Lo = Math.min(...t2);
-    const t2Hi = Math.max(...t2);
-    
-    const t1Birdie = t1Lo <= par - 1;
-    const t2Birdie = t2Lo <= par - 1;
-    
-    const t1Score = t2Birdie ? (t1Hi * 10 + t1Lo) : (t1Lo * 10 + t1Hi);
-    const t2Score = t1Birdie ? (t2Hi * 10 + t2Lo) : (t2Lo * 10 + t2Hi);
+    // Numbers and birdie flips: vegasHoleNumbers in lib/golf.js.
+    const { a: t1Score, b: t2Score } = vegasHoleNumbers(t1, t2, par, false);
     
     if (t1Score < t2Score) return { [teamKeys[0]]: t2Score - t1Score, [teamKeys[1]]: 0, t1Score, t2Score };
     if (t2Score < t1Score) return { [teamKeys[1]]: t1Score - t2Score, [teamKeys[0]]: 0, t1Score, t2Score };

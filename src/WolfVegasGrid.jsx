@@ -4,6 +4,7 @@ import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 import { useWolfVegasState } from './useWolfVegasState';
+import { settleWolfVegasHole } from './lib/golf';
 
 // Wolf Vegas: 4 or 5 players. Each hole one player is the "Wolf" (rotates; tees last). The
 // Wolf picks a partner (2v2 at 4p, 2v3 at 5p), goes Lone Wolf (1v3 / 1v4, points doubled),
@@ -70,26 +71,6 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
   };
   const grossOf = (playerId, holeNum) => scores[playerId]?.[holeNum] ?? null;
 
-  // A side's Vegas number: its two LOWEST nets, low digit first (or high first when flipped
-  // because the opposing side birdied). A one-man side doubles its net (4 -> 44); a flip is a
-  // no-op there (44 flipped is still 44), which is why an opponent birdie never bites a Lone Wolf.
-  const sideNumber = (nets, flip) => {
-    if (nets.length === 1) return nets[0] * 11;
-    const [lo, hi] = [...nets].sort((a, b) => a - b);
-    return flip ? (hi * 10 + lo) : (lo * 10 + hi);
-  };
-
-  // A side birdied if its lowest stroke is at least one under par. Any member's birdie counts.
-  // Uses gross strokes when "Gross birdies" is on, else net.
-  const sideBirdie = (members, holeNum, par) => {
-    let best = Infinity;
-    for (const p of members) {
-      const s = grossBirdies ? grossOf(p.id, holeNum) : cappedNet(p.id, holeNum);
-      if (s != null && s < best) best = s;
-    }
-    return best <= par - 1;
-  };
-
   // Per-hole hammer multiplier: each hammer doubles the hole (x1, x2, x4, x8...).
   const hammerMult = (holeNum) => Math.pow(2, hammers[holeNum] || 0);
 
@@ -128,37 +109,17 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
     }
     if (oppSide.length === 0) return result;
 
-    const nw = wolfSide.length;
-    const no = oppSide.length;
-
-    // A side's number flips when the OPPOSING side birdied.
-    const wolfBirdie = sideBirdie(wolfSide, holeNum, par);
-    const oppBirdie = sideBirdie(oppSide, holeNum, par);
-    const wolfNum = sideNumber(wolfSide.map(p => net[p.id]), oppBirdie);
-    const oppNum = sideNumber(oppSide.map(p => net[p.id]), wolfBirdie);
-
-    const diff = wolfNum - oppNum;
-    const mag = Math.abs(diff);
-
-    // Equal sides settle the difference once each; unequal sides settle per opposing player,
-    // so a wolf-side player swings mag*no and an opponent swings mag*nw (always zero-sum).
+    // Numbers, birdie flips and each player's swing: settleWolfVegasHole in lib/golf.js.
     // The Lone/Blind multiplier and the per-hole hammer scale both sides equally.
-    const equal = nw === no;
-    const scale = mult * hammerMult(holeNum);
-    const wolfEach = (equal ? mag : mag * no) * scale;
-    const oppEach = (equal ? mag : mag * nw) * scale;
-
-    if (diff < 0) {            // wolf side is lower -> wolf side wins
-      wolfSide.forEach(p => { pts[p.id] += wolfEach; });
-      oppSide.forEach(p => { pts[p.id] -= oppEach; });
-    } else if (diff > 0) {
-      wolfSide.forEach(p => { pts[p.id] -= wolfEach; });
-      oppSide.forEach(p => { pts[p.id] += oppEach; });
-    }
+    const member = (p) => ({ id: p.id, gross: grossOf(p.id, holeNum), net: net[p.id] });
+    const { pts: holePts, wolfNum, oppNum, diff } = settleWolfVegasHole(
+      wolfSide.map(member), oppSide.map(member), par,
+      { grossBirdies, scale: mult * hammerMult(holeNum) });
+    Object.assign(pts, holePts);
 
     result.wolfNum = wolfNum;
     result.oppNum = oppNum;
-    result.diff = mag;
+    result.diff = diff;
     result.settled = true;
     return result;
   };

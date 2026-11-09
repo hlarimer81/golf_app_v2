@@ -115,3 +115,77 @@ export function scoreColor(net, par) {
   if (diff === 1) return '#ff9800';
   return '#f44336';
 }
+
+// ---------------------------------------------------------------------------------------------
+// Vegas and Wolf Vegas
+//
+// Each side makes a two-digit number from its two lowest net scores, low digit first. A birdie
+// by one side flips the other side's number (45 -> 54). The lower number wins the difference.
+// Whether a birdie must be natural (gross) or can come with a stroke (net) is a per-round option.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * A side's Vegas number from its net scores: the two lowest, low digit first, or high digit first
+ * when `flipped`. A one-player side doubles its net (4 -> 44), so a flip changes nothing there.
+ * Any score past the two lowest is ignored.
+ */
+export function vegasSideNumber(nets, flipped) {
+  if (nets.length === 1) return nets[0] * 11;
+  const [lo, hi] = [...nets].sort((a, b) => a - b);
+  return flipped ? hi * 10 + lo : lo * 10 + hi;
+}
+
+/**
+ * Did a side birdie? Any member one or more under par. members: [{ gross, net }].
+ * With `grossBirdies` only a natural birdie counts; otherwise a net birdie does too.
+ */
+export function vegasSideBirdie(members, par, grossBirdies) {
+  return members.some(m => {
+    const s = grossBirdies ? m.gross : m.net;
+    return s != null && s <= par - 1;
+  });
+}
+
+/**
+ * Both sides' numbers on one hole. Each side is [{ gross, net }], net already handicapped.
+ * Returns { a, b, aBirdie, bBirdie }: a is sideA's number, flipped if sideB birdied.
+ */
+export function vegasHoleNumbers(sideA, sideB, par, grossBirdies) {
+  const aBirdie = vegasSideBirdie(sideA, par, grossBirdies);
+  const bBirdie = vegasSideBirdie(sideB, par, grossBirdies);
+  return {
+    a: vegasSideNumber(sideA.map(m => m.net), bBirdie),
+    b: vegasSideNumber(sideB.map(m => m.net), aBirdie),
+    aBirdie,
+    bBirdie,
+  };
+}
+
+/**
+ * Settle one Wolf Vegas hole. wolfSide and oppSide are [{ id, gross, net }]. `scale` is the
+ * Lone (x2) / Blind (x3) multiplier times the hammers. Equal-sized sides settle the difference
+ * once each; unequal sides settle it with every player opposite, so a wolf-side player swings
+ * diff x (opponents) and an opponent diff x (wolf side). Always zero-sum.
+ * Returns { pts: { [id]: signed points }, wolfNum, oppNum, diff } with diff unsigned.
+ */
+export function settleWolfVegasHole(wolfSide, oppSide, par, { grossBirdies, scale = 1 } = {}) {
+  const { a: wolfNum, b: oppNum } = vegasHoleNumbers(wolfSide, oppSide, par, grossBirdies);
+  const signed = wolfNum - oppNum;
+  const diff = Math.abs(signed);
+  const equal = wolfSide.length === oppSide.length;
+  const wolfEach = (equal ? diff : diff * oppSide.length) * scale;
+  const oppEach = (equal ? diff : diff * wolfSide.length) * scale;
+
+  const pts = {};
+  wolfSide.forEach(m => { pts[m.id] = 0; });
+  oppSide.forEach(m => { pts[m.id] = 0; });
+  // The lower number wins. A tie scores nothing.
+  if (signed < 0) {
+    wolfSide.forEach(m => { pts[m.id] = wolfEach; });
+    oppSide.forEach(m => { pts[m.id] = -oppEach; });
+  } else if (signed > 0) {
+    wolfSide.forEach(m => { pts[m.id] = -wolfEach; });
+    oppSide.forEach(m => { pts[m.id] = oppEach; });
+  }
+  return { pts, wolfNum, oppNum, diff };
+}

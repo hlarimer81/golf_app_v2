@@ -6,6 +6,9 @@ import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 import { useWolfState } from './useWolfState';
 import { wolfIndex, wolfPoints as calcWolfPoints } from './lib/wolf';
+import BetControls from './components/BetControls';
+import { useBet } from './useBet';
+import { settlePerPointIndividual } from './settlement';
 
 export default function WolfGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
@@ -29,6 +32,11 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
 
     const wolfPoints = calcWolfPoints({ players, scores, decisions, holeNumbers, hcds, useHandicaps });
 
+    // The bet: $ per point. Each pair of players settles the gap between their points.
+    const bet = useBet(matchId);
+    const settlement = settlePerPointIndividual({ players, wager: bet.wager, pointsById: wolfPoints });
+    const betButtons = <BetControls bet={bet} settlement={settlement} gameType="wolf" gameName="Wolf" accent="#607D8B" />;
+
 
   const handleWolfChoice = (holeNum, partnerId) => setDecision(holeNum, partnerId);
 
@@ -48,6 +56,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
         startHole={startHole}
         onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
+        actions={<div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>{betButtons}</div>}
       />
     );
   }
@@ -57,8 +66,9 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
       
       {/* Wolf Points Summary */}
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '12px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '10px', borderBottom: '2px solid #607D8B' }}>
-        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
           <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', letterSpacing: '2px' }}>🐺 WOLF POINTS</div>
+          {betButtons}
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap' }}>
           {players.map(p => (

@@ -13,6 +13,9 @@ import {
   holeLayout,
 } from './lib/golf';
 import { activeTeams as getActiveTeams, getTeamPlayers as teamPlayersOf, teamColorMap } from './lib/teams';
+import BetControls from './components/BetControls';
+import { useBet } from './useBet';
+import { settlePerPointIndividual, settleTeamPoints } from './settlement';
 
 export default function StablefordGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, initialIsTeamPlay = true, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const [showSummary, setShowSummary] = React.useState(initialShowSummary);
@@ -37,6 +40,22 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
     const getPlayerPointsUpToHole = (playerId) =>
       pointsUpToHole(scores[playerId] || {}, holeNumbers[holeNumbers.length - 1] || 18, pars, hcds);
 
+  // A player's Stableford points so far, as the leaderboard counts them.
+  const playerTotal = (p) => {
+    const pScores = scores[p.id] || {};
+    const playerHcp = p.handicap ?? p.hcp ?? 0;
+    return Object.keys(pScores).reduce((sSum, hNum) => sSum + calcPoints(pScores[hNum], hNum - 1, playerHcp), 0);
+  };
+  const teamTotalOf = (tName) => getTeamPlayers(tName).reduce((tSum, p) => tSum + playerTotal(p), 0);
+
+  // The bet: $ per point. Singles: each pair of players settles the gap. Teams: every player on
+  // the lower team pays the gap between team totals, as in Vegas.
+  const bet = useBet(matchId);
+  const settlement = isTeamPlay
+    ? settleTeamPoints({ wager: bet.wager, teams: activeTeams.map(t => ({ name: t, points: teamTotalOf(t), players: getTeamPlayers(t) })) })
+    : settlePerPointIndividual({ players, wager: bet.wager, pointsById: Object.fromEntries(players.map(p => [p.id, playerTotal(p)])) });
+  const betButtons = <BetControls bet={bet} settlement={settlement} gameType="stableford" gameName="Stableford" accent="#4CAF50" />;
+
   // Show summary screen
   if (showSummary) {
     return (
@@ -54,6 +73,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         startHole={startHole}
         onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
+        actions={<div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>{betButtons}</div>}
       />
     );
   }
@@ -66,10 +86,11 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
         flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', 
         boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #4CAF50' 
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
           <span style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>
             🏆 Stableford Leaderboard {isTeamPlay ? '(Teams)' : '(Singles)'}
           </span>
+          {betButtons}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center', overflowX: 'auto', paddingBottom: '5px' }}>
@@ -78,14 +99,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
               const teamPlayers = getTeamPlayers(tName);
               if (teamPlayers.length === 0) return null;
 
-              const teamTotal = teamPlayers.reduce((tSum, p) => {
-                const pScores = scores[p.id] || {};
-                const playerHcp = p.handicap ?? p.hcp ?? 0;
-                const pTotalPoints = Object.keys(pScores).reduce((sSum, hNum) => 
-                  sSum + calcPoints(pScores[hNum], hNum - 1, playerHcp), 0
-                );
-                return tSum + pTotalPoints;
-              }, 0);
+              const teamTotal = teamTotalOf(tName);
 
               return (
                 <div key={tName} style={{ flex: 1, minWidth: '80px' }}>
@@ -96,11 +110,7 @@ export default function StablefordGrid({ matchId, matchName, matchCode, players,
             })
           ) : (
             players.map(p => {
-              const pScores = scores[p.id] || {};
-              const playerHcp = p.handicap ?? p.hcp ?? 0;
-              const pTotalPoints = Object.keys(pScores).reduce((sSum, hNum) => 
-                sSum + calcPoints(pScores[hNum], hNum - 1, playerHcp), 0
-              );
+              const pTotalPoints = playerTotal(p);
               return (
                 <div key={p.id} style={{ flex: 1, minWidth: '80px' }}>
                   <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.player_name || p.name}</div>

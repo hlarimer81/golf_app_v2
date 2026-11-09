@@ -4,6 +4,9 @@ import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
+import BetControls from './components/BetControls';
+import { useBet } from './useBet';
+import { settleTeamPoints } from './settlement';
 
 export default function ChairmanGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const { scores, saveScore } = useScores(matchId);
@@ -188,6 +191,15 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
   const { chairmanPoints, holeResults, currentChairman } = calculateChairman();
   const sortedTeams = [...activeTeams].sort((a, b) => chairmanPoints[b] - chairmanPoints[a]);
 
+  // The bet: $ per point. Every player on the lower team pays the gap between team totals, as in
+  // Vegas; with more than two teams, each pair of teams settles.
+  const bet = useBet(matchId);
+  const settlement = settleTeamPoints({
+    wager: bet.wager,
+    teams: activeTeams.map(t => ({ name: t, points: chairmanPoints[t] || 0, players: getTeamPlayers(t) })),
+  });
+  const betButtons = <BetControls bet={bet} settlement={settlement} gameType="chairman" gameName="Chairman" accent="#8B4513" />;
+
   const scoreColor = (net, par) => {
     if (net === null) return '#fff';
     const diff = net - par;
@@ -214,6 +226,7 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
         startHole={startHole}
         onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
+        actions={<div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>{betButtons}</div>}
       />
     );
   }
@@ -239,8 +252,11 @@ export default function ChairmanGrid({ matchId, matchName, matchCode, players, u
 
       {/* --- CHAIRMAN LEADERBOARD (STICKY) --- */}
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', marginBottom: '15px', borderBottom: '2px solid #8B4513', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>
-        <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', marginBottom: '10px' }}>
-          👑 Chairman {useHandicaps ? '(Net)' : '(Gross)'}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '10px' }}>
+          <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            👑 Chairman {useHandicaps ? '(Net)' : '(Gross)'}
+          </span>
+          {betButtons}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '8px', textAlign: 'center', flexWrap: 'wrap' }}>
           {sortedTeams.slice(0, 8).map((teamName, idx) => {

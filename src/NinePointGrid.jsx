@@ -4,6 +4,9 @@ import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
+import BetControls from './components/BetControls';
+import { useBet } from './useBet';
+import { settlePerPointIndividual } from './settlement';
 
 export default function NinePointGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
   const { scores, saveScore } = useScores(matchId);
@@ -116,6 +119,11 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
   };
 
   const ninePointTotals = calculateNinePoints();
+
+  // The bet: $ per point. Each pair of players settles the gap between their points.
+  const bet = useBet(matchId);
+  const settlement = settlePerPointIndividual({ players, wager: bet.wager, pointsById: ninePointTotals });
+  const betButtons = <BetControls bet={bet} settlement={settlement} gameType="ninepoint" gameName="9-Point" accent="#00BCD4" />;
   const sortedPlayers = [...players].sort((a, b) => (ninePointTotals[b.id] || 0) - (ninePointTotals[a.id] || 0));
 
   const scoreColor = (net, par) => {
@@ -143,6 +151,7 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
         startHole={startHole}
         onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
+        actions={<div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>{betButtons}</div>}
       />
     );
   }
@@ -152,8 +161,11 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
 
       {/* --- NINE POINT LEADERBOARD (STICKY) --- */}
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', marginBottom: '15px', borderBottom: '2px solid #00BCD4', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>
-        <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', marginBottom: '10px' }}>
-          🎯 9-Point {useHandicaps ? '(Net)' : '(Gross)'}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '10px' }}>
+          <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            🎯 9-Point {useHandicaps ? '(Net)' : '(Gross)'}
+          </span>
+          {betButtons}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '8px', textAlign: 'center', flexWrap: 'wrap' }}>
           {sortedPlayers.slice(0, 3).map((player, idx) => {

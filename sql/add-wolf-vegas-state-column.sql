@@ -6,7 +6,8 @@
 --   {
 --     "decisions":    { "<holeNumber>": <partnerPlayerId> | "lone" | "blind" },
 --     "hammers":      { "<holeNumber>": <hammerCount> },   -- each hammer doubles (0->x1, 1->x2...)
---     "grossBirdies": bool                                  -- false (default) = net birdies flip
+--     "grossBirdies": bool                                  -- true (default since 2026-11-09) = only
+--                                                          -- natural birdies flip; false = net birdies flip
 --   }
 --
 -- Run once against the Supabase project. A null value means "fresh round, nothing decided yet."

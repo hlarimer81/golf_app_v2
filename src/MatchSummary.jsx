@@ -17,6 +17,7 @@ export default function MatchSummary({
   settlement,
   wolfDecisions,
   vegasGrossBirdies = true,
+  actions = null,
   onBack,
   onNewMatch,
   holesCount = 18,
@@ -504,6 +505,9 @@ export default function MatchSummary({
           {matchCode}
         </div>
       </div>
+
+      {/* Game-specific controls from the grid, e.g. Vegas's Wager and Money buttons. */}
+      {actions}
 
       {/* Team Standings - only show for stableford (if team play), fourball, chairman, vegas, and nassau games */}
       {gameType !== 'skins' && gameType !== 'ninepoint' && gameType !== 'singles' && gameType !== 'wolf' && !(gameType === 'stableford' && stablefordMode === 'singles') && (

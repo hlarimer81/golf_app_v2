@@ -6,6 +6,7 @@ import {
   settlePerPointIndividual,
   settlePerPointTeam,
   settleZeroSumPoints,
+  settleVegas,
   wagerHasStake,
   headlineRate,
   EMPTY_WAGER,
@@ -295,5 +296,43 @@ describe('settleZeroSumPoints (Wolf Vegas)', () => {
     const s = settleZeroSumPoints({ players: ames, wager: EMPTY_WAGER, pointsById: points });
     expect(s.entities).toEqual([]);
     expect(s.txs).toEqual([]);
+  });
+});
+
+describe('settleVegas', () => {
+  const [sam, lou, mia, hank] = players;
+  const teams = (aPts, bPts, aPlayers = [sam, lou], bPlayers = [mia, hank]) => [
+    { name: 'A', points: aPts, players: aPlayers },
+    { name: 'B', points: bPts, players: bPlayers },
+  ];
+  const netOf = (s) => Object.fromEntries(s.entities.map((e) => [e.idx, e.net]));
+
+  it('pays every player the gap: 60 to 40 at $1 is $20 each', () => {
+    const s = settleVegas({ wager: { ...EMPTY_WAGER, per_point: 1 }, teams: teams(60, 40) });
+    expect(netOf(s)).toEqual({ p1: 20, p2: 20, p3: -20, p4: -20 });
+    expect(s.txs).toHaveLength(2);
+    expect(s.txs.every((t) => t.amount === 20)).toBe(true);
+  });
+
+  it('works whichever team is ahead, at any rate', () => {
+    const s = settleVegas({ wager: { ...EMPTY_WAGER, per_point: 0.5 }, teams: teams(31, 45) });
+    expect(netOf(s)).toEqual({ p1: -7, p2: -7, p3: 7, p4: 7 });
+  });
+
+  it('leaves everyone square on a tie', () => {
+    const s = settleVegas({ wager: { ...EMPTY_WAGER, per_point: 1 }, teams: teams(50, 50) });
+    s.entities.forEach((e) => expect(e.net).toBe(0));
+    expect(s.txs).toEqual([]);
+  });
+
+  it('splits what the losers pay among the winners when teams are uneven', () => {
+    const s = settleVegas({ wager: { ...EMPTY_WAGER, per_point: 1 }, teams: teams(20, 10, [sam], [lou, mia]) });
+    expect(netOf(s)).toEqual({ p1: 20, p2: -10, p3: -10 });
+    expect(netTotal(s)).toBeCloseTo(0, 5);
+  });
+
+  it('pays nothing when no stake was set', () => {
+    const s = settleVegas({ wager: EMPTY_WAGER, teams: teams(60, 40) });
+    expect(s.entities).toEqual([]);
   });
 });

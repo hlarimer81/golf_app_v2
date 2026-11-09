@@ -2,11 +2,15 @@ import React, { useState } from 'react';
 import { finishRound } from './lib/handicap';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
-import { getPlayerTeam, activeTeams } from './lib/teams';
+import { getPlayerTeam, activeTeams, getTeamPlayers } from './lib/teams';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 import { vegasHoleNumbers } from './lib/golf';
 import { useVegasState } from './useVegasState';
+import WagerConfig from './WagerConfig';
+import MoneyModal from './MoneyModal';
+import { useWager } from './useWager';
+import { settleVegas, wagerHasStake } from './settlement';
 
 export default function VegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
@@ -14,6 +18,10 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
     const [isBanked, setIsBanked] = useState(initialShowSummary);
     // Which birdies flip the other side's number, saved per round (matches.vegas).
     const { grossBirdies, toggleGrossBirdies } = useVegasState(matchId);
+    // The bet: $ per point, saved to matches.wager like Skins and Nassau.
+    const { wager, saveWager } = useWager(matchId);
+    const [showWager, setShowWager] = useState(false);
+    const [showMoney, setShowMoney] = useState(false);
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -68,6 +76,47 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
     return { [teamKeys[0]]: 0, [teamKeys[1]]: 0, t1Score, t2Score };
   };
 
+  // Team totals, and the money: every player on the losing team pays the gap (settleVegas).
+  const teamNames = activeTeams(players);
+  const teamTotals = Object.fromEntries(teamNames.map(t => [t, 0]));
+  for (const holeNum of holeNumbers) {
+    const pts = getVegasPoints(holeNum - 1);
+    teamNames.forEach(t => { teamTotals[t] += pts[t] || 0; });
+  }
+  const settlement = settleVegas({
+    wager,
+    teams: teamNames.map(t => ({ name: t, points: teamTotals[t], players: getTeamPlayers(players, t) })),
+  });
+  const hasStake = wagerHasStake(wager);
+
+  const betButtons = (
+    <>
+      <button onClick={() => setShowWager(true)}
+        style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap', border: '1px solid #E91E63', background: 'transparent', color: '#ddd', cursor: 'pointer' }}>
+        💵 {hasStake ? `$${wager.per_point.toFixed(2)}/pt` : 'Wager'}
+      </button>
+      {hasStake && (
+        <button onClick={() => setShowMoney(true)}
+          style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap', border: 'none', background: '#E91E63', color: '#fff', cursor: 'pointer' }}>
+          💰 Money
+        </button>
+      )}
+    </>
+  );
+  const moneyModals = (
+    <>
+      {showWager && (
+        <WagerConfig gameType="vegas" wager={wager} accent="#E91E63"
+          onClose={() => setShowWager(false)}
+          onSave={(w) => { saveWager(w); setShowWager(false); }} />
+      )}
+      {showMoney && (
+        <MoneyModal settlement={settlement} gameName="Vegas" accent="#E91E63"
+          onClose={() => setShowMoney(false)} />
+      )}
+    </>
+  );
+
   // Show summary screen
   if (showSummary) {
     return (
@@ -84,6 +133,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
         startHole={startHole}
         onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
+        actions={<div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>{betButtons}{moneyModals}</div>}
       />
     );
   }
@@ -93,7 +143,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
       
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #E91E63' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
               🎰 Vegas Leaderboard
             </span>
@@ -103,20 +153,15 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
               style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap', border: '1px solid #E91E63', background: grossBirdies ? '#E91E63' : 'transparent', color: grossBirdies ? '#fff' : '#aaa', cursor: 'pointer' }}>
               Birdies: {grossBirdies ? 'Gross' : 'Net'}
             </button>
+            {betButtons}
           </span>
           <span style={{ fontSize: '9px', color: '#666' }}>
             <span style={{ color: '#E91E63', fontWeight: '900' }}>+N</span> on a tile = Vegas points won that hole
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px', textAlign: 'center' }}>
-          {activeTeams(players).map(tName => {
-            let teamTotal = 0;
-            for (const holeNum of holeNumbers) {
-              const h = holeNum - 1;
-              const pts = getVegasPoints(h);
-              teamTotal += pts[tName] || 0;
-            }
-
+          {teamNames.map(tName => {
+            const teamTotal = teamTotals[tName];
             return (
               <div key={tName} style={{ flex: 1 }}>
                 <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>{tName.replace('Team ', '')}</div>
@@ -290,6 +335,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
         </button>
       </div>
       <div style={{ height: '70px', flexShrink: 0 }} />
+      {moneyModals}
     </div>
   );
 }

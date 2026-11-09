@@ -5,6 +5,10 @@ import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 import { useWolfVegasState } from './useWolfVegasState';
 import { settleWolfVegasHole } from './lib/golf';
+import WagerConfig from './WagerConfig';
+import MoneyModal from './MoneyModal';
+import { useWager } from './useWager';
+import { settleZeroSumPoints, wagerHasStake } from './settlement';
 
 // Wolf Vegas: 4 or 5 players. Each hole one player is the "Wolf" (rotates; tees last). The
 // Wolf picks a partner (2v2 at 4p, 2v3 at 5p), goes Lone Wolf (1v3 / 1v4, points doubled),
@@ -24,6 +28,10 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
   // and sync across devices). decisions[holeNum] = partner playerId | 'lone' | 'blind';
   // hammers[holeNum] = hammer count (each doubles: 0->x1, 1->x2...); grossBirdies default true.
   const { decisions, hammers, grossBirdies, setDecision, adjustHammer, cycleHammer, toggleGrossBirdies } = useWolfVegasState(matchId);
+  // The bet: $ per point, saved to matches.wager like Skins and Nassau.
+  const { wager, saveWager } = useWager(matchId);
+  const [showWager, setShowWager] = useState(false);
+  const [showMoney, setShowMoney] = useState(false);
 
   const pars = courseData?.pars || Array(18).fill(4);
   const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -136,6 +144,40 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
 
   const totals = calculateTotals();
 
+  // Points are already settled player against player, so the money is points x rate.
+  const settlement = settleZeroSumPoints({ players, wager, pointsById: totals });
+  const hasStake = wagerHasStake(wager);
+  const moneyOf = (id) => settlement.entities.find(e => e.idx === id)?.net || 0;
+  const fmtMoney = (amt) => amt > 0.005 ? `+$${amt.toFixed(2)}` : amt < -0.005 ? `-$${Math.abs(amt).toFixed(2)}` : '$0.00';
+
+  const betButtons = (
+    <>
+      <button onClick={() => setShowWager(true)}
+        style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap', border: `1px solid ${ACCENT}`, background: 'transparent', color: '#ddd', cursor: 'pointer' }}>
+        💵 {hasStake ? `$${wager.per_point.toFixed(2)}/pt` : 'Wager'}
+      </button>
+      {hasStake && (
+        <button onClick={() => setShowMoney(true)}
+          style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap', border: 'none', background: ACCENT, color: '#fff', cursor: 'pointer' }}>
+          💰 Money
+        </button>
+      )}
+    </>
+  );
+  const moneyModals = (
+    <>
+      {showWager && (
+        <WagerConfig gameType="wolfvegas" wager={wager} accent={ACCENT}
+          onClose={() => setShowWager(false)}
+          onSave={(w) => { saveWager(w); setShowWager(false); }} />
+      )}
+      {showMoney && (
+        <MoneyModal settlement={settlement} gameName="Wolf Vegas" accent={ACCENT}
+          onClose={() => setShowMoney(false)} />
+      )}
+    </>
+  );
+
 
 
   // ============================ SUMMARY ============================
@@ -158,10 +200,13 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
               <div key={p.id} style={{ flex: 1, minWidth: '70px', background: '#1e1e1e', border: `2px solid ${isLeader ? '#FFD700' : ACCENT}`, borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
                 <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>{isLeader ? '🥇 ' : ''}{firstName(p)}</div>
                 <div style={{ fontSize: '28px', fontWeight: '900', color: pts > 0 ? '#4CAF50' : pts < 0 ? '#EF5350' : '#888' }}>{pts > 0 ? `+${pts}` : pts}</div>
+                {hasStake && <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#ccc', marginTop: '2px' }}>{fmtMoney(moneyOf(p.id))}</div>}
               </div>
             );
           })}
         </div>
+
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>{betButtons}</div>
 
         {/* Per-hole breakdown */}
         <div style={{ background: '#1e1e1e', borderRadius: '12px', padding: '15px', marginBottom: '20px', overflowX: 'auto' }}>
@@ -223,6 +268,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
             <button onClick={onNewMatch} style={{ flex: 1, padding: '15px', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>🆕 New Round</button>
           )}
         </div>
+        {moneyModals}
       </div>
     );
   }
@@ -239,7 +285,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
 
       {/* Points summary */}
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '12px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '10px', borderBottom: `2px solid ${ACCENT}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
           <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', letterSpacing: '2px' }}>🐺 WOLF VEGAS</div>
           <button
             onClick={() => toggleGrossBirdies()}
@@ -247,6 +293,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
             style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', border: `1px solid ${ACCENT}`, background: grossBirdies ? ACCENT : 'transparent', color: grossBirdies ? '#fff' : '#aaa', cursor: 'pointer' }}>
             Birdies: {grossBirdies ? 'Gross' : 'Net'}
           </button>
+          {betButtons}
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap' }}>
           {players.map(p => {
@@ -399,6 +446,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
         <button onClick={() => { finishRound(matchId); setIsBanked(true); setShowSummary(true); onRoundFinished?.(); }} style={{ padding: '15px', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', width: '100%', boxShadow: '0 -2px 10px rgba(0,0,0,0.5)' }}>🏁 Finish Round</button>
       </div>
       <div style={{ height: '70px', flexShrink: 0 }} />
+      {moneyModals}
     </div>
   );
 }

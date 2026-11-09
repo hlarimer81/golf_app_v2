@@ -213,11 +213,28 @@ export function settleNassau({ wager, teamNames, segments }) {
   return { isTeam: true, entities, lines, txs: reduceTransactions(entities) };
 }
 
-// VEGAS / WOLF VEGAS / STABLEFORD / CHAIRMAN / 9-POINT / WOLF / SINGLES — per_point.
-// pointsById is a map of playerId -> game points (may be signed for Vegas/Wolf Vegas).
+// STABLEFORD / CHAIRMAN / 9-POINT / WOLF / SINGLES — per_point. (Wolf Vegas: settleZeroSumPoints.)
+// pointsById is a map of playerId -> game points.
 export function settlePerPointIndividual({ players, wager, pointsById }) {
   if ((wager.per_point || 0) <= 0) return { isTeam: false, entities: [], lines: [], txs: [] };
   return pointsSettlementIndividual(players, pointsById, wager.per_point);
+}
+
+// WOLF VEGAS — per_point on points that are already settled player against player.
+// Every Wolf Vegas hole pays the difference to each player on the other side, so a player's
+// total is already what they won or lost across all their opponents, and the totals add to zero.
+// The money is the total times the rate: +150 at $1 is +$150. (settlePerPointIndividual would
+// settle that total against every opponent a second time and pay five times as much.)
+export function settleZeroSumPoints({ players, wager, pointsById }) {
+  const perPoint = wager?.per_point || 0;
+  if (perPoint <= 0) return { isTeam: false, entities: [], lines: [], txs: [] };
+  const entities = players.map((p) => ({
+    idx: p.id,
+    name: firstName(p),
+    net: perPoint * (pointsById[p.id] || 0),
+  }));
+  const lines = entities.map((e) => ({ label: e.name, winnerName: null, amount: e.net, signed: true }));
+  return { isTeam: false, entities, lines, txs: reduceTransactions(entities) };
 }
 
 // Team per_point (e.g. 4-Ball / Aggregate / team Stableford / Vegas team).

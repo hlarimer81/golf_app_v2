@@ -5,6 +5,7 @@ import {
   settleNassau,
   settlePerPointIndividual,
   settlePerPointTeam,
+  settleZeroSumPoints,
   wagerHasStake,
   headlineRate,
   EMPTY_WAGER,
@@ -254,5 +255,45 @@ describe('wager helpers', () => {
     expect(headlineRate({ ...EMPTY_WAGER, skins_pot: true, skins_ante: 10 }, 'skins')).toBe(10);
     expect(headlineRate({ ...EMPTY_WAGER, nassau_overall: 20 }, 'nassau')).toBe(20);
     expect(headlineRate({ ...EMPTY_WAGER, per_point: 2 }, 'stableford')).toBe(2);
+  });
+});
+
+describe('settleZeroSumPoints (Wolf Vegas)', () => {
+  // The five-player Wolf Vegas round at Ames G&CC on 2026-11-08, at $1 a point. The other app's
+  // sheet: Mindy pays Grundy $150, Ryan pays H $40, Mindy pays H $15.
+  const ames = [
+    { id: 'grundy', player_name: 'Grundy' },
+    { id: 'h', player_name: 'H' },
+    { id: 'roger', player_name: 'Roger' },
+    { id: 'ryan', player_name: 'Ryan B' },
+    { id: 'mindy', player_name: 'Mindy B' },
+  ];
+  const points = { grundy: 150, h: 55, roger: 0, ryan: -40, mindy: -165 };
+
+  it('pays the points at the rate, not once per opponent', () => {
+    const s = settleZeroSumPoints({ players: ames, wager: { ...EMPTY_WAGER, per_point: 1 }, pointsById: points });
+    const net = Object.fromEntries(s.entities.map((e) => [e.idx, e.net]));
+    expect(net).toEqual({ grundy: 150, h: 55, roger: 0, ryan: -40, mindy: -165 });
+    expect(netTotal(s)).toBeCloseTo(0, 5);
+  });
+
+  it('settles in the fewest payments, as the sheet did', () => {
+    const s = settleZeroSumPoints({ players: ames, wager: { ...EMPTY_WAGER, per_point: 1 }, pointsById: points });
+    expect(s.txs.map(({ from, to, amount }) => ({ from, to, amount }))).toEqual([
+      { from: 'mindy', to: 'grundy', amount: 150 },
+      { from: 'ryan', to: 'h', amount: 40 },
+      { from: 'mindy', to: 'h', amount: 15 },
+    ]);
+  });
+
+  it('scales with the rate', () => {
+    const s = settleZeroSumPoints({ players: ames, wager: { ...EMPTY_WAGER, per_point: 0.25 }, pointsById: points });
+    expect(s.entities.find((e) => e.idx === 'mindy').net).toBe(-41.25);
+  });
+
+  it('pays nothing when no stake was set', () => {
+    const s = settleZeroSumPoints({ players: ames, wager: EMPTY_WAGER, pointsById: points });
+    expect(s.entities).toEqual([]);
+    expect(s.txs).toEqual([]);
   });
 });

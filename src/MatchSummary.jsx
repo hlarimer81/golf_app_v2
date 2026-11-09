@@ -16,6 +16,7 @@ export default function MatchSummary({
   skinTotals,
   settlement,
   wolfDecisions,
+  vegasGrossBirdies = true,
   onBack,
   onNewMatch,
   holesCount = 18,
@@ -176,8 +177,8 @@ export default function MatchSummary({
     const par = pars[holeIndex];
 
     // Numbers and birdie flips: vegasHoleNumbers in lib/golf.js.
-    // Only a natural (gross) birdie flips the other side.
-    const { a: t1Score, b: t2Score } = vegasHoleNumbers(t1, t2, par, true);
+    // vegasGrossBirdies: only a natural birdie flips the other side (the default).
+    const { a: t1Score, b: t2Score } = vegasHoleNumbers(t1, t2, par, vegasGrossBirdies);
 
     if (t1Score < t2Score) return { [teamKeys[0]]: t2Score - t1Score, [teamKeys[1]]: 0 };
     if (t2Score < t1Score) return { [teamKeys[1]]: t1Score - t2Score, [teamKeys[0]]: 0 };

@@ -6,11 +6,14 @@ import { getPlayerTeam, activeTeams } from './lib/teams';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 import { vegasHoleNumbers } from './lib/golf';
+import { useVegasState } from './useVegasState';
 
 export default function VegasGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
     const [showSummary, setShowSummary] = useState(initialShowSummary);
     const [isBanked, setIsBanked] = useState(initialShowSummary);
+    // Which birdies flip the other side's number, saved per round (matches.vegas).
+    const { grossBirdies, toggleGrossBirdies } = useVegasState(matchId);
     
     const pars = courseData?.pars || Array(18).fill(4);
     const hcds = courseData?.handicaps || Array(18).fill(10);
@@ -58,8 +61,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
     const par = pars[holeIndex];
     
     // Numbers and birdie flips: vegasHoleNumbers in lib/golf.js.
-    // Only a natural (gross) birdie flips the other side.
-    const { a: t1Score, b: t2Score } = vegasHoleNumbers(t1, t2, par, true);
+    const { a: t1Score, b: t2Score } = vegasHoleNumbers(t1, t2, par, grossBirdies);
     
     if (t1Score < t2Score) return { [teamKeys[0]]: t2Score - t1Score, [teamKeys[1]]: 0, t1Score, t2Score };
     if (t2Score < t1Score) return { [teamKeys[1]]: t1Score - t2Score, [teamKeys[0]]: 0, t1Score, t2Score };
@@ -76,7 +78,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
         players={players}
         scores={scores}
         useHandicaps={useHandicaps}
-        
+        vegasGrossBirdies={grossBirdies}
         courseData={courseData}
         holesCount={holesCount}
         startHole={startHole}
@@ -90,9 +92,17 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
     <div style={{ background: '#121212', color: '#e0e0e0', height: '100vh', display: 'flex', flexDirection: 'column', padding: '10px', fontFamily: 'sans-serif', boxSizing: 'border-box', overflow: 'hidden' }}>
       
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', marginBottom: '15px', borderBottom: '2px solid #E91E63' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
-          <span style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>
-            🎰 Vegas Leaderboard
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+              🎰 Vegas Leaderboard
+            </span>
+            <button
+              onClick={() => toggleGrossBirdies()}
+              title="Which birdies flip the other side's number"
+              style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap', border: '1px solid #E91E63', background: grossBirdies ? '#E91E63' : 'transparent', color: grossBirdies ? '#fff' : '#aaa', cursor: 'pointer' }}>
+              Birdies: {grossBirdies ? 'Gross' : 'Net'}
+            </button>
           </span>
           <span style={{ fontSize: '9px', color: '#666' }}>
             <span style={{ color: '#E91E63', fontWeight: '900' }}>+N</span> on a tile = Vegas points won that hole

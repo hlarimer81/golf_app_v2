@@ -353,7 +353,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                 if (isPartner) cellBg = '#1a2a20';
 
                 return (
-                  <td key={holeNum} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: cellBg, position: 'relative', minWidth: '55px' }}>
+                  <td key={holeNum} style={{ padding: '4px', textAlign: 'center', borderLeft: '1px solid #2a2a2a', backgroundColor: cellBg, position: 'relative', minWidth: '55px', overflow: 'hidden' }}>
                     {isWolf && <div style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', zIndex: 10 }}>🐺</div>}
                     {isPartner && <div style={{ position: 'absolute', top: '1px', left: '3px', fontSize: '8px', zIndex: 10 }}>🤝</div>}
                     {isWolf && (hammers[holeNum] || 0) > 0 && <div style={{ position: 'absolute', top: '1px', left: '3px', fontSize: '8px', fontWeight: 'bold', color: '#FFD700', zIndex: 10 }}>🔨×{hammerMult(holeNum)}</div>}
@@ -379,7 +379,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
 
               return (
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
-                  <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
+                  <td style={{ position: 'sticky', left: 0, zIndex: 20, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                     {player.player_name || player.name}
                     <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>{useHandicaps && `HCP: ${playerHcp} | `}Pts: {totals[player.id] || 0}</div>
                   </td>

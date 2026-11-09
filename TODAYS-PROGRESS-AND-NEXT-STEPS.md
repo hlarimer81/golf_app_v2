@@ -1,4 +1,4 @@
-# Golf App Progress - October 22, 2026
+# Golf App Progress - November 9, 2026
 
 > ⚠️ **BEFORE INVITING ANY OTHER GOLFER TO SIGN IN: a domain may be required, not optional.**
 > Sign-in codes go out through Supabase's built-in email sender. Supabase's documentation has said
@@ -8,7 +8,91 @@
 > arrives, buy the domain and set up custom SMTP before inviting anyone (steps under "Auth: where
 > it stops for now" below). Remove this note once custom SMTP is live.
 
-## Latest Sessions (Oct 3–22) - the loop runs on its own, the golfers find real bugs, and gross rounds bank right ✅
+## Latest Sessions (Oct 23 – Nov 9) - Wolf picks saved, Vegas birdies fixed, and eight games play for money ✅
+
+Written up on Nov 9 from the commits, issues and runs; the log was not updated as these happened.
+Issue and PR numbers are GitHub's.
+
+**The loop.** Golfers filed #37–#63. All but #63 are closed. The dev agent fixed 12 of them and
+merged its own PRs (#39, #40, #43, #45, #48, #50, #53, #54, #57, #58, #60, #64, #65). PR #60 was the
+second `review-fix` round so far: the review asked for changes, the agent made them, and it merged.
+Every closed issue up to #59 is labelled `retested`. On Nov 9 the open issues are #63 (`queued`) and
+#14 (the digest).
+
+| Area | Where it ended |
+|---|---|
+| Finished rounds stay finished | #37: a banked round reopened as a live, editable scorecard; now it opens as its summary (PR #40). #41: the summary's "Back to Scorecard" button was a second way into the same bug (PR #43). #44: the home screen's "Round in progress" banner stayed up after Finish Round, offering to resume a banked round (PR #45). |
+| Score entry | #38: in team mode, auto-advance jumped to the wrong player's box (PR #39). |
+| Sticky columns on a phone | Wolf/partner badges and per-hole point badges from holes scrolled past showed through the sticky PLAYER/OUT columns: #47 (PR #48), again #49 (PR #50), and again in points games #61 (PR #65). #59: the team name scrolled off the per-hole-points row (PR #60). #62: the Round Complete per-hole table lost its hole/wolf/pick columns when scrolled right (PR #64). |
+| Summary screens | #52: a generic "Points" column disagreed with "Wolf Pts", the real standings (PR #53). #55: the per-hole points table was missing the per-nine bonus row, so it didn't add up to the headline score (PR #57). #56: the team row said "AGG NET" in a gross round (PR #58). |
+| **Wolf partner picks saved (#46)** | The picks lived only in `WolfGrid`'s React state, so a second phone and the Finish Round summary showed 0-0-0-0 with four gold medals. `sql/add-wolf-state-column.sql` (`2ce500d`) adds `matches.wolf`. `67c37bf` saves picks through the outbox (`useWolfState`, same pattern as Wolf Vegas), syncs them in realtime, and moves the points into `src/lib/wolf.js` so the live panel and the summary total the same way. **Applied and working:** Hazard's retest (round 9R9N33, Nov 3) read 16/10/10/6 on every view. #51: the partner buttons showed the previous hole's pick as already chosen (PR #54). |
+| Coordinator, what goes to H | `254b6bb` (Nov 2): a scoring, points or standings bug ships when the coordinator can name the test that proves the fix. Handicap maths, money settlement, the database, secrets, auth and the firmware bucket still go to H. `golf.js`, `settlement.js` and `nassauEngine.js` left `.github/protected-paths`; `handicap.js` and the saving files stay on it. |
+| Gemini review, no email | `42fd016` (Nov 3): review comments are posted through `AGENT_TOKEN`, so an approval or "Gemini unavailable" no longer emails H. Held PRs still reach him through the failed review job and the digest. `claude-fix.yml` accepts a review from that account. |
+| **Vegas birdie rule** (Nov 9) | **SCORING CHANGE.** `8796d76` moves the Vegas and Wolf Vegas hole maths into `lib/golf.js` (`vegasSideNumber`, `vegasSideBirdie`, `vegasHoleNumbers`, `settleWolfVegasHole`); tests replay a real five-player Wolf Vegas round (Ames G&CC, Nov 8) and match the other app's sheet exactly on gross birdies. `0520a22`: only a natural (gross) birdie flips the other side's number by default; a par with a stroke used to count. Wolf Vegas rounds already saved on net stay on net. `376fa0e`: regular Vegas gets the same Gross/Net birdies switch Wolf Vegas has, saved to `matches.vegas`. |
+| **Money: $ per point** (Nov 9) | **MONEY.** Shared `useBet` (`src/useBet.js`) and `<BetControls>` (`src/components/BetControls.jsx`): the 💵 Wager button ($ per point, saved to `matches.wager`) and the 💰 Money screen, on the scorecard and on the summary after Finish Round. Three settlement rules: **`settleZeroSumPoints`** for Wolf Vegas, whose totals are already net of every opponent, so money = points × rate (the per-pair rule would have paid five times over in a five-player round); **`settleTeamPoints`** for Vegas, Chairman and team Stableford, where every player on the lower team pays the gap between the team totals (Harold's rule, Nov 9: A 60 to B 40 at $1 is +$20 to each A player), with uneven teams splitting what the losers pay; **`settlePerPointIndividual`** for Wolf, 9-Point and singles Stableford, where each pair settles the gap between their points. Unit tests replay the Ames round at $1 (Mindy pays Grundy $150, Ryan pays H $40, Mindy pays H $15, as the other app's sheet says); `e2e/points-money.spec.js` and per-game smoke tests check the Money screen's amounts. |
+
+**Which games can be played for money (Nov 9):**
+
+| Game | Money | How it settles |
+|---|---|---|
+| Nassau | ✅ (before Oct) | Front / back / overall, with presses (`settleNassau`) |
+| Skins | ✅ (before Oct) | Per skin (`settleSkins`) |
+| Wolf Vegas | ✅ Nov 9 | Points × rate (`settleZeroSumPoints`) |
+| Vegas | ✅ Nov 9 | Lower team's players each pay the gap (`settleTeamPoints`) |
+| Chairman | ✅ Nov 9 | `settleTeamPoints` |
+| Stableford | ✅ Nov 9 | Teams: `settleTeamPoints`; singles: `settlePerPointIndividual` |
+| Wolf | ✅ Nov 9 | `settlePerPointIndividual` |
+| 9-Point | ✅ Nov 9 | `settlePerPointIndividual` |
+| Singles | ❌ | — |
+| Four-Ball | ❌ | — |
+| 2-Ball Aggregate | ❌ | — |
+
+The three without money are stroke or match games, not points games, so `$ per point` doesn't fit
+them. They would need their own rule (per hole won, per stroke, or a match bet).
+
+**Confirmed by Harold, Nov 9:**
+- `sql/add-vegas-state-column.sql` (`b0ec8e6`) is **applied** on production.
+- **#42 is not a bug** (closed Oct 28 after an interactive session looked into it). The golfer
+  saw the same differential for different gross scores, and the coordinator blamed bad rows from
+  `golf_bank_round()`. But differentials come from *adjusted* gross: each hole is capped at net
+  double bogey from `players.course_handicap` (22 for Hazard), not the off-the-low "HCP: 12" on
+  the scorecard. Hazard's 8 on the par-4 17th caps at 7, so 95 adjusts to 94:
+  (94 − 72.6) × 113/126 = 19.19, the stored value. Rake's 86 adjusts to 84 the same way. No data
+  fix. The issue was closed with no comment saying why. Not done: showing adjusted gross on the
+  player page ("95 · adj 94"), which would stop the golfers re-filing this. The same round showed
+  a banked round still editable after Finish; that was #41, fixed by PR #43.
+
+**Not confirmed:**
+- **CI on `826987f`** (Nov 9, the last money commit) failed with no jobs created ("likely a
+  workflow file issue"), so it is a GitHub-side failure, not a test. The four pushes before it
+  passed. Re-run it from Actions to confirm.
+
+**Golfer rounds.** 20 scheduled rounds from Oct 22 to Nov 9; 4 failed (Oct 26, Oct 30, Nov 4,
+Nov 8) and none of the failures was a bug in the app. Oct 26 and Oct 30: the model step ended
+`is_error: true`. Nov 4: only the report step failed. Nov 8: `bun: command not found` while
+claude-code-action set itself up, before the first model call. Each night's next round passed.
+
+**From the Oct 22 list:** item 1 is done (#34 and #35 are both `retested`). Items 2–8 are still open.
+
+**START HERE next time**, in rough order of value:
+1. **Check the Vegas birdies switch live** (`matches.vegas` is applied): flip it on one round and
+   check it reads back on a second phone.
+2. **Play one round for money** in a points game and check the Money screen against a hand count,
+   on two phones. The golfers' scenarios set a wager only in Skins and Nassau
+   (`testers/scenarios.js`): add `wager` scenarios for Vegas, Wolf Vegas, Wolf, 9-Point,
+   Stableford and Chairman.
+3. **Fix #63** (the 4th Wolf Vegas point card wraps to its own row on a phone): queued, the
+   coordinator starts it when there is room.
+4. **Decide money for Singles, Four-Ball and 2-Ball Aggregate**, or leave them without.
+5. **Show adjusted gross on the player page** when it differs from gross ("95 · adj 94"), so a
+   capped hole stops looking like a wrong differential (#42). A `PlayerPage.jsx` change plus a
+   fixture and a smoke test. `PlayerPage.jsx` is display only, but check `.github/protected-paths`.
+6. Carried from Oct 22: a Nassau press live; a foursome's cost; designer step 1 (layout checks in
+   CI; most of this period's golfer bugs were visual again); a way for friends to report things;
+   **renew `AGENT_TOKEN` before about Dec 10** and the `gh` token about Dec 31; buy a domain and set
+   up custom SMTP; the >36 handicap, missing stroke index and five-player Wolf Vegas gaps.
+
+## Previous Sessions (Oct 3–22) - the loop runs on its own, the golfers find real bugs, and gross rounds bank right ✅
 
 Nineteen days written up at once from the commits, issues and runs; the log was not updated as
 they happened. Issue numbers are GitHub's.

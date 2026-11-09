@@ -208,7 +208,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #333' }}>
-                <th style={{ padding: '6px', textAlign: 'left', color: '#888' }}>Hole</th>
+                <th style={{ padding: '6px', textAlign: 'left', color: '#888', position: 'sticky', left: 0, zIndex: 2, backgroundColor: '#1e1e1e', borderRight: '2px solid #333' }}>Hole</th>
                 <th style={{ padding: '6px', textAlign: 'center', color: '#888' }}>Wolf</th>
                 <th style={{ padding: '6px', textAlign: 'center', color: '#888' }}>Pick</th>
                 <th style={{ padding: '6px', textAlign: 'center', color: '#888' }}>🔨</th>
@@ -231,7 +231,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                 }
                 return (
                   <tr key={holeNum} style={{ borderBottom: '1px solid #2a2a2a' }}>
-                    <td style={{ padding: '6px', fontWeight: 'bold' }}>{holeNum}</td>
+                    <td style={{ padding: '6px', fontWeight: 'bold', position: 'sticky', left: 0, zIndex: 1, backgroundColor: '#1e1e1e', borderRight: '2px solid #333' }}>{holeNum}</td>
                     <td style={{ padding: '6px', textAlign: 'center', color: '#ccc' }}>🐺 {firstName(wolf)}</td>
                     <td style={{ padding: '6px', textAlign: 'center', color: (decision === 'lone' || decision === 'blind') ? '#FFD700' : '#aaa' }}>{pickLabel}</td>
                     <td style={{ padding: '6px', textAlign: 'center', whiteSpace: 'nowrap' }}>

@@ -7,6 +7,7 @@ import {
   settlePerPointTeam,
   settleZeroSumPoints,
   settleVegas,
+  settleTeamPoints,
   wagerHasStake,
   headlineRate,
   EMPTY_WAGER,
@@ -334,5 +335,45 @@ describe('settleVegas', () => {
   it('pays nothing when no stake was set', () => {
     const s = settleVegas({ wager: EMPTY_WAGER, teams: teams(60, 40) });
     expect(s.entities).toEqual([]);
+  });
+});
+
+describe('settleTeamPoints (Chairman, team Stableford)', () => {
+  const [sam, lou, mia, hank] = players;
+  const netOf = (s) => Object.fromEntries(s.entities.map((e) => [e.idx, e.net]));
+  const wager = { ...EMPTY_WAGER, per_point: 1 };
+
+  it('settles two teams like Vegas: every player pays the gap', () => {
+    const s = settleTeamPoints({ wager, teams: [
+      { name: 'A', points: 9, players: [sam, lou] },
+      { name: 'B', points: 4, players: [mia, hank] },
+    ] });
+    expect(netOf(s)).toEqual({ p1: 5, p2: 5, p3: -5, p4: -5 });
+  });
+
+  it('settles every pair of teams when there are more than two', () => {
+    // A 10, B 6, C 4. A-B: 4, A-C: 6, B-C: 2.
+    const s = settleTeamPoints({ wager, teams: [
+      { name: 'A', points: 10, players: [sam] },
+      { name: 'B', points: 6, players: [lou] },
+      { name: 'C', points: 4, players: [mia, hank] },
+    ] });
+    // C's two players each pay A 6 and B 2: A gets 12 from C, B gets 4.
+    expect(netOf(s)).toEqual({ p1: 4 + 12, p2: -4 + 4, p3: -8, p4: -8 });
+    expect(netTotal(s)).toBeCloseTo(0, 5);
+  });
+
+  it('with teams of one, pays the same as the individual settlement', () => {
+    const pointsById = { p1: 30, p2: 24, p3: 22, p4: 20 };
+    const team = settleTeamPoints({ wager, teams: players.map((p) => ({ name: p.id, points: pointsById[p.id], players: [p] })) });
+    const solo = settlePerPointIndividual({ players, wager, pointsById });
+    expect(netOf(team)).toEqual(netOf(solo));
+  });
+
+  it('pays nothing with no stake or fewer than two teams', () => {
+    expect(settleTeamPoints({ wager: EMPTY_WAGER, teams: [
+      { name: 'A', points: 9, players: [sam] }, { name: 'B', points: 4, players: [lou] },
+    ] }).entities).toEqual([]);
+    expect(settleTeamPoints({ wager, teams: [{ name: 'A', points: 9, players: [sam] }] }).entities).toEqual([]);
   });
 });

@@ -237,30 +237,56 @@ export function settleZeroSumPoints({ players, wager, pointsById }) {
   return { isTeam: false, entities, lines, txs: reduceTransactions(entities) };
 }
 
-// VEGAS — per_point, two teams. The gap between the team totals is the bet, and every player
-// on the losing team pays it: A 60, B 40 at $1 is +$20 to each A player and -$20 from each B
-// player (decided 2026-11-09). If the teams are uneven, what the losers pay is split evenly
-// among the winners, so it always adds to zero.
-// teams: [{ name, points, players: [player] }] - exactly two.
-export function settleVegas({ wager, teams }) {
+// TEAM POINTS GAMES — per_point (Vegas, Chairman, team Stableford). Every pair of teams settles
+// the gap between their totals, and every player on the lower team pays it: A 60, B 40 at $1 is
+// +$20 to each A player and -$20 from each B player (decided for Vegas 2026-11-09). If the teams
+// are uneven, what the losers pay is split evenly among the winners, so it always adds to zero.
+// With teams of one this is the same as settlePerPointIndividual.
+// teams: [{ name, points, players: [player] }]
+export function settleTeamPoints({ wager, teams }) {
   const perPoint = wager?.per_point || 0;
   const empty = { isTeam: false, entities: [], lines: [], txs: [] };
-  if (perPoint <= 0 || !teams || teams.length !== 2) return empty;
-  const [a, b] = teams;
-  if (!a.players.length || !b.players.length) return empty;
-  const gap = (a.points || 0) - (b.points || 0);
-  const [win, lose] = gap >= 0 ? [a, b] : [b, a];
-  const owed = perPoint * Math.abs(gap);
-  const eachWinner = (owed * lose.players.length) / win.players.length;
+  const sides = (teams || []).filter((t) => t.players.length > 0);
+  if (perPoint <= 0 || sides.length < 2) return empty;
 
-  const entities = [
-    ...win.players.map((p) => ({ idx: p.id, name: firstName(p), net: eachWinner })),
-    ...lose.players.map((p) => ({ idx: p.id, name: firstName(p), net: owed ? -owed : 0 })),
-  ];
-  const lines = [
-    { label: `${a.name} ${a.points || 0} – ${b.name} ${b.points || 0}`, winnerName: gap === 0 ? null : win.name, amount: gap === 0 ? 0 : owed },
-  ];
+  const netById = {};
+  sides.forEach((t) => t.players.forEach((p) => { netById[p.id] = 0; }));
+  for (let i = 0; i < sides.length; i++) {
+    for (let j = i + 1; j < sides.length; j++) {
+      const gap = (sides[i].points || 0) - (sides[j].points || 0);
+      if (gap === 0) continue;
+      const [win, lose] = gap > 0 ? [sides[i], sides[j]] : [sides[j], sides[i]];
+      const owed = perPoint * Math.abs(gap);
+      const eachWinner = (owed * lose.players.length) / win.players.length;
+      lose.players.forEach((p) => { netById[p.id] -= owed; });
+      win.players.forEach((p) => { netById[p.id] += eachWinner; });
+    }
+  }
+
+  const entities = sides.flatMap((t) => t.players.map((p) => ({ idx: p.id, name: firstName(p), net: netById[p.id] })));
+  const lines = sides.map((t) => ({
+    label: `${t.name}: ${t.points || 0} pts`,
+    winnerName: null,
+    amount: t.players.reduce((s, p) => s + netById[p.id], 0),
+    signed: true,
+  }));
   return { isTeam: false, entities, lines, txs: reduceTransactions(entities) };
+}
+
+// VEGAS — two teams, settled by settleTeamPoints. Its breakdown is the one line of the score.
+// teams: [{ name, points, players: [player] }] - exactly two.
+export function settleVegas({ wager, teams }) {
+  if (!teams || teams.length !== 2) return { isTeam: false, entities: [], lines: [], txs: [] };
+  const s = settleTeamPoints({ wager, teams });
+  if (!s.entities.length) return s;
+  const [a, b] = teams;
+  const gap = (a.points || 0) - (b.points || 0);
+  const lines = [{
+    label: `${a.name} ${a.points || 0} – ${b.name} ${b.points || 0}`,
+    winnerName: gap === 0 ? null : (gap > 0 ? a.name : b.name),
+    amount: gap === 0 ? 0 : wager.per_point * Math.abs(gap),
+  }];
+  return { ...s, lines };
 }
 
 // Team per_point (e.g. 4-Ball / Aggregate / team Stableford / Vegas team).

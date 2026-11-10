@@ -165,12 +165,12 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
         </div>
 
         {/* Player point cards */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${sortedPlayers.length}, 1fr)`, gap: '10px', marginBottom: '20px' }}>
           {sortedPlayers.map((p, idx) => {
             const isLeader = idx === 0 && totals[p.id] !== 0;
             const pts = totals[p.id];
             return (
-              <div key={p.id} style={{ flex: 1, minWidth: '70px', background: '#1e1e1e', border: `2px solid ${isLeader ? '#FFD700' : ACCENT}`, borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+              <div key={p.id} style={{ background: '#1e1e1e', border: `2px solid ${isLeader ? '#FFD700' : ACCENT}`, borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
                 <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>{isLeader ? '🥇 ' : ''}{firstName(p)}</div>
                 <div style={{ fontSize: '28px', fontWeight: '900', color: pts > 0 ? '#4CAF50' : pts < 0 ? '#EF5350' : '#888' }}>{pts > 0 ? `+${pts}` : pts}</div>
                 {hasStake && <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#ccc', marginTop: '2px' }}>{fmtMoney(moneyOf(p.id))}</div>}

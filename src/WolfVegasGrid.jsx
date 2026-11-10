@@ -188,11 +188,11 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
             <thead>
               <tr style={{ borderBottom: '2px solid #333' }}>
                 <th style={{ padding: '6px', textAlign: 'left', color: '#888', position: 'sticky', left: 0, zIndex: 2, backgroundColor: '#1e1e1e', borderRight: '2px solid #333' }}>Hole</th>
-                <th style={{ padding: '6px', textAlign: 'center', color: '#888' }}>Wolf</th>
-                <th style={{ padding: '6px', textAlign: 'center', color: '#888' }}>Pick</th>
-                <th style={{ padding: '6px', textAlign: 'center', color: '#888' }}>🔨</th>
+                <th style={{ padding: '6px', textAlign: 'center', color: '#888', minWidth: '70px', whiteSpace: 'nowrap' }}>Wolf</th>
+                <th style={{ padding: '6px', textAlign: 'center', color: '#888', minWidth: '60px', whiteSpace: 'nowrap' }}>Pick</th>
+                <th style={{ padding: '6px', textAlign: 'center', color: '#888', minWidth: '80px', whiteSpace: 'nowrap' }}>🔨</th>
                 {players.map(p => (
-                  <th key={p.id} style={{ padding: '6px', textAlign: 'center', color: ACCENT }}>{firstName(p)}</th>
+                  <th key={p.id} style={{ padding: '6px', textAlign: 'center', color: ACCENT, minWidth: '60px', whiteSpace: 'nowrap' }}>{firstName(p)}</th>
                 ))}
               </tr>
             </thead>
@@ -211,8 +211,8 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                 return (
                   <tr key={holeNum} style={{ borderBottom: '1px solid #2a2a2a' }}>
                     <td style={{ padding: '6px', fontWeight: 'bold', position: 'sticky', left: 0, zIndex: 1, backgroundColor: '#1e1e1e', borderRight: '2px solid #333' }}>{holeNum}</td>
-                    <td style={{ padding: '6px', textAlign: 'center', color: '#ccc' }}>🐺 {firstName(wolf)}</td>
-                    <td style={{ padding: '6px', textAlign: 'center', color: (decision === 'lone' || decision === 'blind') ? '#FFD700' : '#aaa' }}>{pickLabel}</td>
+                    <td style={{ padding: '6px', textAlign: 'center', color: '#ccc', whiteSpace: 'nowrap' }}>🐺 {firstName(wolf)}</td>
+                    <td style={{ padding: '6px', textAlign: 'center', color: (decision === 'lone' || decision === 'blind') ? '#FFD700' : '#aaa', whiteSpace: 'nowrap' }}>{pickLabel}</td>
                     <td style={{ padding: '6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <button onClick={() => adjustHammer(holeNum, -1)} style={{ width: '20px', height: '20px', fontSize: '13px', lineHeight: '1', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>−</button>
                       <span style={{ display: 'inline-block', minWidth: '30px', fontWeight: 'bold', color: (hammers[holeNum] || 0) > 0 ? '#FFD700' : '#555' }}>×{hammerMult(holeNum)}</span>

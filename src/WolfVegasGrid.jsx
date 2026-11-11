@@ -387,8 +387,8 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                       onChange={(e) => handleScoreChange(holeNum, e.target.value)}
                       style={{ width: '38px', height: '38px', textAlign: 'center', backgroundColor: '#2a2a2a', color: '#fff', fontSize: '18px', outline: 'none' }}
                     />
-                    {r.settled && holePts !== 0 && (
-                      <div style={{ position: 'absolute', bottom: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: holePts > 0 ? '#4CAF50' : '#EF5350', background: 'rgba(0,0,0,0.5)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
+                    {r.settled && (
+                      <div style={{ position: 'absolute', bottom: '2px', right: '4px', fontSize: '10px', fontWeight: '900', color: holePts > 0 ? '#4CAF50' : holePts < 0 ? '#EF5350' : '#888', background: 'rgba(0,0,0,0.5)', padding: '0 2px', borderRadius: '2px', zIndex: 10 }}>
                         {holePts > 0 ? `+${holePts}` : holePts}
                       </div>
                     )}

@@ -79,9 +79,9 @@ These protect a live database that real players and deployed hardware depend on.
   `.github/trusted-authors`; an issue from anyone else is labelled `needs-human` and waits.
 - **The coordinator triages** (`.github/workflows/coordinator.yml`, when an issue is opened, and
   once a day as a fallback): de-duplicates, prioritizes, and labels what's worth building
-  **`ready-for-dev`**. That label is the trigger. At most two issues start in any 24 hours,
+  **`ready-for-dev`**. That label is the trigger. At most five issues start in any 24 hours (two until 2026-11-11),
   however often it runs — approved work over the limit is labelled `queued` and starts when
-  there is room, rather than sending five unreviewed changes at production.
+  there is room, rather than sending a whole backlog of unreviewed changes at production at once.
 
   | Label | Meaning |
   |---|---|

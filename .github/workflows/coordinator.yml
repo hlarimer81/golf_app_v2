@@ -6,7 +6,7 @@ name: Coordinator
 # It runs when an issue is opened, and once a day as a fallback. It used to run only once a day,
 # and GitHub starts that hours late, so a golfer's finding waited until the next morning and was
 # sometimes fixed by hand before the coordinator had read it. The cap on what may ship is
-# therefore on the day, not the run: at most two issues start in any 24 hours, however many times
+# therefore on the day, not the run: at most five issues start (two until 2026-11-11) in any 24 hours, however many times
 # this runs (.github/scripts/shipped-last-day.sh). An issue approved over the cap is labelled
 # queued, and a later run starts it when there is room, without asking the model again.
 #
@@ -46,7 +46,7 @@ on:
       max_to_ship:
         description: 'How many issues may be labelled ready-for-dev in any 24 hours'
         required: false
-        default: '2'
+        default: '5'
       dry_run:
         description: 'Triage and report, but change nothing'
         type: boolean
@@ -176,7 +176,7 @@ jobs:
       - name: Count what has started in the last 24 hours
         id: budget
         env:
-          MAX_TO_SHIP: ${{ inputs.max_to_ship || '2' }}
+          MAX_TO_SHIP: ${{ inputs.max_to_ship || '5' }}
         run: |
           started=$(bash .github/scripts/shipped-last-day.sh)
           left=$(( MAX_TO_SHIP - started ))
@@ -351,7 +351,7 @@ jobs:
       - name: Apply the decisions
         if: steps.backlog.outputs.untriaged != '0'
         env:
-          MAX_TO_SHIP: ${{ inputs.max_to_ship || '2' }}
+          MAX_TO_SHIP: ${{ inputs.max_to_ship || '5' }}
           LEFT: ${{ steps.release.outputs.left }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: |

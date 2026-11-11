@@ -91,4 +91,4 @@ node testers/scorecard.js --handicap 14 --pars 4,4,3,5,4,4,3,4,5,4,4,3,5,4,4,3,4
 
 Start: one round a night. If rounds keep coming back clean, play more — add a second `cron` line
 to the workflow. If the backlog fills faster than it empties, lower `max_issues` or drop to a few
-nights a week. The coordinator still ships at most two changes a day whatever the golfers file.
+nights a week. The coordinator still ships at most five changes a day whatever the golfers file.

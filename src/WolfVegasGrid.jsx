@@ -214,9 +214,15 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                     <td style={{ padding: '6px', textAlign: 'center', color: '#ccc', whiteSpace: 'nowrap' }}>🐺 {firstName(wolf)}</td>
                     <td style={{ padding: '6px', textAlign: 'center', color: (decision === 'lone' || decision === 'blind') ? '#FFD700' : '#aaa', whiteSpace: 'nowrap' }}>{pickLabel}</td>
                     <td style={{ padding: '6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      <button onClick={() => adjustHammer(holeNum, -1)} style={{ width: '20px', height: '20px', fontSize: '13px', lineHeight: '1', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>−</button>
-                      <span style={{ display: 'inline-block', minWidth: '30px', fontWeight: 'bold', color: (hammers[holeNum] || 0) > 0 ? '#FFD700' : '#555' }}>×{hammerMult(holeNum)}</span>
-                      <button onClick={() => adjustHammer(holeNum, 1)} style={{ width: '20px', height: '20px', fontSize: '13px', lineHeight: '1', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>+</button>
+                      {isBanked ? (
+                        <span style={{ display: 'inline-block', minWidth: '30px', fontWeight: 'bold', color: (hammers[holeNum] || 0) > 0 ? '#FFD700' : '#555' }}>×{hammerMult(holeNum)}</span>
+                      ) : (
+                        <>
+                          <button onClick={() => adjustHammer(holeNum, -1)} style={{ width: '20px', height: '20px', fontSize: '13px', lineHeight: '1', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>−</button>
+                          <span style={{ display: 'inline-block', minWidth: '30px', fontWeight: 'bold', color: (hammers[holeNum] || 0) > 0 ? '#FFD700' : '#555' }}>×{hammerMult(holeNum)}</span>
+                          <button onClick={() => adjustHammer(holeNum, 1)} style={{ width: '20px', height: '20px', fontSize: '13px', lineHeight: '1', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>+</button>
+                        </>
+                      )}
                     </td>
                     {players.map(p => {
                       const pts = r.settled ? r.pts[p.id] : 0;

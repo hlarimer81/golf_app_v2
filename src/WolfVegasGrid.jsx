@@ -33,20 +33,33 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
 
   // Per-Hole Breakdown (summary screen): the sticky Hole column stays in place while the rest
   // of the row scrolls under it, so the Wolf/Pick/Hammer/player columns only fully disappear
-  // behind it once there's enough scroll range left after the last player column to carry them
-  // all the way there. With 4 players that combined column width can be narrower than the
-  // scrollable area (more so with short names or a wide phone), capping the max scroll short and
-  // leaving the tail of the Hammer stepper peeking out beside the Hole number (issue #71). A
-  // trailing spacer column, sized to make up that shortfall, gives the scroll room it's missing.
-  // Measured from a ref callback (not an effect) since the measurement only matters once the row
-  // is in the DOM and doesn't need to re-run on every render.
+  // behind it once there's enough scroll range left to carry the FIRST player column all the way
+  // past the sticky column's pinned left edge — every column before it (Wolf/Pick/Hammer) is
+  // narrower in doc order, so clearing the first player column clears those too, and the later
+  // player columns, being further right, clear with room to spare. With 4 players that required
+  // scroll range can exceed what the columns' own width provides (more so with short names or a
+  // wide phone), capping the max scroll short and leaving a column's tail or edge peeking out
+  // beside the Hole number (issues #71, #75). A trailing spacer column, sized to make up that
+  // shortfall, gives the scroll room it's missing. Sized from the first player column's right edge
+  // relative to the sticky column's pinned left edge (not the viewport's left edge, which is where
+  // the sticky column's own width was previously missed) so nothing is left showing to its left at
+  // max scroll. Measured from a ref callback (not an effect) since the measurement only matters
+  // once the row is in the DOM and doesn't need to re-run on every render.
   const [breakdownSpacerWidth, setBreakdownSpacerWidth] = useState(0);
   const measureBreakdownSpacer = (wrap) => {
     if (!wrap) return;
+    const stickyTh = wrap.querySelector('[data-breakdown-sticky-col]');
     const firstTh = wrap.querySelector('[data-breakdown-player-col="first"]');
     const lastTh = wrap.querySelector('[data-breakdown-player-col="last"]');
-    if (!firstTh || !lastTh) return;
-    const needed = Math.max(0, wrap.clientWidth - (lastTh.getBoundingClientRect().right - firstTh.getBoundingClientRect().left));
+    if (!stickyTh || !firstTh || !lastTh) return;
+    // Everything here but wrap.clientWidth comes from elements before the (possibly absent)
+    // spacer column, so it doesn't change when the spacer itself is added — no feedback loop
+    // between this measurement and the state it sets.
+    const wrapLeft = wrap.getBoundingClientRect().left;
+    const wrapRightPadding = parseFloat(getComputedStyle(wrap).paddingRight) || 0;
+    const naturalScrollWidth = (lastTh.getBoundingClientRect().right - wrapLeft) + wrapRightPadding;
+    const neededScrollWidth = (firstTh.getBoundingClientRect().right - stickyTh.getBoundingClientRect().left) + wrap.clientWidth;
+    const needed = Math.max(0, Math.ceil(neededScrollWidth - naturalScrollWidth));
     setBreakdownSpacerWidth(prev => (prev === needed ? prev : needed));
   };
 
@@ -206,7 +219,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #333' }}>
-                <th style={{ padding: '6px', textAlign: 'left', color: '#888', position: 'sticky', left: 0, zIndex: 2, backgroundColor: '#1e1e1e', borderRight: '2px solid #333' }}>Hole</th>
+                <th data-breakdown-sticky-col="hole" style={{ padding: '6px', textAlign: 'left', color: '#888', position: 'sticky', left: 0, zIndex: 2, backgroundColor: '#1e1e1e', borderRight: '2px solid #333' }}>Hole</th>
                 <th style={{ padding: '6px', textAlign: 'center', color: '#888', minWidth: '70px', whiteSpace: 'nowrap' }}>Wolf</th>
                 <th style={{ padding: '6px', textAlign: 'center', color: '#888', minWidth: '60px', whiteSpace: 'nowrap' }}>Pick</th>
                 <th style={{ padding: '6px', textAlign: 'center', color: '#888', minWidth: '80px', whiteSpace: 'nowrap' }}>🔨</th>

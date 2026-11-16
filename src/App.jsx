@@ -357,6 +357,8 @@ function App() {
         start_hole: startHole,
         play_off_low: playOffLow,
         handicap_allowance_pct: hcpAllowance,
+        // Skins only, so a round of any other game still saves if the column isn't there yet.
+        ...(gameType === 'skins' ? { use_carryover: useCarryover } : {}),
         // Persist what the round is actually being scored against. Omitting these left the row on
         // the column defaults - par [4,4,3,...] summing to 72, and stroke index 1..18 - and
         // golf_bank_round() reads the MATCH, not the tee. Every differential banked before this
@@ -467,6 +469,8 @@ function App() {
     setStartHole(match.start_hole || 1);
     setPlayOffLow(match.play_off_low ?? true);
     setHcpAllowance(match.handicap_allowance_pct || 100);
+    // Rounds saved before the column existed were always played with carryover on.
+    setUseCarryover(match.use_carryover ?? true);
     setFinalPlayers(matchPlayers);
     setMatchCompleted(match.status === 'completed');
     setShowScorer(true);
@@ -671,6 +675,7 @@ function App() {
             setStartHole('');
             setPlayOffLow(true);
             setHcpAllowance('');
+            setUseCarryover(true);
           }}
         />
       </div>

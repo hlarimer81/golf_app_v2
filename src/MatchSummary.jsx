@@ -1,5 +1,5 @@
 import React from 'react';
-import { computeRanks, vegasHoleNumbers } from './lib/golf';
+import { computeRanks, vegasHoleNumbers, hcpSuffix } from './lib/golf';
 import { skinsStandings } from './lib/skinsStandings';
 import { wolfPoints } from './lib/wolf';
 
@@ -370,6 +370,7 @@ export default function MatchSummary({
       name: player.player_name || player.name,
       team: getPlayerTeam(player),
       handicap: playerHcp,
+      handicapAllowancePct: player.handicapAllowancePct,
       strokes: totalStrokes,
       netStrokes: totalNetStrokes,
       points: totalPoints,
@@ -631,7 +632,7 @@ export default function MatchSummary({
                     <div style={{ fontSize: '11px', color: teamColors[player.team] || '#666' }}>{player.team}</div>
                   )}
                 </td>
-                {useHandicaps && <td style={{ padding: '12px 10px', textAlign: 'center', color: '#888' }}>{player.handicap}</td>}
+                {useHandicaps && <td style={{ padding: '12px 10px', textAlign: 'center', color: '#888' }}>{player.handicap}{hcpSuffix(player.handicapAllowancePct)}</td>}
                 <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: gameType === 'fourball' || gameType === 'chairman' || gameType === 'vegas' || (gameType === 'singles' && !useHandicaps) ? 'bold' : 'normal', fontSize: gameType === 'fourball' || gameType === 'chairman' || gameType === 'vegas' || (gameType === 'singles' && !useHandicaps) ? '18px' : '14px' }}>
                   {player.strokes || '-'}
                 </td>

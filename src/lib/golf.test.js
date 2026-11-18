@@ -6,6 +6,7 @@ import {
   pointsUpToHole,
   holeLayout,
   computeRanks,
+  hcpSuffix,
 } from './golf';
 
 // Stroke index 1 is the hardest hole, 18 the easiest. A player receives a stroke on every hole
@@ -157,5 +158,16 @@ describe('computeRanks', () => {
 
   it('never ties a missing score with another missing score', () => {
     expect(computeRanks([70, null, null])).toEqual([1, 2, 3]);
+  });
+});
+
+describe('hcpSuffix', () => {
+  it('is blank at full allowance', () => {
+    expect(hcpSuffix(100)).toBe('');
+    expect(hcpSuffix(undefined)).toBe('');
+  });
+
+  it('labels a reduced allowance so a cut handicap does not look like the setup figure changed', () => {
+    expect(hcpSuffix(90)).toBe(' (90%)');
   });
 });

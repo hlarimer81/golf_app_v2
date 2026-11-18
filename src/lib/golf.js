@@ -8,6 +8,15 @@ export const PAR_FALLBACK = Array(18).fill(4);
 export const HCP_FALLBACK = Array(18).fill(10);
 
 /**
+ * " (90%)" when the round's handicap allowance cut the player's handicap below
+ * their course handicap, so a reduced number on the card doesn't read as a
+ * mistake next to the full figure the player was shown at setup. Empty at 100%.
+ */
+export function hcpSuffix(allowancePct) {
+  return (allowancePct && allowancePct !== 100) ? ` (${allowancePct}%)` : '';
+}
+
+/**
  * Net (handicap-adjusted) strokes for a hole.
  * Returns null when no gross score has been entered.
  */

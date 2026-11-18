@@ -14,17 +14,18 @@ const selectWithPlaceholder = (page, placeholder) =>
 const selectLabelled = (page, label) =>
   page.locator('div').filter({ has: page.locator(`label:text-is("${label}")`) }).last().locator('select');
 
-async function setUp(page, { holes, playOffLow, scoring = 'net' }) {
+async function setUp(page, { holes, playOffLow, scoring = 'net', allowancePct }) {
   await page.goto('/');
   await selectWithPlaceholder(page, 'Select Course').selectOption({ label: 'Test Links' });
   await selectLabelled(page, 'Holes').selectOption(String(holes));
   await selectWithPlaceholder(page, 'Select Game Type').selectOption('stableford');
   await selectWithPlaceholder(page, 'Play Mode').selectOption('singles');
   await selectWithPlaceholder(page, 'Scoring Mode').selectOption(scoring);
-  // Play Off Low is only offered in a net round.
+  // Play Off Low and HCP% are only offered in a net round.
   if (scoring === 'net') {
     const offLow = page.getByLabel(/Play Off Low/);
     if ((await offLow.isChecked()) !== playOffLow) await offLow.click();
+    if (allowancePct) await selectWithPlaceholder(page, 'HCP%').selectOption(String(allowancePct));
   }
 
   await page.getByRole('button', { name: 'Start Round' }).click();
@@ -72,6 +73,17 @@ test.describe('handicaps from setup to scorecard', () => {
 
     await expect(page.getByText('HCP: 0', { exact: true })).toBeVisible();
     await expect(page.getByText('HCP: 10', { exact: true })).toBeVisible();
+  });
+
+  // The scorecard's HCP is the allowance-adjusted number, same as setup's "computed" figure x90%
+  // rounded - but under the same plain "HCP" label, with nothing saying it was cut (issue #79,
+  // found by Mulligan). Label it with the percentage so it doesn't look like the number changed.
+  test('a round cut to an allowance says so next to the handicap', async ({ page }) => {
+    await setUp(page, { holes: 18, playOffLow: false, allowancePct: 90 });
+    await startScoring(page);
+
+    await expect(page.getByText('HCP: 10 (90%)', { exact: true })).toBeVisible();
+    await expect(page.getByText('HCP: 19 (90%)', { exact: true })).toBeVisible();
   });
 });
 

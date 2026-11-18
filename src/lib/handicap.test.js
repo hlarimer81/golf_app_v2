@@ -102,6 +102,12 @@ describe('playingHandicaps', () => {
     expect(strokes(playingHandicaps(group, { allowancePct: 50 }))).toEqual([11, 6]);
   });
 
+  it('carries the allowance percentage on each player, so the scorecard can label a cut handicap', () => {
+    const withAllowance = playingHandicaps(group, { allowancePct: 90 });
+    expect(withAllowance.every(p => p.handicapAllowancePct === 90)).toBe(true);
+    expect(playingHandicaps(group).every(p => p.handicapAllowancePct === 100)).toBe(true);
+  });
+
   it('plays off the low handicap after the allowance, not before', () => {
     expect(strokes(playingHandicaps(group, { playOffLow: true }))).toEqual([10, 0]);
     // 90% of 21 and 11 is 19 and 10, so the gap is 9 - not 90% of the 10-stroke gap rounded.

@@ -1,6 +1,6 @@
 import React, { useState, useLayoutEffect, useRef } from 'react';
 import { finishRound } from './lib/handicap';
-import { computeRanks } from './lib/golf';
+import { computeRanks, hcpSuffix } from './lib/golf';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
@@ -220,7 +220,7 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                     <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                       {player.player_name || player.name}
                       <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
-                        {useHandicaps && `HCP: ${playerHcp}`}
+                        {useHandicaps && `HCP: ${playerHcp}${hcpSuffix(player.handicapAllowancePct)}`}
                       </div>
                     </td>
                     {frontHoles.map((hNum) => {

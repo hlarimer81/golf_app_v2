@@ -12,7 +12,7 @@ import { focusNextScore } from './lib/scoreEntry';
 import { settleNassau, wagerHasStake } from './settlement';
 import { computeNassau, nassauSettlementSegments, nassauSides, nassauHoleWinner } from './nassauEngine';
 import { getPlayerTeam } from './lib/teams';
-import { netScore, strokesReceived } from './lib/golf';
+import { netScore, strokesReceived, hcpSuffix } from './lib/golf';
 
 export default function NassauGrid({ matchId, matchName, matchCode, players, useHandicaps, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
     const { scores, saveScore } = useScores(matchId);
@@ -215,7 +215,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
                   <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                     {player.player_name || player.name}
-                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>{useHandicaps && `HCP: ${playerHcp}`}</div>
+                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>{useHandicaps && `HCP: ${playerHcp}${hcpSuffix(player.handicapAllowancePct)}`}</div>
                   </td>
                   {[...Array(9)].map((_, i) => {
                     const holeNum = i + 1;

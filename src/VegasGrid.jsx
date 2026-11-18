@@ -5,7 +5,7 @@ import GolfScoreTile from './GolfScoreTile';
 import { getPlayerTeam, activeTeams, getTeamPlayers } from './lib/teams';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
-import { vegasHoleNumbers } from './lib/golf';
+import { vegasHoleNumbers, hcpSuffix } from './lib/golf';
 import { useVegasState } from './useVegasState';
 import BetControls from './components/BetControls';
 import { useBet } from './useBet';
@@ -199,7 +199,7 @@ export default function VegasGrid({ matchId, matchName, matchCode, players, useH
                   <td style={{ position: 'sticky', left: 0, zIndex: 20, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                     {player.player_name || player.name}
                     <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>
-                      {useHandicaps && `HCP: ${playerHcp}`}
+                      {useHandicaps && `HCP: ${playerHcp}${hcpSuffix(player.handicapAllowancePct)}`}
                     </div>
                   </td>
                   {frontHoles.map((holeNum) => {

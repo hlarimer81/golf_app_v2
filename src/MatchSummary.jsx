@@ -1,5 +1,5 @@
 import React from 'react';
-import { computeRanks, vegasHoleNumbers } from './lib/golf';
+import { computeRanks, vegasHoleNumbers, fourballHoleCredits } from './lib/golf';
 import { skinsStandings } from './lib/skinsStandings';
 import { wolfPoints } from './lib/wolf';
 
@@ -308,6 +308,29 @@ export default function MatchSummary({
     ? wolfPoints({ players, scores, decisions: wolfDecisions, holeNumbers, hcds, useHandicaps })
     : {};
 
+  // 4-ball "Holes Contributed" totals, summed hole-by-hole so each team's totals add up to its
+  // wins-plus-halves from fourBallStandings below, even when teammates tie for the team's best net.
+  const fourballHolesContributed = {};
+  if (gameType === 'fourball') {
+    players.forEach(p => { fourballHolesContributed[p.id] = 0; });
+    for (const holeNum of holeNumbers) {
+      const h = holeNum - 1;
+      const teamNets = {};
+      activeTeamsList.forEach(team => {
+        teamNets[team] = getTeamPlayers(team).map(p => {
+          const hcp = p.handicap ?? p.hcp ?? 0;
+          return { id: p.id, net: getNetScore((scores[p.id] || {})[holeNum], h, hcp) };
+        });
+      });
+      const credits = fourballHoleCredits(teamNets);
+      Object.values(credits).forEach(teamCredits => {
+        Object.entries(teamCredits).forEach(([id, credit]) => {
+          fourballHolesContributed[id] = (fourballHolesContributed[id] || 0) + credit;
+        });
+      });
+    }
+  }
+
   // Get player stats
   const getPlayerStats = (player) => {
     const playerScores = scores[player.id] || {};
@@ -331,38 +354,8 @@ export default function MatchSummary({
       }
     }
 
-    // Calculate 4-ball holes contributed
-    let holesContributed = 0;
-    if (gameType === 'fourball') {
-      const teamName = getPlayerTeam(player);
-      const teamPlayers = getTeamPlayers(teamName);
-      
-      for (const holeNum of holeNumbers) {
-        const h = holeNum - 1;
-        const strokes = playerScores[holeNum];
-        if (!strokes) continue;
-        
-        const playerHoleScore = getNetScore(strokes, h, playerHcp);
-        if (playerHoleScore === null) continue;
-        
-        const bestTeamScore = getBestNet(teamPlayers, h);
-        if (playerHoleScore !== bestTeamScore) continue;
-        
-        let wonOrHalvedAny = false;
-        activeTeamsList.filter(t => getTeamPlayers(t).length > 0).forEach(otherTeam => {
-          if (otherTeam === teamName) return;
-          const otherTeamPlayers = getTeamPlayers(otherTeam);
-          const otherTeamBest = getBestNet(otherTeamPlayers, h);
-          if (otherTeamBest !== null && bestTeamScore <= otherTeamBest) {
-            wonOrHalvedAny = true;
-          }
-        });
-        
-        if (wonOrHalvedAny) {
-          holesContributed++;
-        }
-      }
-    }
+    // 4-ball holes contributed (precomputed above, split across ties within a team)
+    const holesContributed = fourballHolesContributed[player.id] || 0;
 
     const quotaResult = totalQuotaPoints - quotaGoal;
     return {

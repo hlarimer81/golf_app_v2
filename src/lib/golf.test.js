@@ -6,6 +6,7 @@ import {
   pointsUpToHole,
   holeLayout,
   computeRanks,
+  fourballHoleCredits,
   hcpSuffix,
 } from './golf';
 
@@ -158,6 +159,80 @@ describe('computeRanks', () => {
 
   it('never ties a missing score with another missing score', () => {
     expect(computeRanks([70, null, null])).toEqual([1, 2, 3]);
+  });
+});
+
+describe('fourballHoleCredits', () => {
+  // Issue #78: two 2-player teams, their "Holes Contributed" totals didn't sum consistently
+  // with the match-points engine. A team that won or halved N holes should have its players'
+  // credits add up to exactly N, whether or not teammates tied for the team's best net.
+  it('splits the credit between teammates tied for the team\'s winning net', () => {
+    const hole = {
+      A: [{ id: 'A1', net: 3 }, { id: 'A2', net: 3 }], // tied within the team, and wins the hole
+      B: [{ id: 'B1', net: 4 }, { id: 'B2', net: 5 }],
+    };
+    expect(fourballHoleCredits(hole)).toEqual({
+      A: { A1: 0.5, A2: 0.5 },
+      B: { B1: 0, B2: 0 },
+    });
+  });
+
+  it('gives no credit to either teammate on a hole the team loses outright', () => {
+    const hole = {
+      A: [{ id: 'A1', net: 6 }, { id: 'A2', net: 5 }], // not tied, but still worse than B's best
+      B: [{ id: 'B1', net: 4 }, { id: 'B2', net: 4 }], // tied within the team, and wins the hole
+    };
+    expect(fourballHoleCredits(hole)).toEqual({
+      A: { A1: 0, A2: 0 },
+      B: { B1: 0.5, B2: 0.5 },
+    });
+  });
+
+  it('gives the full hole to a single player with the team\'s best net, untied', () => {
+    const hole = {
+      A: [{ id: 'A1', net: 3 }, { id: 'A2', net: 5 }],
+      B: [{ id: 'B1', net: 4 }, { id: 'B2', net: 4 }],
+    };
+    expect(fourballHoleCredits(hole)).toEqual({
+      A: { A1: 1, A2: 0 },
+      B: { B1: 0, B2: 0 },
+    });
+  });
+
+  it('splits a halved hole between tied teammates on both sides', () => {
+    const hole = {
+      A: [{ id: 'A1', net: 4 }, { id: 'A2', net: 5 }],
+      B: [{ id: 'B1', net: 4 }, { id: 'B2', net: 6 }],
+    };
+    expect(fourballHoleCredits(hole)).toEqual({
+      A: { A1: 1, A2: 0 },
+      B: { B1: 1, B2: 0 },
+    });
+  });
+
+  it('adds up to wins-plus-halves across a small round, not inflated by ties', () => {
+    // Hole 1: tied within team A, and A wins against team B.
+    // Hole 2: team A loses outright (no tie), team B wins tied within its own team.
+    const hole1 = {
+      A: [{ id: 'A1', net: 3 }, { id: 'A2', net: 3 }],
+      B: [{ id: 'B1', net: 4 }, { id: 'B2', net: 5 }],
+    };
+    const hole2 = {
+      A: [{ id: 'A1', net: 6 }, { id: 'A2', net: 5 }],
+      B: [{ id: 'B1', net: 4 }, { id: 'B2', net: 4 }],
+    };
+    const totals = { A1: 0, A2: 0, B1: 0, B2: 0 };
+    for (const hole of [hole1, hole2]) {
+      const credits = fourballHoleCredits(hole);
+      Object.values(credits).forEach(teamCredits => {
+        Object.entries(teamCredits).forEach(([id, credit]) => { totals[id] += credit; });
+      });
+    }
+    // Team A won hole 1 only: its two players' credits must add up to 1, not 2.
+    expect(totals.A1 + totals.A2).toBe(1);
+    // Team B won hole 2 only: same check.
+    expect(totals.B1 + totals.B2).toBe(1);
+    expect(totals).toEqual({ A1: 0.5, A2: 0.5, B1: 0.5, B2: 0.5 });
   });
 });
 

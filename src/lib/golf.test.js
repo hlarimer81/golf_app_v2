@@ -199,14 +199,32 @@ describe('fourballHoleCredits', () => {
     });
   });
 
-  it('splits a halved hole between tied teammates on both sides', () => {
+  it('splits a cross-team halved hole 0.5/0.5, not 1/1 (issue #82)', () => {
     const hole = {
       A: [{ id: 'A1', net: 4 }, { id: 'A2', net: 5 }],
       B: [{ id: 'B1', net: 4 }, { id: 'B2', net: 6 }],
     };
+    const credits = fourballHoleCredits(hole);
+    expect(credits).toEqual({
+      A: { A1: 0.5, A2: 0 },
+      B: { B1: 0.5, B2: 0 },
+    });
+    // A halved hole is one point total, split between the two teams, not two.
+    const total = Object.values(credits).reduce(
+      (sum, teamCredits) => sum + Object.values(teamCredits).reduce((s, c) => s + c, 0),
+      0
+    );
+    expect(total).toBe(1);
+  });
+
+  it('splits a halved hole between tied teammates on both sides', () => {
+    const hole = {
+      A: [{ id: 'A1', net: 4 }, { id: 'A2', net: 4 }],
+      B: [{ id: 'B1', net: 4 }, { id: 'B2', net: 6 }],
+    };
     expect(fourballHoleCredits(hole)).toEqual({
-      A: { A1: 1, A2: 0 },
-      B: { B1: 1, B2: 0 },
+      A: { A1: 0.25, A2: 0.25 },
+      B: { B1: 0.5, B2: 0 },
     });
   });
 

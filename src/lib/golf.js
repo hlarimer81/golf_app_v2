@@ -202,10 +202,11 @@ export function settleWolfVegasHole(wolfSide, oppSide, par, { grossBirdies, scal
 /**
  * Per-player hole credit for 4-ball "Holes Contributed". `teamNets` is
  * { [teamName]: [{ id, net }] } for a single hole, net already handicap-adjusted (null if unplayed).
- * A team is credited for the hole when its best net ties-or-beats every other team's best. That
- * credit is a single point split evenly among whichever of the team's own players tied for that
- * best net, so a team's totals across all holes always add up to its wins-plus-halves from the
- * match-points engine, win or lose, tied internally or not.
+ * A team's credit for the hole is the sum of its result against each other team, scored the same
+ * way the round-robin match-points engine scores a matchup: 1 for beating that team's best net,
+ * 0.5 for tying it, 0 for losing to it. That credit is then split evenly among whichever of the
+ * team's own players tied for its best net, so a team's totals across all holes always add up to
+ * its wins-plus-halves from the match-points engine, win or lose, tied internally or not.
  * Returns { [teamName]: { [id]: credit } }, credit 0 when the team didn't win or halve the hole.
  */
 export function fourballHoleCredits(teamNets) {
@@ -220,19 +221,27 @@ export function fourballHoleCredits(teamNets) {
   teamNames.forEach(team => {
     credits[team] = {};
     const best = teamBests[team];
-    const wonOrHalved = best !== null && teamNames.some(other => {
-      if (other === team) return false;
-      const otherBest = teamBests[other];
-      return otherBest !== null && best <= otherBest;
-    });
+    if (best === null) {
+      teamNets[team].forEach(p => { credits[team][p.id] = 0; });
+      return;
+    }
 
-    if (!wonOrHalved) {
+    const teamCredit = teamNames.reduce((sum, other) => {
+      if (other === team) return sum;
+      const otherBest = teamBests[other];
+      if (otherBest === null) return sum;
+      if (best < otherBest) return sum + 1;
+      if (best === otherBest) return sum + 0.5;
+      return sum;
+    }, 0);
+
+    if (teamCredit === 0) {
       teamNets[team].forEach(p => { credits[team][p.id] = 0; });
       return;
     }
 
     const tiedIds = teamNets[team].filter(p => p.net === best).map(p => p.id);
-    const share = 1 / tiedIds.length;
+    const share = teamCredit / tiedIds.length;
     teamNets[team].forEach(p => { credits[team][p.id] = tiedIds.includes(p.id) ? share : 0; });
   });
   return credits;

@@ -183,6 +183,8 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
 
   // Sort teams by points
   const sortedTeams = [...activeTeams].sort((a, b) => standings[b].points - standings[a].points);
+  const topPoints = sortedTeams.length ? standings[sortedTeams[0]].points : 0;
+  const leadersTied = sortedTeams.filter(t => standings[t].points === topPoints).length > 1;
 
   // Show summary screen
   if (showSummary) {
@@ -216,16 +218,18 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
           4-Ball Round Robin Standings
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '8px', textAlign: 'center' }}>
-          {sortedTeams.map((team, idx) => (
-            <div key={team} style={{ 
-              flex: 1, 
-              background: idx === 0 ? teamColors[team] + '33' : '#252525', 
-              borderRadius: '8px', 
-              padding: '10px', 
-              border: `2px solid ${idx === 0 ? teamColors[team] : '#333'}` 
+          {sortedTeams.map((team, idx) => {
+            const isLeader = idx === 0 && !leadersTied;
+            return (
+            <div key={team} style={{
+              flex: 1,
+              background: isLeader ? teamColors[team] + '33' : '#252525',
+              borderRadius: '8px',
+              padding: '10px',
+              border: `2px solid ${isLeader ? teamColors[team] : '#333'}`
             }}>
               <div style={{ fontSize: '10px', color: teamColors[team], fontWeight: 'bold', textTransform: 'uppercase' }}>
-                {idx === 0 ? '🏆 ' : ''}{team.replace('Team ', '')}
+                {isLeader ? '🏆 ' : ''}{team.replace('Team ', '')}
               </div>
               <div style={{ fontSize: '24px', fontWeight: '900', color: teamColors[team], marginTop: '2px' }}>
                 {standings[team].points}
@@ -234,7 +238,8 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
                 {standings[team].wins}W-{standings[team].losses}L-{standings[team].halves}H
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

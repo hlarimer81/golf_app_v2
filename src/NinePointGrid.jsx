@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { finishRound } from './lib/handicap';
+import { hcpSuffix } from './lib/golf';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
@@ -241,7 +242,7 @@ export default function NinePointGrid({ matchId, matchName, matchCode, players, 
                   <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '8px 10px', fontWeight: 'bold', borderRight: '2px solid #333', whiteSpace: 'nowrap' }}>
                     {player.player_name || player.name}
                     <div style={{ fontSize: '8px', color: '#666', fontWeight: 'normal' }}>
-                      {useHandicaps && `HCP: ${playerHcp}`}
+                      {useHandicaps && `HCP: ${playerHcp}${hcpSuffix(player.handicapAllowancePct)}`}
                     </div>
                   </td>
                   {frontHoles.map((holeNum) => {

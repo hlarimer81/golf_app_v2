@@ -166,7 +166,9 @@ export function playingHandicaps(players, { useHandicaps = true, allowancePct = 
     });
 
     const low = playOffLow && allowed.length ? Math.min(...allowed) : 0;
-    return players.map((p, i) => ({ ...p, handicap: Math.max(0, allowed[i] - low) }));
+    // Carried alongside the cut handicap so the scorecard can label it as the allowance
+    // figure instead of looking like the setup screen's course handicap changed by mistake.
+    return players.map((p, i) => ({ ...p, handicap: Math.max(0, allowed[i] - low), handicapAllowancePct: pct }));
 }
 
 //--------------------------------------------------------------------------------------------------

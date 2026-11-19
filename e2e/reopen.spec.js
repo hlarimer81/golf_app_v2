@@ -57,9 +57,9 @@ async function expectTheRoundAsSetUp(page) {
   await expect(page.locator('#score-1-0')).toHaveCount(0);
   await expect(page.locator('#score-9-0')).toHaveCount(0);
 
-  // 90% of each handicap, not played off the low one.
-  await expect(page.getByText('HCP: 13', { exact: true })).toBeVisible();
-  await expect(page.getByText('HCP: 5', { exact: true })).toBeVisible();
+  // 90% of each handicap, not played off the low one, and labelled as the allowance (issue #79).
+  await expect(page.getByText('HCP: 13 (90%)', { exact: true })).toBeVisible();
+  await expect(page.getByText('HCP: 5 (90%)', { exact: true })).toBeVisible();
 }
 
 test.describe('reopening a round', () => {

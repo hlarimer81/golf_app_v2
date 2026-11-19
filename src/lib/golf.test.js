@@ -7,6 +7,7 @@ import {
   holeLayout,
   computeRanks,
   fourballHoleCredits,
+  hcpSuffix,
 } from './golf';
 
 // Stroke index 1 is the hardest hole, 18 the easiest. A player receives a stroke on every hole
@@ -232,5 +233,16 @@ describe('fourballHoleCredits', () => {
     // Team B won hole 2 only: same check.
     expect(totals.B1 + totals.B2).toBe(1);
     expect(totals).toEqual({ A1: 0.5, A2: 0.5, B1: 0.5, B2: 0.5 });
+  });
+});
+
+describe('hcpSuffix', () => {
+  it('is blank at full allowance', () => {
+    expect(hcpSuffix(100)).toBe('');
+    expect(hcpSuffix(undefined)).toBe('');
+  });
+
+  it('labels a reduced allowance so a cut handicap does not look like the setup figure changed', () => {
+    expect(hcpSuffix(90)).toBe(' (90%)');
   });
 });

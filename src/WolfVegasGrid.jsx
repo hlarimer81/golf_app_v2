@@ -4,7 +4,7 @@ import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
 import { focusNextScore } from './lib/scoreEntry';
 import { useWolfVegasState } from './useWolfVegasState';
-import { settleWolfVegasHole } from './lib/golf';
+import { settleWolfVegasHole, hcpSuffix } from './lib/golf';
 import BetControls from './components/BetControls';
 import { useBet } from './useBet';
 import { settleZeroSumPoints } from './settlement';
@@ -443,7 +443,7 @@ export default function WolfVegasGrid({ matchId, matchName, matchCode, players, 
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
                   <td style={{ position: 'sticky', left: 0, zIndex: 20, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                     {player.player_name || player.name}
-                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>{useHandicaps && `HCP: ${playerHcp} | `}Pts: {totals[player.id] || 0}</div>
+                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>{useHandicaps && `HCP: ${playerHcp}${hcpSuffix(player.handicapAllowancePct)} | `}Pts: {totals[player.id] || 0}</div>
                   </td>
                   {frontHoles.map(renderCell)}
                   {is18 && <td style={{ padding: '8px', textAlign: 'center', borderLeft: `3px solid ${ACCENT}`, borderRight: `3px solid ${ACCENT}`, backgroundColor: '#1a1a1a', fontWeight: 'bold', color: '#aaa', fontSize: '14px' }}>{outStrokes || '-'}</td>}

@@ -16,6 +16,7 @@ import {
   pointsUpToHole,
   holeLayout,
   scoreColor,
+  hcpSuffix,
 } from './lib/golf';
 
 export default function SkinsGrid({ matchId, matchName, matchCode, players, useHandicaps, useCarryover, courseData, onNewMatch, onRoundFinished, holesCount = 18, startHole = 1, initialShowSummary = false }) {
@@ -247,7 +248,7 @@ export default function SkinsGrid({ matchId, matchName, matchCode, players, useH
                   <td style={{ position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#1a1a1a', padding: '8px 10px', fontWeight: 'bold', borderRight: '2px solid #333', whiteSpace: 'nowrap' }}>
                     {player.player_name || player.name}
                     <div style={{ fontSize: '8px', color: '#666', fontWeight: 'normal' }}>
-                      {useHandicaps && `HCP: ${playerHcp}`}
+                      {useHandicaps && `HCP: ${playerHcp}${hcpSuffix(player.handicapAllowancePct)}`}
                       <span style={{ marginLeft: '6px', color: '#FFD700', fontWeight: 'bold' }}>
                         🎰 {skinTotals[player.id] || 0}
                       </span>

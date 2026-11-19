@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { finishRound } from './lib/handicap';
+import { hcpSuffix } from './lib/golf';
 import MatchSummary from './MatchSummary';
 import GolfScoreTile from './GolfScoreTile';
 import { useScores } from './hooks/useScores';
@@ -191,7 +192,7 @@ export default function WolfGrid({ matchId, matchName, matchCode, players, useHa
                 <tr key={player.id} style={{ borderBottom: '1px solid #2a2a2a' }}>
                   <td style={{ position: 'sticky', left: 0, zIndex: 20, backgroundColor: '#1a1a1a', padding: '12px', fontWeight: 'bold', borderRight: '3px solid #333', whiteSpace: 'nowrap' }}>
                     {player.player_name || player.name}
-                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>{useHandicaps && `HCP: ${playerHcp} | `}Pts: {wolfPoints[player.id] || 0}</div>
+                    <div style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>{useHandicaps && `HCP: ${playerHcp}${hcpSuffix(player.handicapAllowancePct)} | `}Pts: {wolfPoints[player.id] || 0}</div>
                   </td>
                   {frontHoles.map((holeNum) => {
                     const i = holeNum - 1;

@@ -203,8 +203,8 @@ export default function SinglesGrid({ matchId, matchName, matchCode, players, us
                 
                 let outStrokes = 0;
                 let inStrokes = 0;
-                frontHoles.forEach(h => { if (playerScores[h]) outStrokes += playerScores[h]; });
-                backHoles.forEach(h => { if (playerScores[h]) inStrokes += playerScores[h]; });
+                frontHoles.forEach(h => { if (playerScores[h]) outStrokes += useHandicaps ? getNetScore(playerScores[h], h - 1, playerHcp) : playerScores[h]; });
+                backHoles.forEach(h => { if (playerScores[h]) inStrokes += useHandicaps ? getNetScore(playerScores[h], h - 1, playerHcp) : playerScores[h]; });
                 const totalStrokes = outStrokes + inStrokes;
   
                 const handleScoreChange = (holeNum, val) => {

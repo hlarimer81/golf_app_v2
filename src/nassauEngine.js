@@ -3,8 +3,9 @@
 //
 // Three concurrent match-play matches — Front 9 / Back 9 / Overall 18 — between two
 // sides, plus manual presses. A press spawned "after hole h" is its own sub-match on
-// the same segment starting at hole h+1. Each match tracks side 0's running lead in
-// hole wins and closes out once |lead| > holesRemaining.
+// the nine hole h is in (front for 1-9, back for 10-18), starting at hole h+1. Each
+// match tracks side 0's running lead in hole wins and closes out once
+// |lead| > holesRemaining.
 //
 //   sideNet[side][holeIdx]  best (lowest) net stroke for that side on that hole, 0 if
 //                           unscored. Sides are the two teams; net honours the "off-low"
@@ -97,14 +98,14 @@ export function computeNassau({ sides, sideNet, manualPressHoles = [] }) {
       }
     }
 
-    // Manual presses requested after hole h -> one press per still-open primary segment.
+    // A manual press after hole h presses the nine that hole is in, and nothing else (#90): holes
+    // 1-9 press the front, 10-18 the back. It runs from the next hole to the end of that nine.
+    // The overall is a separate bet and is not pressed by it. Pressing every open segment turned
+    // one tap into three bets. After 9 or 18 the nine has no holes left, so there is no press.
     if (manualPressHoles.includes(h)) {
-      primSegs.forEach((seg, s) => {
-        const pi = primIdx[s];
-        if (matches[pi].closedOut) return;
-        if (h + 1 > segEnd(seg)) return;
-        add(seg, 'press', h + 1, pi, h);
-      });
+      const s = h <= segEnd(SEG.front) ? 0 : 1;
+      const pi = primIdx[s];
+      if (!matches[pi].closedOut && h + 1 <= segEnd(primSegs[s])) add(primSegs[s], 'press', h + 1, pi, h);
     }
   }
 

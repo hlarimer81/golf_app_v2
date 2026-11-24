@@ -99,7 +99,7 @@ describe('computeNassau', () => {
     expect(front.closedAtHole).toBe(4);
   });
 
-  it('spawns a press on each open segment, starting the following hole', () => {
+  it('presses only the front nine from a front-nine hole, starting the following hole', () => {
     const sideNet = playHoles(blank(), { side0Wins: [0, 1], halved: [2, 3, 4, 5, 6, 7, 8] });
     const { matches } = computeNassau({
       sides: ['A', 'B'],
@@ -107,11 +107,45 @@ describe('computeNassau', () => {
       manualPressHoles: [1], // pressed after the second hole
     });
     const presses = matches.filter((m) => m.kind === 'press');
-    expect(presses).toHaveLength(3); // front, back and overall are all still open
-    presses.forEach((p) => {
-      expect(p.startHole).toBe(2);
-      expect(p.pressAfterHole).toBe(1);
+    // One tap is one bet (#90). The back and overall are separate bets and are not pressed.
+    expect(presses).toHaveLength(1);
+    expect(presses[0].segment).toBe('front');
+    expect(presses[0].startHole).toBe(2);
+    expect(presses[0].endHole).toBe(8);
+    expect(presses[0].pressAfterHole).toBe(1);
+  });
+
+  it('presses only the back nine from a back-nine hole', () => {
+    const sideNet = playHoles(blank(), { side1Wins: [9, 10, 11] });
+    const { matches } = computeNassau({ sides: ['A', 'B'], sideNet, manualPressHoles: [11] });
+    const presses = matches.filter((m) => m.kind === 'press');
+    expect(presses).toHaveLength(1);
+    expect(presses[0].segment).toBe('back');
+    expect(presses[0].startHole).toBe(12);
+    expect(presses[0].endHole).toBe(17);
+  });
+
+  it('makes no press after hole 9 or hole 18, where the nine has nothing left', () => {
+    const sideNet = playHoles(blank(), { halved: Array.from({ length: 18 }, (_, i) => i) });
+    const { matches } = computeNassau({ sides: ['A', 'B'], sideNet, manualPressHoles: [8, 17] });
+    expect(matches.filter((m) => m.kind === 'press')).toHaveLength(0);
+  });
+
+  // Round JEM2DN (#90): $10 front/back/overall, a press after 3 and another after 12. The two
+  // taps made five $10 press lines and M owed R $70. They should make two.
+  it('turns two taps into two press lines in the settlement, not five', () => {
+    const sideNet = playHoles(blank(), { side1Wins: [0, 1, 2], halved: [3, 4, 5, 6, 7, 8, 12] });
+    playHoles(sideNet, { side1Wins: [9, 10, 11, 13, 14, 15, 16, 17] });
+    const { matches } = computeNassau({ sides: ['A', 'B'], sideNet, manualPressHoles: [2, 11] });
+    const segs = nassauSettlementSegments({
+      matches,
+      sideNames: ['A', 'B'],
+      wager: { nassau_front: 10, nassau_back: 10, nassau_overall: 10, nassau_press: 0 },
     });
+    expect(segs.map((s) => s.label)).toEqual([
+      'Front 9', 'Back 9', 'Overall', 'Front 9 press (after 3)', 'Back 9 press (after 12)',
+    ]);
+    expect(segs.every((s) => s.stake === 10)).toBe(true);
   });
 
   it('scores a press only from its own start, independent of the parent', () => {
@@ -128,8 +162,8 @@ describe('computeNassau', () => {
     const { matches } = computeNassau({ sides: ['A', 'B'], sideNet, manualPressHoles: [4] });
     const frontPress = matches.find((m) => m.kind === 'press' && m.segment === 'front');
     expect(frontPress).toBeUndefined();
-    // The overall match is still open, so it can still be pressed.
-    expect(matches.find((m) => m.kind === 'press' && m.segment === 'overall')).toBeDefined();
+    // The tap was on the front nine, so nothing else is pressed in its place.
+    expect(matches.filter((m) => m.kind === 'press')).toHaveLength(0);
   });
 
   it('does not press a segment with no holes left in it', () => {

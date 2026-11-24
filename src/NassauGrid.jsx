@@ -84,6 +84,8 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
 
   // Which holes currently have both sides scored (so a press is meaningful there).
   const holeScored = (holeIndex) => sideNet[0][holeIndex] > 0 && sideNet[1][holeIndex] > 0;
+  // A press runs from the next hole to the end of its nine, so after 9 or 18 there is nothing to press.
+  const canPress = (holeIndex) => holeScored(holeIndex) && holeIndex !== 8 && holeIndex !== 17;
   const pressActiveAfter = (holeIndex) => presses.includes(holeIndex);
 
   const openHoleInfo = (holeIndex) => {
@@ -162,7 +164,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
               {[...Array(9)].map((_, i) => (
                 <th key={`fc-${i}`} style={{ padding: '2px', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1c1c1c' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
-                    {holeScored(i) && (
+                    {canPress(i) && (
                       <button onClick={() => (pressActiveAfter(i) ? removePress(i) : addPress(i))}
                         style={{ fontSize: '8px', padding: '1px 4px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold', background: pressActiveAfter(i) ? '#1565C0' : '#333', color: pressActiveAfter(i) ? '#fff' : '#64B5F6' }}>
                         {pressActiveAfter(i) ? 'ON' : 'PRS'}
@@ -178,7 +180,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
                 return (
                   <th key={`bc-${i}`} style={{ padding: '2px', borderLeft: '1px solid #2a2a2a', backgroundColor: '#1c1c1c' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
-                      {holeScored(realIndex) && (
+                      {canPress(realIndex) && (
                         <button onClick={() => (pressActiveAfter(realIndex) ? removePress(realIndex) : addPress(realIndex))}
                           style={{ fontSize: '8px', padding: '1px 4px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold', background: pressActiveAfter(realIndex) ? '#1565C0' : '#333', color: pressActiveAfter(realIndex) ? '#fff' : '#64B5F6' }}>
                           {pressActiveAfter(realIndex) ? 'ON' : 'PRS'}

@@ -35,20 +35,20 @@ const SCORES = Array.from({ length: 9 }, (_, i) => i + 1).flatMap((hole) => [
 ]);
 
 // Returns { patch }: the last update the round sent to matches.
-async function joinRound(page) {
+async function joinRound(page, match = MATCH) {
   const sent = { patch: null };
   await page.route('**/rest/v1/matches*', (route) => {
     if (route.request().method() === 'PATCH') {
       sent.patch = JSON.parse(route.request().postData() || '{}');
-      return route.fulfill({ json: [{ id: MATCH.id }] });
+      return route.fulfill({ json: [{ id: match.id }] });
     }
     if (route.request().method() !== 'GET') return route.fallback();
     const single = (route.request().headers()['accept'] || '').includes('vnd.pgrst.object');
-    return route.fulfill({ json: single ? MATCH : [MATCH] });
+    return route.fulfill({ json: single ? match : [match] });
   });
   await page.route('**/rest/v1/players*', (route) => {
     const url = new URL(route.request().url());
-    if (route.request().method() !== 'GET' || url.searchParams.get('match_id') !== `eq.${MATCH.id}`) {
+    if (route.request().method() !== 'GET' || url.searchParams.get('match_id') !== `eq.${match.id}`) {
       return route.fallback();
     }
     return route.fulfill({ json: PLAYERS });
@@ -59,7 +59,7 @@ async function joinRound(page) {
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Join Round' }).click();
-  await page.getByPlaceholder('ABC123').fill(MATCH.match_code);
+  await page.getByPlaceholder('ABC123').fill(match.match_code);
   await page.getByRole('button', { name: 'Join Round' }).click();
   return sent;
 }
@@ -78,4 +78,28 @@ test('Nassau: one press after hole 3 is one front-nine bet', async ({ page }) =>
   await expect(page.getByText('Front 9 press (after 3)')).toBeVisible();
   await expect(page.getByText(/^Back 9 press/)).toHaveCount(0);
   await expect(page.getByText(/^Overall press/)).toHaveCount(0);
+});
+
+// #91: the summary screen had no 💰 Money button, so the settle-up vanished at Finish Round and
+// stayed gone when the round was reopened. With the press after 3: B wins the front 3 up ($10),
+// the press is halved over 4-9, and the back and overall are unfinished, so P owes B $10.
+async function expectSettleUp(page) {
+  await page.getByRole('button', { name: '💰 Money' }).click();
+  await expect(page.getByText('Front 9 press (after 3)')).toBeVisible();
+  await expect(page.getByText('+$10.00')).toBeVisible();
+  await expect(page.getByText('-$10.00')).toBeVisible();
+}
+
+test('Nassau: the settle-up is still there after Finish Round', async ({ page }) => {
+  await joinRound(page, { ...MATCH, presses: [2] });
+  await page.getByRole('button', { name: /Finish Round/ }).click();
+  await expect(page.getByText(/Round Complete/)).toBeVisible();
+  await expectSettleUp(page);
+});
+
+test('Nassau: the settle-up is there on a finished round reopened by code', async ({ page }) => {
+  await joinRound(page, { ...MATCH, presses: [2], status: 'completed' });
+  await expect(page.getByText(/Round Complete/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Finish Round/ })).toHaveCount(0);
+  await expectSettleUp(page);
 });

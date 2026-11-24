@@ -38,6 +38,33 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
   const [t1Name, t2Name] = sides;
   const getHoleWinner = (holeIndex) => nassauHoleWinner({ sides, sideNet }, holeIndex);
 
+  const nassau = computeNassau({ sides: [t1Name, t2Name], sideNet, manualPressHoles: presses });
+  const segments = nassauSettlementSegments({ matches: nassau.matches, sideNames: [t1Name, t2Name], wager });
+  const settlement = settleNassau({ wager, teamNames: [t1Name, t2Name], segments });
+  const hasStake = wagerHasStake(wager);
+
+  // The 💵 Wager and 💰 Money buttons and the screens they open. The summary shows them too, so the
+  // settle-up is still there once the round is finished or reopened later (#91).
+  const betButtons = (
+    <>
+      <button onClick={() => setShowWager(true)} style={{ background: '#333', color: '#64B5F6', border: '1px solid #64B5F6', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>💵 Wager</button>
+      {hasStake && <button onClick={() => setShowMoney(true)} style={{ background: '#1565C0', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>💰 Money</button>}
+    </>
+  );
+  const moneyScreens = (
+    <>
+      {showWager && (
+        <WagerConfig gameType="nassau" wager={wager} accent="#1565C0"
+          onClose={() => setShowWager(false)}
+          onSave={(w) => { saveWager(w); setShowWager(false); }} />
+      )}
+      {showMoney && (
+        <MoneyModal settlement={settlement} gameName="Nassau" accent="#1565C0"
+          onClose={() => setShowMoney(false)} />
+      )}
+    </>
+  );
+
   if (showSummary) {
     return (
       <MatchSummary
@@ -53,6 +80,10 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
         startHole={startHole}
         onBack={isBanked ? undefined : () => setShowSummary(false)}
         onNewMatch={onNewMatch}
+        actions={<>
+          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '20px' }}>{betButtons}</div>
+          {moneyScreens}
+        </>}
       />
     );
   }
@@ -76,11 +107,6 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
     if (diff < 0) return `${t2Name} +${Math.abs(diff)}`;
     return "AS";
   };
-
-  const nassau = computeNassau({ sides: [t1Name, t2Name], sideNet, manualPressHoles: presses });
-  const segments = nassauSettlementSegments({ matches: nassau.matches, sideNames: [t1Name, t2Name], wager });
-  const settlement = settleNassau({ wager, teamNames: [t1Name, t2Name], segments });
-  const hasStake = wagerHasStake(wager);
 
   // Which holes currently have both sides scored (so a press is meaningful there).
   const holeScored = (holeIndex) => sideNet[0][holeIndex] > 0 && sideNet[1][holeIndex] > 0;
@@ -123,8 +149,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
           </div>
         </div>
         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginTop: '12px' }}>
-          <button onClick={() => setShowWager(true)} style={{ background: '#333', color: '#64B5F6', border: '1px solid #64B5F6', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>💵 Wager</button>
-          {hasStake && <button onClick={() => setShowMoney(true)} style={{ background: '#1565C0', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>💰 Money</button>}
+          {betButtons}
         </div>
         {presses.length > 0 && (
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '8px' }}>
@@ -283,15 +308,7 @@ export default function NassauGrid({ matchId, matchName, matchCode, players, use
       </div>
       <div style={{ height: '70px', flexShrink: 0 }} />
 
-      {showWager && (
-        <WagerConfig gameType="nassau" wager={wager} accent="#1565C0"
-          onClose={() => setShowWager(false)}
-          onSave={(w) => { saveWager(w); setShowWager(false); }} />
-      )}
-      {showMoney && (
-        <MoneyModal settlement={settlement} gameName="Nassau" accent="#1565C0"
-          onClose={() => setShowMoney(false)} />
-      )}
+      {moneyScreens}
       {holeInfo && (
         <HoleInfoModal info={holeInfo} gameName="Nassau" accent="#1565C0"
           onClose={() => setHoleInfo(null)} />

@@ -16,7 +16,7 @@ import RequestCourseForm from './components/RequestCourseForm';
 import ReportCourseIssue from './components/ReportCourseIssue';
 import { gameDescriptions, gameRecentLabels } from './lib/gameRegistry';
 import { fetchHandicapIndexes, fetchRoundParticipation, courseHandicap, playingHandicaps, describeIndex } from './lib/handicap';
-import { sideNames } from './lib/teams';
+import { sideNames, activeTeams } from './lib/teams';
 import PlayerDirectory from './components/PlayerDirectory';
 import PlayerPage from './components/PlayerPage';
 import PlayerPicker from './components/PlayerPicker';
@@ -1394,11 +1394,19 @@ function App() {
 
           <h3>2. Assign Players</h3>
 
-          {gameType === 'fourball' && (
-            <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#856404' }}>
-              ⚔️ <strong>4-Ball Round Robin:</strong> All teams play against each other (6 matchups with 4 teams). Best ball per team counts on each hole. Points: Win=1, Halve=0.5.
-            </div>
-          )}
+          {gameType === 'fourball' && (() => {
+            const teamCount = activeTeams(players).length;
+            const matchupCount = teamCount * (teamCount - 1) / 2;
+            return (
+              <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#856404' }}>
+                {teamCount > 2 ? (
+                  <>⚔️ <strong>4-Ball Round Robin:</strong> All teams play against each other ({matchupCount} matchups with {teamCount} teams). Best ball per team counts on each hole. Points: Win=1, Halve=0.5.</>
+                ) : (
+                  <>⚔️ <strong>4-Ball Match Play:</strong> Team A vs Team B. Best ball per team counts on each hole. Points: Win=1, Halve=0.5.</>
+                )}
+              </div>
+            );
+          })()}
 
           <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px', color: '#666' }}>
             <div style={{ flex: 2 }}>Player</div>

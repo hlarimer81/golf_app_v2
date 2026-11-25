@@ -215,7 +215,7 @@ export default function FourBallGrid({ matchId, matchName, matchCode, players, u
       {/* --- OVERALL STANDINGS (STICKY) --- */}
       <div style={{ flexShrink: 0, background: '#1e1e1e', padding: '15px', borderRadius: '12px', marginBottom: '15px', borderBottom: '2px solid #4CAF50', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>
         <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', marginBottom: '10px' }}>
-          4-Ball Round Robin Standings
+          {activeTeams.length > 2 ? '4-Ball Round Robin Standings' : '4-Ball Match Play Standings'}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', gap: '8px', textAlign: 'center' }}>
           {sortedTeams.map((team, idx) => {

@@ -69,7 +69,7 @@ async function joinRound(page, match, scores) {
   await page.getByRole('button', { name: 'Join Round' }).click();
   await page.getByPlaceholder('ABC123').fill(match.match_code);
   await page.getByRole('button', { name: 'Join Round' }).click();
-  await expect(page.getByText('4-Ball Round Robin Standings')).toBeVisible();
+  await expect(page.getByText('4-Ball Match Play Standings')).toBeVisible();
 }
 
 test('teams level on points both show no trophy (issue #83)', async ({ page }) => {

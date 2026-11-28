@@ -208,8 +208,8 @@ export default function GolfScoreTile({
       aria-label={`Vegas points won on this hole: ${vegasPoints}`}
       style={{
         position: 'absolute',
-        bottom: '-4px',
-        right: '-4px',
+        bottom: '2px',
+        right: '2px',
         fontSize: '10px',
         fontWeight: '900',
         color: '#E91E63',

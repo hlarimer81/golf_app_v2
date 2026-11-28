@@ -156,3 +156,34 @@ test('a Vegas point badge stays anchored to its own score tile, not the wider ce
     expect(badgeBox.y + badgeBox.height).toBeLessThanOrEqual(tileBox.y + tileBox.height + MARGIN);
   }
 });
+
+// Issue #94 (found by Rough on an 18-hole net Vegas round): within that small margin above, the
+// badge was positioned at bottom:-4px, right:-4px relative to the 38px tile - outside the tile's
+// own box on purpose, so it overlapped the white border drawn at the tile's edge and looked
+// clipped on the narrower per-hole columns. The fix moves it to a small positive inset so it sits
+// fully inside the tile instead.
+test('a Vegas points badge sits fully inside its score tile, clear of the border', async ({ page }) => {
+  await serveRound(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+  await page.getByPlaceholder('ABC123').fill('VEGAS1');
+  await page.getByRole('button', { name: 'Join Round' }).click();
+
+  await expect(page.getByText('+12', { exact: true }).first()).toBeVisible();
+
+  // The badge itself, not any wrapping div, is the only element carrying this aria-label.
+  const badgeSelector = '[aria-label^="Vegas points won"]';
+  const cellsWithBadges = page.locator('tbody td').filter({ has: page.locator(badgeSelector) });
+  const count = await cellsWithBadges.count();
+  expect(count).toBeGreaterThan(0);
+
+  for (let i = 0; i < count; i++) {
+    const cell = cellsWithBadges.nth(i);
+    const badgeBox = await cell.locator(badgeSelector).boundingBox();
+    const tileBox = await cell.locator('input').boundingBox();
+    expect(badgeBox.x).toBeGreaterThanOrEqual(tileBox.x);
+    expect(badgeBox.y).toBeGreaterThanOrEqual(tileBox.y);
+    expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(tileBox.x + tileBox.width);
+    expect(badgeBox.y + badgeBox.height).toBeLessThanOrEqual(tileBox.y + tileBox.height);
+  }
+});
